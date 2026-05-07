@@ -1,0 +1,1642 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#0f0f10">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>작업량 입력</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@500;700&family=Noto+Sans+KR:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    :root {
+      --bg: #0f0f10;
+      --surface: rgba(255,255,255,0.03);
+      --border: rgba(255,255,255,0.08);
+      --text: #f5f0e6;
+      --text-dim: #8a857a;
+      --text-muted: #5a564f;
+      --amber: #ffd60a;
+      --emerald: #00d97e;
+      --red: #ff3d6e;
+      --blue: #5ac8fa;
+    }
+    html, body {
+      background: var(--bg); color: var(--text);
+      font-family: 'Noto Sans KR', system-ui, -apple-system, sans-serif;
+      min-height: 100vh; overflow-x: hidden;
+      -webkit-font-smoothing: antialiased; user-select: none;
+    }
+    body {
+      background-image:
+        linear-gradient(rgba(255,214,10,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,214,10,0.04) 1px, transparent 1px);
+      background-size: 32px 32px;
+    }
+    button { background: none; border: none; color: inherit; font: inherit; cursor: pointer; }
+    input, textarea { background: none; border: none; color: inherit; font: inherit; outline: none; user-select: text; }
+
+    .app { max-width: 480px; margin: 0 auto; padding-bottom: 32px; min-height: 100vh; position: relative; }
+    .screen { display: none; }
+    .screen.active { display: block; }
+
+    /* SETUP */
+    .setup { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; }
+    .setup-icon { width: 80px; height: 80px; border-radius: 20px; background: linear-gradient(135deg, rgba(255,214,10,0.2), rgba(255,170,0,0.1)); border: 1px solid rgba(255,214,10,0.3); display: flex; align-items: center; justify-content: center; margin-bottom: 24px; }
+    .setup-tag { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.3em; color: rgba(255,214,10,0.7); }
+    .setup-title { font-size: 28px; font-weight: 900; margin-top: 8px; margin-bottom: 4px; }
+    .setup-sub { font-size: 14px; color: var(--text-dim); margin-bottom: 32px; text-align: center; }
+    .input-field { width: 100%; padding: 16px 20px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 12px; font-size: 17px; font-weight: 600; color: var(--text); margin-bottom: 16px; }
+    .input-field:focus { border-color: rgba(255,214,10,0.6); }
+    .input-field::placeholder { color: var(--text-muted); font-weight: 400; }
+    .btn-primary { width: 100%; padding: 16px; border-radius: 12px; font-size: 17px; font-weight: 700; background: var(--amber); color: #0f0f10; display: flex; align-items: center; justify-content: center; gap: 6px; }
+    .btn-primary:disabled { opacity: 0.3; background: rgba(255,255,255,0.05); color: var(--text-muted); }
+    .btn-primary:active:not(:disabled) { transform: scale(0.98); }
+
+    /* HEADER */
+    .header { padding: 24px 20px 16px; display: flex; justify-content: space-between; align-items: flex-start; }
+    .header-tag { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.25em; color: rgba(255,214,10,0.7); }
+    .header-name { font-size: 22px; font-weight: 700; margin-top: 2px; }
+    .header-id { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); margin-top: 2px; display: flex; align-items: center; gap: 6px; }
+    .conn-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-muted); }
+    .conn-dot.online { background: var(--emerald); box-shadow: 0 0 6px rgba(0,217,126,0.6); }
+    .conn-dot.offline { background: var(--red); }
+    .icon-btn { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; }
+    .icon-btn:active { background: var(--surface); }
+
+    /* TABS - 3개 */
+    .tabs { margin: 0 20px 20px; padding: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: 999px; display: flex; }
+    .tab { flex: 1; padding: 10px 4px; border-radius: 999px; font-size: 12px; font-weight: 600; color: var(--text-dim); display: flex; align-items: center; justify-content: center; gap: 4px; position: relative; }
+    .tab.active { background: var(--amber); color: #0f0f10; }
+    .tab-badge { background: var(--red); color: white; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 999px; min-width: 18px; text-align: center; }
+    .tab.active .tab-badge { background: #0f0f10; color: var(--amber); }
+
+    .label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.2em; color: var(--text-muted); margin-bottom: 8px; }
+
+    /* SCAN */
+    .scan-section { padding: 0 20px; margin-bottom: 20px; }
+    .scan-entry { width: 100%; aspect-ratio: 4/3; border-radius: 16px; border: 2px dashed rgba(255,214,10,0.3); background: rgba(255,214,10,0.03); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
+    .scan-entry:active { background: rgba(255,214,10,0.06); }
+    .scan-icon-wrap { width: 64px; height: 64px; border-radius: 16px; border: 1px solid rgba(255,214,10,0.4); background: rgba(255,214,10,0.08); display: flex; align-items: center; justify-content: center; animation: pulse-amber 1.6s infinite; }
+    @keyframes pulse-amber { 0%,100% { box-shadow: 0 0 0 0 rgba(255,214,10,0.4); } 50% { box-shadow: 0 0 0 12px rgba(255,214,10,0); } }
+    .scan-text { font-weight: 600; font-size: 16px; }
+    .scan-formats { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.15em; color: var(--text-muted); }
+
+    /* PART INPUT */
+    .part-section { padding: 0 20px; margin-bottom: 16px; }
+    .part-input-wrap { position: relative; }
+    .part-input { width: 100%; padding: 16px 20px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 12px; font-size: 18px; font-weight: 600; }
+    .part-input:focus { border-color: rgba(255,214,10,0.6); }
+    .part-input::placeholder { color: var(--text-muted); font-weight: 400; }
+    .part-clear { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); width: 32px; height: 32px; border-radius: 50%; background: rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; }
+
+    /* INFO CARD */
+    .info-card { margin: 0 20px 20px; padding: 16px; border-radius: 12px; border: 1px solid var(--border); background: rgba(255,255,255,0.02); }
+    .info-card.matched { border-color: rgba(0,217,126,0.3); background: rgba(0,217,126,0.04); }
+    .info-card.unmatched { border-color: rgba(255,61,110,0.3); background: rgba(255,61,110,0.04); }
+    .info-row { display: flex; padding: 6px 0; font-size: 14px; }
+    .info-row + .info-row { border-top: 1px solid rgba(255,255,255,0.04); }
+    .info-key { width: 70px; flex-shrink: 0; color: var(--text-dim); font-size: 13px; }
+    .info-val { flex: 1; font-weight: 600; }
+    .info-status { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; margin-bottom: 8px; }
+    .info-status.matched { color: var(--emerald); }
+    .info-status.unmatched { color: var(--red); }
+    .info-status.empty { color: var(--text-muted); }
+
+    /* QTY */
+    .qty-section { padding: 0 20px; margin-bottom: 24px; }
+    .qty-stepper { padding: 16px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .qty-btn { width: 64px; height: 64px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .qty-btn-minus { background: rgba(255,255,255,0.08); }
+    .qty-btn-plus { background: var(--amber); }
+    .qty-btn:active { transform: scale(0.95); }
+    .qty-btn:disabled { opacity: 0.3; }
+    .qty-display { display: flex; flex-direction: column; align-items: center; flex: 1; min-width: 0; }
+    .qty-num { font-family: 'Bebas Neue', sans-serif; font-size: 64px; line-height: 1; color: var(--amber); font-variant-numeric: tabular-nums; text-align: center; width: 100%; padding: 0; background: transparent; border: 1px dashed transparent; border-radius: 8px; transition: border-color 0.2s; }
+    .qty-num:focus { border-color: rgba(255,214,10,0.4); }
+    .qty-unit { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.2em; color: var(--text-muted); margin-top: 4px; }
+    .qty-quick { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 8px; }
+    .qty-quick-btn { padding: 10px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid var(--border); font-family: 'JetBrains Mono', monospace; font-size: 14px; color: var(--text-dim); }
+    .qty-quick-btn:active { background: var(--surface); }
+
+    .submit-section { padding: 0 20px; }
+    .submit-btn { width: 100%; padding: 20px; border-radius: 16px; font-size: 18px; font-weight: 700; background: linear-gradient(135deg, var(--amber), #ffaa00); color: #0f0f10; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 8px 24px rgba(255,214,10,0.25); }
+    .submit-btn:disabled { opacity: 0.3; background: rgba(255,255,255,0.05); color: var(--text-muted); box-shadow: none; }
+    .submit-btn:active:not(:disabled) { transform: scale(0.98); }
+
+    /* PENDING / SENT 공통 */
+    .tab-content { padding: 0 20px; }
+
+    /* 헤더 통계 박스 */
+    .stat-card { padding: 20px; border-radius: 16px; margin-bottom: 20px; border: 1px solid; }
+    .stat-card.pending { background: linear-gradient(135deg, rgba(90,200,250,0.08), transparent); border-color: rgba(90,200,250,0.3); }
+    .stat-card.sent { background: linear-gradient(135deg, rgba(0,217,126,0.08), transparent); border-color: rgba(0,217,126,0.3); }
+    .stat-tag { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.2em; }
+    .stat-card.pending .stat-tag { color: rgba(90,200,250,0.9); }
+    .stat-card.sent .stat-tag { color: rgba(0,217,126,0.9); }
+    .stat-sub { font-size: 14px; color: var(--text-dim); margin-top: 2px; }
+    .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 12px; }
+    .stat-item-label { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 0.15em; color: var(--text-muted); margin-bottom: 4px; }
+    .stat-num-wrap { display: flex; align-items: baseline; gap: 6px; }
+    .stat-num { font-family: 'Bebas Neue', sans-serif; font-size: 48px; line-height: 1; color: var(--text); font-variant-numeric: tabular-nums; }
+    .stat-card.pending .stat-num { color: var(--blue); }
+    .stat-card.sent .stat-num { color: var(--emerald); }
+    .stat-unit { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-muted); }
+
+    /* 리스트 항목 */
+    .item-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+    .item-row { padding: 12px; background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 10px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .item-info { min-width: 0; flex: 1; }
+    .item-part { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700; }
+    .item-name { font-size: 12px; color: var(--text-dim); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .item-meta { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+    .item-qty { font-family: 'Bebas Neue', sans-serif; font-size: 28px; color: var(--amber); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+    .item-actions { display: flex; gap: 4px; flex-shrink: 0; }
+    .item-icon-btn { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+    .item-icon-btn.delete { background: rgba(255,61,110,0.1); }
+    .item-icon-btn.delete:active { background: rgba(255,61,110,0.25); }
+    .item-icon-btn.edit { background: rgba(255,214,10,0.1); }
+    .item-icon-btn.edit:active { background: rgba(255,214,10,0.25); }
+
+    /* 품번별 통계 */
+    .part-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+    .part-stat { padding: 12px; background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 12px; }
+    .part-stat-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+    .part-stat-name { font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 700; }
+    .part-stat-qty { font-family: 'Bebas Neue', sans-serif; font-size: 24px; color: var(--amber); font-variant-numeric: tabular-nums; }
+    .part-stat-detail { font-size: 12px; color: var(--text-dim); margin-bottom: 8px; }
+    .part-stat-bar { height: 4px; border-radius: 2px; background: rgba(255,255,255,0.05); overflow: hidden; }
+    .part-stat-fill { height: 100%; border-radius: 2px; background: var(--amber); transition: width 0.4s; }
+
+    .empty { text-align: center; padding: 48px 24px; color: var(--text-muted); font-size: 14px; }
+    .empty-icon { width: 56px; height: 56px; border-radius: 16px; background: rgba(255,255,255,0.03); display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; }
+
+    /* 최종 전송 버튼 */
+    .send-section { position: sticky; bottom: 16px; padding: 0; margin-top: 16px; }
+    .send-btn { width: 100%; padding: 18px; border-radius: 16px; font-size: 18px; font-weight: 700; background: linear-gradient(135deg, var(--emerald), #00b86a); color: white; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 8px 24px rgba(0,217,126,0.3); }
+    .send-btn:disabled { opacity: 0.4; background: rgba(255,255,255,0.05); color: var(--text-muted); box-shadow: none; }
+    .send-btn:active:not(:disabled) { transform: scale(0.98); }
+    .send-btn .spin { animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .actions-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 16px; }
+    .action-btn { padding: 14px; border-radius: 12px; border: 1px solid var(--border); background: rgba(255,255,255,0.03); font-size: 14px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px; }
+    .action-btn:active { background: var(--surface); }
+    .action-btn.danger { border-color: rgba(255,61,110,0.3); color: #ff8caa; }
+
+    /* TOAST */
+    .toast { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; pointer-events: none; padding: 24px; }
+    .toast.hidden { display: none; }
+    .toast-card { border-radius: 24px; padding: 24px 32px; display: flex; flex-direction: column; align-items: center; gap: 8px; animation: pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); max-width: 100%; text-align: center; }
+    .toast-card.success { background: var(--emerald); box-shadow: 0 20px 60px rgba(0,217,126,0.4); }
+    .toast-card.info { background: var(--blue); box-shadow: 0 20px 60px rgba(90,200,250,0.4); color: #0f0f10; }
+    .toast-card.error { background: var(--red); box-shadow: 0 20px 60px rgba(255,61,110,0.4); }
+    @keyframes pop { 0% { transform: scale(0.5); opacity: 0; } 50% { transform: scale(1.1); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+    .toast-icon { width: 56px; height: 56px; border-radius: 50%; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; }
+    .toast-text { color: white; font-weight: 700; font-size: 17px; }
+    .toast-card.info .toast-text { color: #0f0f10; }
+    .toast-sub { font-size: 13px; color: rgba(255,255,255,0.85); font-weight: 500; }
+    .toast-card.info .toast-sub { color: rgba(15,15,16,0.7); }
+
+    /* MODAL */
+    .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); z-index: 90; display: none; align-items: flex-end; }
+    .modal-bg.active { display: flex; }
+    .modal { width: 100%; max-width: 480px; margin: 0 auto; background: #18181a; border-radius: 24px 24px 0 0; padding: 24px 20px 32px; max-height: 85vh; overflow-y: auto; }
+    .modal-handle { width: 36px; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.2); margin: 0 auto 16px; }
+    .modal-title { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+    .modal-sub { font-size: 13px; color: var(--text-dim); margin-bottom: 20px; }
+    .modal-btns { display: flex; flex-direction: column; gap: 8px; }
+    .modal-btn { width: 100%; padding: 16px; border-radius: 12px; font-size: 15px; font-weight: 600; background: rgba(255,255,255,0.06); color: var(--text); display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .modal-btn:active { background: rgba(255,255,255,0.1); }
+    .modal-btn.ghost { background: transparent; color: var(--text-dim); }
+    .modal-btn.danger { background: rgba(255,61,110,0.1); color: #ff8caa; }
+    .csv-area { width: 100%; min-height: 120px; padding: 12px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 12px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text); resize: vertical; }
+    .modal-input { width: 100%; padding: 14px 16px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 10px; font-size: 14px; color: var(--text); margin-bottom: 8px; font-family: 'JetBrains Mono', monospace; }
+    .modal-input:focus { border-color: rgba(255,214,10,0.6); }
+    .modal-status { padding: 10px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; margin: 8px 0; display: none; }
+    .modal-status.success { display: block; background: rgba(0,217,126,0.1); color: var(--emerald); }
+    .modal-status.error { display: block; background: rgba(255,61,110,0.1); color: #ff8caa; }
+
+    /* CAMERA */
+    .cam-modal { position: fixed; inset: 0; background: #000; z-index: 200; display: none; }
+    .cam-modal.active { display: block; }
+    .cam-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    .cam-overlay { position: absolute; inset: 0; pointer-events: none; }
+    .cam-frame { position: absolute; left: 10%; right: 10%; top: 38%; height: 24%; border: 3px solid var(--amber); border-radius: 12px; box-shadow: 0 0 0 9999px rgba(0,0,0,0.55); pointer-events: none; }
+    .cam-frame::before, .cam-frame::after { content: ''; position: absolute; width: 24px; height: 24px; border: 4px solid var(--amber); }
+    .cam-frame::before { top: -4px; left: -4px; border-right: none; border-bottom: none; border-radius: 4px 0 0 0; }
+    .cam-frame::after { bottom: -4px; right: -4px; border-left: none; border-top: none; border-radius: 0 0 4px 0; }
+    .cam-hint { position: absolute; left: 0; right: 0; top: calc(38% - 50px); text-align: center; color: var(--amber); font-size: 13px; font-weight: 600; text-shadow: 0 1px 4px rgba(0,0,0,0.8); pointer-events: none; padding: 0 16px; }
+    .cam-result { position: absolute; left: 16px; right: 16px; bottom: 180px; padding: 16px; background: rgba(0,0,0,0.9); backdrop-filter: blur(8px); border-radius: 16px; border: 1px solid var(--amber); display: none; }
+    .cam-result.active { display: block; animation: pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+    .cam-result.error { border-color: var(--red); }
+    .cam-result-tag { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.2em; color: var(--amber); margin-bottom: 6px; font-weight: 700; }
+    .cam-result.error .cam-result-tag { color: var(--red); }
+    .cam-result-code { font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 700; color: white; word-break: break-all; }
+    .cam-result-name { font-size: 14px; color: var(--text-dim); margin-top: 4px; }
+    .cam-result-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+    .cam-result-btn { padding: 14px; border-radius: 10px; font-size: 15px; font-weight: 700; }
+    .cam-result-btn.use { background: var(--amber); color: #0f0f10; }
+    .cam-result-btn.retry { background: rgba(255,255,255,0.15); color: white; }
+    .cam-controls { position: absolute; bottom: 0; left: 0; right: 0; padding: 24px 16px 36px; display: flex; align-items: center; justify-content: space-between; background: linear-gradient(to top, rgba(0,0,0,0.7), transparent); }
+    .cam-control-btn { width: 48px; height: 48px; border-radius: 50%; background: rgba(255,255,255,0.15); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; }
+    .cam-control-btn:active { background: rgba(255,255,255,0.25); }
+    .cam-shutter { width: 80px; height: 80px; border-radius: 50%; background: var(--amber); border: 4px solid white; box-shadow: 0 0 0 4px rgba(255,214,10,0.3); }
+    .cam-shutter:active { transform: scale(0.92); }
+    .cam-shutter:disabled { background: rgba(255,255,255,0.3); border-color: rgba(255,255,255,0.5); box-shadow: none; }
+    .cam-flash { position: absolute; inset: 0; background: white; opacity: 0; pointer-events: none; }
+    .cam-flash.flashing { opacity: 0.6; transition: opacity 0.15s; }
+    .cam-error-msg { position: absolute; left: 16px; right: 16px; bottom: 180px; padding: 14px; background: rgba(0,0,0,0.9); border: 1px solid var(--red); border-radius: 12px; color: #ff8caa; font-size: 13px; line-height: 1.5; display: none; }
+    .cam-error-msg.active { display: block; animation: pop 0.3s ease-out; }
+
+    .footer { text-align: center; padding: 24px; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); letter-spacing: 0.15em; }
+
+    /* QC (불량 입력) */
+    .qc-section { padding: 0 20px; margin-bottom: 24px; }
+
+    .add-defect-btn { width: 100%; padding: 14px; border-radius: 12px; background: rgba(255,61,110,0.06); border: 1.5px dashed rgba(255,61,110,0.3); color: #ff8caa; font-size: 14px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .add-defect-btn:active { background: rgba(255,61,110,0.1); }
+
+    .defect-area { padding: 16px; background: rgba(255,61,110,0.05); border: 1px solid rgba(255,61,110,0.25); border-radius: 14px; }
+
+    .defect-select { width: 100%; padding: 12px 14px; background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 10px; display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+    .defect-select:active { background: rgba(0,0,0,0.3); }
+    .defect-select-info { min-width: 0; flex: 1; text-align: left; }
+    .defect-select-label { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--text-muted); letter-spacing: 0.15em; margin-bottom: 2px; }
+    .defect-select-value { font-size: 14px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .defect-select.empty .defect-select-value { color: var(--text-muted); font-weight: 500; }
+    .defect-select-code { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #ff8caa; margin-top: 2px; }
+
+    .defect-qty-row { margin-bottom: 12px; }
+    .defect-qty-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); letter-spacing: 0.15em; margin-bottom: 6px; }
+    .defect-qty-warn { color: #ff8caa; font-weight: 700; }
+
+    .qty-stepper-mini { display: flex; align-items: center; gap: 8px; padding: 8px; background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 10px; }
+    .qty-mini-btn { width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .qty-mini-btn-minus { background: rgba(255,255,255,0.06); }
+    .qty-mini-btn-plus { background: rgba(255,61,110,0.2); }
+    .qty-mini-btn:active { transform: scale(0.95); }
+    .qty-mini-btn:disabled { opacity: 0.3; }
+    .qty-mini-input { flex: 1; min-width: 0; text-align: center; font-family: 'Bebas Neue', sans-serif; font-size: 32px; line-height: 1; color: #ff8caa; font-variant-numeric: tabular-nums; padding: 0; background: transparent; border: 1px dashed transparent; border-radius: 6px; }
+    .qty-mini-input:focus { border-color: rgba(255,61,110,0.4); }
+    .qty-mini-unit { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted); padding: 0 4px; flex-shrink: 0; }
+
+    .defect-cancel-btn { width: 100%; margin-top: 4px; padding: 10px; border-radius: 10px; background: rgba(255,255,255,0.05); color: var(--text-dim); font-size: 13px; font-weight: 500; display: flex; align-items: center; justify-content: center; gap: 6px; }
+    .defect-cancel-btn:active { background: rgba(255,255,255,0.08); }
+
+    /* 다중 불량 카드 */
+    .defect-card { padding: 12px; background: rgba(0,0,0,0.15); border: 1px solid rgba(255,61,110,0.15); border-radius: 10px; margin-bottom: 8px; }
+    .defect-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .defect-card-tag { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.15em; color: #ff8caa; font-weight: 700; }
+    .defect-remove-btn { width: 26px; height: 26px; border-radius: 50%; background: rgba(255,61,110,0.18); display: flex; align-items: center; justify-content: center; }
+    .defect-remove-btn:active { background: rgba(255,61,110,0.32); }
+    .add-more-defect-btn { width: 100%; padding: 10px; border-radius: 10px; background: rgba(255,255,255,0.04); border: 1px dashed rgba(255,255,255,0.15); color: var(--text-dim); font-size: 13px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 10px; }
+    .add-more-defect-btn:active { background: rgba(255,255,255,0.08); }
+    .defect-total { padding: 10px 12px; background: rgba(0,0,0,0.25); border-radius: 8px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-dim); margin-bottom: 8px; text-align: center; }
+    .defect-total strong { color: #ff8caa; font-weight: 700; }
+    .defect-total.warn { color: #ff8caa; background: rgba(255,61,110,0.1); }
+
+    /* DEFECT MODAL */
+    .defect-list { max-height: 50vh; overflow-y: auto; margin: 8px -4px 12px; padding: 0 4px; }
+    .defect-item { width: 100%; padding: 12px 14px; border-radius: 10px; background: rgba(255,255,255,0.02); border: 1px solid var(--border); display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+    .defect-item:active { background: rgba(255,255,255,0.06); }
+    .defect-item-code { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; color: var(--amber); flex-shrink: 0; min-width: 56px; }
+    .defect-item-name { font-size: 14px; color: var(--text); flex: 1; text-align: left; }
+    .defect-empty { text-align: center; padding: 32px 12px; color: var(--text-muted); font-size: 13px; }
+
+    /* DEFECT BADGE in lists */
+    .item-defect { display: inline-flex; align-items: center; gap: 4px; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: rgba(255,61,110,0.15); color: #ff8caa; margin-right: 4px; }
+    .item-ok { display: inline-flex; align-items: center; gap: 4px; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: rgba(0,217,126,0.12); color: var(--emerald); margin-right: 4px; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- SETUP -->
+    <div class="screen" id="screen-setup">
+      <div class="setup">
+        <div class="setup-icon">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#ffd60a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </div>
+        <div class="setup-tag">WORKER REGISTRATION</div>
+        <h1 class="setup-title">작업자 등록</h1>
+        <p class="setup-sub">이름을 입력하면 작업자 ID가 자동 발급됩니다</p>
+        <input type="text" id="setup-name" class="input-field" placeholder="이름 (예: 김철수)" autocomplete="off">
+        <button id="setup-save" class="btn-primary" disabled>
+          시작하기
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- MAIN -->
+    <div class="screen" id="screen-main">
+      <header class="header">
+        <div>
+          <div class="header-tag">OPERATOR</div>
+          <div class="header-name" id="worker-name">-</div>
+          <div class="header-id">
+            <span class="conn-dot" id="conn-dot"></span>
+            <span id="worker-id">-</span>
+            <span id="conn-text"></span>
+          </div>
+        </div>
+        <button class="icon-btn" id="btn-settings">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a8a29e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
+      </header>
+
+      <div class="tabs">
+        <button class="tab active" data-tab="input">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          입력
+        </button>
+        <button class="tab" data-tab="pending">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          작업내역<span class="tab-badge" id="tab-badge-pending" style="display:none;">0</span>
+        </button>
+        <button class="tab" data-tab="sent">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          제출내역
+        </button>
+      </div>
+
+      <!-- ============ TAB: INPUT ============ -->
+      <div id="tab-input">
+        <div class="scan-section">
+          <div class="label">STEP 1 · 품번 스캔</div>
+          <button class="scan-entry" id="btn-open-cam">
+            <div class="scan-icon-wrap">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ffd60a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            </div>
+            <div class="scan-text">탭하여 카메라 열기</div>
+            <div class="scan-formats">갖다대고 셔터 누르기</div>
+          </button>
+        </div>
+
+        <div class="part-section">
+          <div class="label">품번</div>
+          <div class="part-input-wrap">
+            <input type="text" id="part-number" class="part-input" placeholder="품번 입력 또는 스캔" autocomplete="off">
+            <button class="part-clear" id="part-clear" style="display:none;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a8a29e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="info-card empty" id="info-card">
+          <div class="info-status empty" id="info-status">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            <span>품번을 입력하면 정보가 표시됩니다</span>
+          </div>
+          <div id="info-rows" style="display:none;">
+            <div class="info-row"><div class="info-key">품명</div><div class="info-val" id="info-name">-</div></div>
+            <div class="info-row"><div class="info-key">규격</div><div class="info-val" id="info-spec">-</div></div>
+            <div class="info-row"><div class="info-key">창고</div><div class="info-val" id="info-warehouse">-</div></div>
+          </div>
+        </div>
+
+        <div class="qty-section">
+          <div class="label">STEP 2 · 수량 (직접 입력 가능)</div>
+          <div class="qty-stepper">
+            <button class="qty-btn qty-btn-minus" id="qty-minus">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#f5f0e6" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+            <div class="qty-display">
+              <input type="text" inputmode="numeric" pattern="[0-9]*" id="qty-num" class="qty-num" value="1" maxlength="6">
+              <div class="qty-unit">EA</div>
+            </div>
+            <button class="qty-btn qty-btn-plus" id="qty-plus">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#0f0f10" stroke-width="3" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+          </div>
+          <div class="qty-quick">
+            <button class="qty-quick-btn" data-qty="5">5</button>
+            <button class="qty-quick-btn" data-qty="10">10</button>
+            <button class="qty-quick-btn" data-qty="20">20</button>
+            <button class="qty-quick-btn" data-qty="50">50</button>
+          </div>
+        </div>
+
+        <div class="qc-section">
+          <div class="label">STEP 3 · 불량 (선택사항 — 없으면 모두 양품)</div>
+
+          <!-- 기본: 불량 추가 버튼 -->
+          <button class="add-defect-btn" id="btn-add-defect">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            불량 추가하기
+          </button>
+
+          <!-- 불량 입력 영역 (불량 추가 시 표시) -->
+          <div class="defect-area" id="defect-area" style="display:none;">
+            <div id="defect-list-container"></div>
+            <button class="add-more-defect-btn" id="btn-add-more-defect">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              다른 불량 추가
+            </button>
+            <div class="defect-total" id="defect-total"></div>
+            <button class="defect-cancel-btn" id="btn-cancel-defect">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              불량 없음으로 변경
+            </button>
+          </div>
+        </div>
+
+        <div class="submit-section">
+          <button class="submit-btn" id="btn-add" disabled>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+            작업 내역에 추가
+          </button>
+        </div>
+      </div>
+
+      <!-- ============ TAB: PENDING (작업 내역) ============ -->
+      <div id="tab-pending" class="tab-content" style="display:none;">
+        <div class="stat-card pending">
+          <div class="stat-tag">PENDING · 미전송</div>
+          <div class="stat-sub">최종 전송 대기 중인 작업</div>
+          <div class="stat-grid">
+            <div>
+              <div class="stat-item-label">건수</div>
+              <div class="stat-num-wrap"><span class="stat-num" id="pending-count">0</span><span class="stat-unit">건</span></div>
+            </div>
+            <div>
+              <div class="stat-item-label">합계 수량</div>
+              <div class="stat-num-wrap"><span class="stat-num" id="pending-qty">0</span><span class="stat-unit">EA</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="label">목록 (좌→우 X 버튼으로 삭제)</div>
+        <div id="pending-list-container"></div>
+
+        <div class="send-section">
+          <button class="send-btn" id="btn-send-all" disabled>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            <span id="send-btn-text">전송할 항목 없음</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- ============ TAB: SENT (제출 내역) ============ -->
+      <div id="tab-sent" class="tab-content" style="display:none;">
+        <div class="stat-card sent">
+          <div class="stat-tag">SENT · 전송 완료</div>
+          <div class="stat-sub" id="sent-name">- · 누적 제출량</div>
+          <div class="stat-grid">
+            <div>
+              <div class="stat-item-label">오늘 생산</div>
+              <div class="stat-num-wrap"><span class="stat-num" id="sent-today">0</span><span class="stat-unit">EA</span></div>
+            </div>
+            <div>
+              <div class="stat-item-label">오늘 불량</div>
+              <div class="stat-num-wrap"><span class="stat-num" id="sent-today-defect" style="color:#ff8caa;">0</span><span class="stat-unit" id="sent-today-rate">0%</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div id="sent-parts-section">
+          <div class="label">오늘 품번별</div>
+          <div class="part-list" id="sent-part-list"></div>
+        </div>
+
+        <div>
+          <div class="label">최근 전송</div>
+          <div id="sent-recent-container"></div>
+        </div>
+
+        <div class="actions-row" style="grid-template-columns: 1fr;">
+          <button class="action-btn danger" id="btn-clear-sent">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            로컬 캐시 삭제
+          </button>
+        </div>
+      </div>
+
+      <div class="footer" id="footer">WORKER COUNTER · v3.0</div>
+    </div>
+  </div>
+
+  <!-- TOAST -->
+  <div class="toast hidden" id="toast">
+    <div class="toast-card success" id="toast-card">
+      <div class="toast-icon" id="toast-icon">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <div class="toast-text" id="toast-text">완료</div>
+      <div class="toast-sub" id="toast-sub" style="display:none;"></div>
+    </div>
+  </div>
+
+  <!-- SETTINGS MODAL -->
+  <div class="modal-bg" id="modal-settings">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <div class="modal-title">설정</div>
+      <div class="modal-sub">서버 연결, 마스터 관리, 작업자 변경</div>
+      <div class="modal-btns">
+        <button class="modal-btn" id="btn-server-config">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>
+          서버 연결 설정
+        </button>
+        <button class="modal-btn" id="btn-import-master">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          품번 마스터 가져오기 (CSV)
+        </button>
+        <button class="modal-btn" id="btn-export-master">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          품번 마스터 내보내기 (CSV)
+        </button>
+        <button class="modal-btn" id="btn-change-worker">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          작업자 변경
+        </button>
+        <button class="modal-btn ghost" id="btn-modal-close">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SERVER CONFIG MODAL -->
+  <div class="modal-bg" id="modal-server">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <div class="modal-title">서버 연결 설정</div>
+      <div class="modal-sub">Supabase URL과 anon public 키를 입력하세요</div>
+      <div class="label">SUPABASE URL</div>
+      <input type="text" id="cfg-url" class="modal-input" placeholder="https://xxxxxxx.supabase.co" autocomplete="off">
+      <div class="label" style="margin-top:8px;">ANON PUBLIC KEY</div>
+      <textarea id="cfg-key" class="csv-area" placeholder="eyJhbGc..." style="min-height:80px;"></textarea>
+      <div class="modal-status" id="cfg-status"></div>
+      <div style="display:flex; gap:8px; margin-top:12px;">
+        <button class="modal-btn" id="btn-test-conn" style="flex:1;">연결 테스트</button>
+        <button class="modal-btn" id="btn-save-cfg" style="flex:1; background:var(--amber); color:#0f0f10;">저장</button>
+      </div>
+      <button class="modal-btn ghost" id="btn-server-cancel" style="margin-top:8px;">닫기</button>
+    </div>
+  </div>
+
+  <!-- IMPORT MODAL -->
+  <div class="modal-bg" id="modal-import">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <div class="modal-title">품번 마스터 가져오기</div>
+      <div class="modal-sub">CSV 형식: 품번,품명,규격,창고명 (헤더 포함)</div>
+      <textarea id="csv-input" class="csv-area" placeholder="품번,품명,규격,창고명&#10;BOLT-M8-25,헥사 볼트,M8 x 25mm SUS304,1번 창고"></textarea>
+      <div style="margin-top: 12px; display: flex; gap: 8px;">
+        <button class="modal-btn" id="btn-load-file" style="flex:0 0 auto;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          파일에서
+        </button>
+        <input type="file" id="file-input" accept=".csv,.txt" style="display:none;">
+        <button class="modal-btn" id="btn-do-import" style="flex:1;background:var(--amber);color:#0f0f10;">가져오기</button>
+      </div>
+      <button class="modal-btn ghost" id="btn-import-cancel" style="margin-top:8px;">취소</button>
+    </div>
+  </div>
+
+  <!-- DEFECT MODAL -->
+  <div class="modal-bg" id="modal-defect">
+    <div class="modal" style="max-height:90vh;">
+      <div class="modal-handle"></div>
+      <div class="modal-title">불량 유형 선택</div>
+      <div class="modal-sub" id="defect-count">전체 0개</div>
+      <input type="text" id="defect-search" class="modal-input" placeholder="코드 또는 이름으로 검색" autocomplete="off">
+      <div class="defect-list" id="defect-list"></div>
+      <button class="modal-btn ghost" id="btn-defect-cancel">취소</button>
+    </div>
+  </div>
+
+  <!-- CAMERA MODAL -->
+  <div class="cam-modal" id="cam-modal">
+    <video id="cam-video" class="cam-video" playsinline muted></video>
+    <div class="cam-flash" id="cam-flash"></div>
+    <div class="cam-overlay">
+      <div class="cam-frame"></div>
+      <div class="cam-hint">노란 박스 안에 바코드를 넣고<br>아래 셔터 버튼을 누르세요</div>
+    </div>
+    <div class="cam-result" id="cam-result">
+      <div class="cam-result-tag" id="cam-result-tag">SCANNED</div>
+      <div class="cam-result-code" id="cam-result-code">-</div>
+      <div class="cam-result-name" id="cam-result-name"></div>
+      <div class="cam-result-actions">
+        <button class="cam-result-btn retry" id="cam-result-retry">재촬영</button>
+        <button class="cam-result-btn use" id="cam-result-use">사용하기</button>
+      </div>
+    </div>
+    <div class="cam-error-msg" id="cam-error-msg"></div>
+    <div class="cam-controls">
+      <button class="cam-control-btn" id="cam-close">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+      <button class="cam-shutter" id="cam-shutter" aria-label="촬영"></button>
+      <button class="cam-control-btn" id="cam-torch" style="visibility:hidden;">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2 3 7h7l-5.5 4.5L18 21l-6-4-6 4 1.5-7.5L2 9h7z"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // ============ STORAGE ============
+    const memStore = {};
+    const storage = {
+      get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : (d ?? null); } catch { return memStore[k] ?? d ?? null; } },
+      set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { memStore[k] = v; } },
+      remove(k) { try { localStorage.removeItem(k); } catch { delete memStore[k]; } }
+    };
+
+    // ============ STATE ============
+    const state = {
+      worker: null, tab: 'input', partNumber: '', quantity: 1,
+      isDefect: false, defects: [], editingDefectIndex: -1,
+      pending: [], sent: [], partsMaster: {},
+      stream: null, detector: null, lastScanned: null,
+      isSending: false,
+      serverConfig: { url: '', key: '' },
+    };
+
+    // 불량 코드 마스터 (사용자 제공)
+    const DEFECT_CODES = [
+      ['EPP52','EPP불량'],['EPP50','EPP융착불량'],['BJ01','감싸기불량'],
+      ['BJ32','뒤집기불량'],['WD29','라미불량'],['LB08','라벨겹침'],
+      ['LB09','라벨누락'],['LB38','라벨동판자국'],['LB04','라벨박리'],
+      ['LBL02','라벨벗겨짐'],['LB10','라벨스타트불량'],['LB06','라벨위치불량'],
+      ['LB07','라벨융착불량'],['LB03','라벨이물질'],['LB12','라벨이색'],
+      ['LB11','라벨이종'],['LB02','라벨인쇄불량'],['LB13','라벨재단불량'],
+      ['LB05','라벨찍힘'],['MR01','미러노이즈'],['MR03','미러이종'],
+      ['MR02','미러조개피'],['BJ30','미싱불량'],['PD01','볼트 돌출'],
+      ['BJ33','봉제불량'],['PD02','부직포 말림'],['EPP51','스탑링누락'],
+      ['WD21','원단긁힘'],['LB01','원단불량'],['WD20','원단이종'],
+      ['WD22','원단자체불량'],['WD23','원단재단불량'],['WD27','원단젖음'],
+      ['WD30','원단주름'],['WD19','원단찍힘'],['BJ31','원단찢어짐'],
+      ['WD95','이음줄불량'],['EPP55','이종불량'],['WD28','재눌림발생'],
+      ['PV05','점등불량'],['TB03','튜브백화'],['TB02','튜브오염'],
+      ['TB01','튜브파손'],['EPP56','패드불량'],['PAD57','패드이종'],
+      ['BJ34','패드이종'],['EPP54','프레임불량'],['WD24','피봇구멍막힘'],
+      ['PV04','피봇노이즈'],['PV02','피봇락킹불량'],['PV06','피봇오염'],
+      ['PV01','피봇이종'],['PV07','피봇작동력'],['PV03','피봇파손'],
+      ['EPP53','하우징누락'],['HD01','홀더이색'],
+    ];
+
+    // 기본 Supabase 연결 정보 (앱 첫 실행 시 자동 설정)
+    // 변경하려면 ⚙ 설정 → 서버 연결 설정에서 수정 가능
+    const DEFAULT_SERVER_CONFIG = {
+      url: 'https://dkdnqbkulaweoiypwdih.supabase.co',
+      key: 'sb_publishable_DIJzW9_tjUytnnV643KROQ_OIDk5n-w'
+    };
+
+    const SAMPLE_PARTS = [
+      { partNumber: "BOLT-M8-25",  name: "헥사 볼트",   spec: "M8 x 25mm SUS304",  warehouse: "1번 창고" },
+      { partNumber: "BOLT-M10-30", name: "헥사 볼트",   spec: "M10 x 30mm SUS304", warehouse: "1번 창고" },
+      { partNumber: "NUT-M8",      name: "헥사 너트",   spec: "M8 SUS304",         warehouse: "1번 창고" },
+      { partNumber: "BRG-6204ZZ",  name: "볼 베어링",   spec: "6204ZZ 20x47x14",   warehouse: "2번 창고" },
+      { partNumber: "WASH-M8",     name: "평와셔",      spec: "M8 SUS304",         warehouse: "1번 창고" },
+      { partNumber: "GASKET-100",  name: "고무 가스켓", spec: "100mm x 5mm NBR",   warehouse: "3번 창고" },
+    ];
+
+    function init() {
+      state.worker = storage.get('worker:me');
+      state.pending = storage.get('pending', []);
+      state.sent = storage.get('sent', []);
+      const savedCfg = storage.get('config:server');
+      state.serverConfig = (savedCfg && savedCfg.url) ? savedCfg : { ...DEFAULT_SERVER_CONFIG };
+
+      // v2 → v3 마이그레이션: 기존 submissions를 sent로
+      const oldSubs = storage.get('submissions');
+      if (oldSubs && oldSubs.length > 0 && !storage.get('migrated:v3')) {
+        state.sent = [...oldSubs.map(s => ({ ...s, status: 'sent', serverId: null })), ...state.sent];
+        storage.set('sent', state.sent);
+        storage.set('migrated:v3', true);
+      }
+
+      const master = storage.get('parts:master');
+      if (master) state.partsMaster = master;
+      else {
+        SAMPLE_PARTS.forEach(p => { state.partsMaster[p.partNumber] = { name: p.name, spec: p.spec, warehouse: p.warehouse }; });
+        storage.set('parts:master', state.partsMaster);
+      }
+      updateFooter();
+      updateConnStatus();
+
+      if (!state.worker) showScreen('setup');
+      else { showScreen('main'); renderHeader(); renderInput(); updateBadges(); }
+      bindEvents();
+
+      window.addEventListener('online', updateConnStatus);
+      window.addEventListener('offline', updateConnStatus);
+    }
+
+    function showScreen(name) {
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      document.getElementById('screen-' + name).classList.add('active');
+    }
+
+    function updateFooter() {
+      const cnt = Object.keys(state.partsMaster).length;
+      document.getElementById('footer').textContent = `WORKER COUNTER · v3.0 · 마스터 ${cnt}건`;
+    }
+
+    function updateConnStatus() {
+      const dot = document.getElementById('conn-dot');
+      const txt = document.getElementById('conn-text');
+      if (!state.serverConfig.url || !state.serverConfig.key) {
+        dot.className = 'conn-dot';
+        txt.textContent = '· 서버 미설정';
+      } else if (!navigator.onLine) {
+        dot.className = 'conn-dot offline';
+        txt.textContent = '· 오프라인';
+      } else {
+        dot.className = 'conn-dot online';
+        txt.textContent = '· 서버 연결';
+      }
+    }
+
+    function updateBadges() {
+      const badge = document.getElementById('tab-badge-pending');
+      const c = state.pending.length;
+      if (c > 0) { badge.style.display = 'inline-block'; badge.textContent = c; }
+      else badge.style.display = 'none';
+    }
+
+    function bindSetup() {
+      const input = document.getElementById('setup-name');
+      const btn = document.getElementById('setup-save');
+      input.addEventListener('input', e => { btn.disabled = !e.target.value.trim(); });
+      input.addEventListener('keydown', e => { if (e.key === 'Enter' && input.value.trim()) saveWorker(); });
+      btn.addEventListener('click', saveWorker);
+    }
+
+    function saveWorker() {
+      const name = document.getElementById('setup-name').value.trim();
+      if (!name) return;
+      const worker = { name, id: 'W-' + Date.now().toString(36).toUpperCase().slice(-5) };
+      storage.set('worker:me', worker);
+      state.worker = worker;
+      document.getElementById('setup-name').value = '';
+      document.getElementById('setup-save').disabled = true;
+      showScreen('main'); renderHeader(); renderInput(); updateBadges();
+    }
+
+    function renderHeader() {
+      document.getElementById('worker-name').textContent = state.worker.name;
+      document.getElementById('worker-id').textContent = state.worker.id;
+      document.getElementById('sent-name').textContent = state.worker.name + ' · 누적 제출량';
+    }
+
+    function switchTab(tab) {
+      state.tab = tab;
+      document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+      document.getElementById('tab-input').style.display = tab === 'input' ? 'block' : 'none';
+      document.getElementById('tab-pending').style.display = tab === 'pending' ? 'block' : 'none';
+      document.getElementById('tab-sent').style.display = tab === 'sent' ? 'block' : 'none';
+      if (tab === 'pending') renderPending();
+      if (tab === 'sent') renderSent();
+    }
+
+    // ============ INPUT TAB ============
+    function renderInput() {
+      const partInput = document.getElementById('part-number');
+      if (partInput.value !== state.partNumber) partInput.value = state.partNumber;
+      document.getElementById('part-clear').style.display = state.partNumber ? 'flex' : 'none';
+      const qtyInput = document.getElementById('qty-num');
+      if (qtyInput !== document.activeElement) qtyInput.value = state.quantity;
+      document.getElementById('qty-minus').disabled = state.quantity <= 1;
+
+      // 불량 영역 표시/숨김
+      document.getElementById('btn-add-defect').style.display = state.isDefect ? 'none' : 'flex';
+      document.getElementById('defect-area').style.display = state.isDefect ? 'block' : 'none';
+      if (state.isDefect) renderDefectCards();
+
+      // 추가 버튼 활성화
+      const totalDefect = state.defects.reduce((s, d) => s + (d.quantity || 0), 0);
+      const allHaveCode = state.defects.every(d => !!d.code);
+      const allHaveQty = state.defects.every(d => d.quantity >= 1);
+      const canAdd = !!state.partNumber.trim() && state.quantity >= 1 &&
+                     (!state.isDefect || (state.defects.length > 0 && allHaveCode && allHaveQty && totalDefect <= state.quantity));
+      document.getElementById('btn-add').disabled = !canAdd;
+
+      renderInfoCard();
+    }
+
+    function renderDefectCards() {
+      const container = document.getElementById('defect-list-container');
+      const totalDefect = state.defects.reduce((s, d) => s + (d.quantity || 0), 0);
+      const overflow = totalDefect > state.quantity;
+
+      container.innerHTML = state.defects.map((d, i) => {
+        const labelText = d.code ? escapeHtml(d.name) : '탭하여 선택';
+        const codeText = d.code ? `<div class="defect-select-code">${escapeHtml(d.code)}</div>` : '';
+        const removeBtn = state.defects.length > 1
+          ? `<button class="defect-remove-btn" data-rm="${i}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ff8caa" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>`
+          : '';
+        return `
+          <div class="defect-card">
+            <div class="defect-card-header">
+              <span class="defect-card-tag">DEFECT ${i + 1}</span>
+              ${removeBtn}
+            </div>
+            <button class="defect-select ${d.code ? '' : 'empty'}" data-edit="${i}">
+              <div class="defect-select-info">
+                <div class="defect-select-label">불량 유형</div>
+                <div class="defect-select-value">${labelText}</div>
+                ${codeText}
+              </div>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ff8caa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+            <div class="qty-stepper-mini">
+              <button class="qty-mini-btn qty-mini-btn-minus" data-dqm="${i}" ${d.quantity <= 1 ? 'disabled' : ''}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f5f0e6" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              </button>
+              <input type="text" inputmode="numeric" pattern="[0-9]*" data-dqi="${i}" class="qty-mini-input" value="${d.quantity}" maxlength="6">
+              <span class="qty-mini-unit">EA</span>
+              <button class="qty-mini-btn qty-mini-btn-plus" data-dqp="${i}">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ff8caa" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              </button>
+            </div>
+          </div>`;
+      }).join('');
+
+      // 합계 표시
+      updateDefectTotal();
+
+      // 이벤트 바인딩
+      container.querySelectorAll('[data-edit]').forEach(b => b.addEventListener('click', () => editDefect(parseInt(b.dataset.edit))));
+      container.querySelectorAll('[data-rm]').forEach(b => b.addEventListener('click', () => removeDefect(parseInt(b.dataset.rm))));
+      container.querySelectorAll('[data-dqm]').forEach(b => b.addEventListener('click', () => {
+        const i = parseInt(b.dataset.dqm);
+        setDefectItemQuantity(i, state.defects[i].quantity - 1);
+      }));
+      container.querySelectorAll('[data-dqp]').forEach(b => b.addEventListener('click', () => {
+        const i = parseInt(b.dataset.dqp);
+        setDefectItemQuantity(i, state.defects[i].quantity + 1);
+      }));
+      container.querySelectorAll('[data-dqi]').forEach(input => {
+        input.addEventListener('input', e => {
+          const i = parseInt(input.dataset.dqi);
+          const cleaned = e.target.value.replace(/[^0-9]/g, '');
+          if (cleaned !== e.target.value) e.target.value = cleaned;
+          const n = parseInt(cleaned) || 0;
+          state.defects[i].quantity = n < 1 ? 1 : Math.min(999999, n);
+          updateDefectTotal();
+          // 추가 버튼 활성화 재계산
+          const total = state.defects.reduce((s, d) => s + (d.quantity || 0), 0);
+          const allOk = state.defects.every(d => !!d.code) && state.defects.every(d => d.quantity >= 1);
+          const canAdd2 = !!state.partNumber.trim() && state.quantity >= 1 && state.defects.length > 0 && allOk && total <= state.quantity;
+          document.getElementById('btn-add').disabled = !canAdd2;
+        });
+        input.addEventListener('blur', () => {
+          const i = parseInt(input.dataset.dqi);
+          if (!input.value || parseInt(input.value) < 1) { state.defects[i].quantity = 1; renderInput(); }
+        });
+        input.addEventListener('focus', () => input.select());
+      });
+    }
+
+    function updateDefectTotal() {
+      const total = state.defects.reduce((s, d) => s + (d.quantity || 0), 0);
+      const totalEl = document.getElementById('defect-total');
+      const over = total > state.quantity;
+      if (over) {
+        totalEl.className = 'defect-total warn';
+        totalEl.innerHTML = `⚠ 불량 합계 <strong>${total}</strong> > 생산 ${state.quantity} (초과)`;
+      } else {
+        totalEl.className = 'defect-total';
+        totalEl.innerHTML = `불량 합계 <strong>${total}</strong> / 생산 ${state.quantity} · 양품 ${state.quantity - total}`;
+      }
+    }
+
+    function renderInfoCard() {
+      const card = document.getElementById('info-card');
+      const status = document.getElementById('info-status');
+      const rows = document.getElementById('info-rows');
+      const part = state.partNumber.trim();
+      card.classList.remove('matched', 'unmatched', 'empty');
+      if (!part) {
+        card.classList.add('empty');
+        status.className = 'info-status empty';
+        status.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg><span>품번을 입력하면 정보가 표시됩니다</span>`;
+        rows.style.display = 'none'; return;
+      }
+      const info = state.partsMaster[part];
+      if (info) {
+        card.classList.add('matched');
+        status.className = 'info-status matched';
+        status.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg><span>마스터에서 매칭됨</span>`;
+        document.getElementById('info-name').textContent = info.name || '-';
+        document.getElementById('info-spec').textContent = info.spec || '-';
+        document.getElementById('info-warehouse').textContent = info.warehouse || '-';
+        rows.style.display = 'block';
+      } else {
+        card.classList.add('unmatched');
+        status.className = 'info-status unmatched';
+        status.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span>마스터에 등록되지 않은 품번 (그대로 추가 가능)</span>`;
+        rows.style.display = 'none';
+      }
+    }
+
+    function setQuantity(n) {
+      state.quantity = Math.max(1, Math.min(999999, parseInt(n) || 1));
+      renderInput();
+    }
+    function setPartNumber(val) { state.partNumber = val; renderInput(); }
+
+    function setDefectMode(on) {
+      state.isDefect = on;
+      if (on) {
+        if (state.defects.length === 0) {
+          state.defects.push({ code: '', name: '', quantity: 1 });
+        }
+        state.editingDefectIndex = 0;
+        renderInput();
+        // 첫 카드에 코드가 없으면 자동으로 모달 열기
+        if (!state.defects[0].code) openDefectModal();
+      } else {
+        state.defects = [];
+        state.editingDefectIndex = -1;
+        renderInput();
+      }
+    }
+
+    function addDefectEntry() {
+      state.defects.push({ code: '', name: '', quantity: 1 });
+      state.editingDefectIndex = state.defects.length - 1;
+      renderInput();
+      openDefectModal();
+    }
+
+    function removeDefect(index) {
+      state.defects.splice(index, 1);
+      if (state.defects.length === 0) {
+        setDefectMode(false);
+      } else {
+        renderInput();
+      }
+    }
+
+    function editDefect(index) {
+      state.editingDefectIndex = index;
+      openDefectModal();
+    }
+
+    function setDefectItemQuantity(index, n) {
+      state.defects[index].quantity = Math.max(1, Math.min(999999, parseInt(n) || 1));
+      renderInput();
+    }
+
+    function openDefectModal() {
+      document.getElementById('defect-search').value = '';
+      renderDefectList('');
+      openModal('modal-defect');
+      // 검색창에 자동 포커스 (모바일 키패드 자동 표시)
+      setTimeout(() => document.getElementById('defect-search').focus(), 100);
+    }
+
+    function renderDefectList(filter) {
+      const f = (filter || '').trim().toLowerCase();
+      const filtered = f
+        ? DEFECT_CODES.filter(([c, n]) => c.toLowerCase().includes(f) || n.toLowerCase().includes(f))
+        : DEFECT_CODES;
+      document.getElementById('defect-count').textContent = `전체 ${DEFECT_CODES.length}개${f ? ` · 검색 ${filtered.length}건` : ''}`;
+      const list = document.getElementById('defect-list');
+      if (filtered.length === 0) {
+        list.innerHTML = '<div class="defect-empty">검색 결과가 없습니다</div>';
+        return;
+      }
+      list.innerHTML = filtered.map(([code, name]) => `
+        <button class="defect-item" data-code="${escapeHtml(code)}" data-name="${escapeHtml(name)}">
+          <span class="defect-item-code">${escapeHtml(code)}</span>
+          <span class="defect-item-name">${escapeHtml(name)}</span>
+        </button>
+      `).join('');
+      list.querySelectorAll('.defect-item').forEach(btn => {
+        btn.addEventListener('click', () => selectDefect(btn.dataset.code, btn.dataset.name));
+      });
+    }
+
+    function selectDefect(code, name) {
+      const i = state.editingDefectIndex;
+      if (i >= 0 && i < state.defects.length) {
+        state.defects[i].code = code;
+        state.defects[i].name = name;
+      }
+      closeModal('modal-defect');
+      renderInput();
+    }
+
+    // ============ CAMERA ============
+    async function openCamera() {
+      const modal = document.getElementById('cam-modal');
+      document.getElementById('cam-error-msg').classList.remove('active');
+      document.getElementById('cam-result').classList.remove('active');
+      state.lastScanned = null;
+      modal.classList.add('active');
+      if (!('BarcodeDetector' in window)) {
+        showCamError('이 브라우저는 바코드 스캔을 지원하지 않습니다.\n안드로이드 Chrome으로 접속해주세요.'); return;
+      }
+      try {
+        state.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } } });
+        const video = document.getElementById('cam-video');
+        video.srcObject = state.stream;
+        await video.play().catch(() => {});
+        state.detector = new window.BarcodeDetector({ formats: ['code_128', 'ean_13', 'ean_8', 'qr_code', 'code_39', 'upc_a', 'upc_e', 'codabar', 'itf'] });
+        const track = state.stream.getVideoTracks()[0];
+        const caps = track.getCapabilities ? track.getCapabilities() : {};
+        if (caps.torch) document.getElementById('cam-torch').style.visibility = 'visible';
+      } catch (e) { showCamError('카메라 접근 실패: ' + e.message); }
+    }
+
+    function closeCamera() {
+      document.getElementById('cam-modal').classList.remove('active');
+      if (state.stream) { state.stream.getTracks().forEach(t => t.stop()); state.stream = null; }
+      document.getElementById('cam-result').classList.remove('active');
+      document.getElementById('cam-error-msg').classList.remove('active');
+      document.getElementById('cam-torch').style.visibility = 'hidden';
+    }
+
+    function showCamError(msg) {
+      const el = document.getElementById('cam-error-msg');
+      el.textContent = msg; el.classList.add('active');
+      setTimeout(() => el.classList.remove('active'), 3500);
+    }
+
+    function flashEffect() {
+      const f = document.getElementById('cam-flash');
+      f.classList.add('flashing');
+      setTimeout(() => f.classList.remove('flashing'), 150);
+    }
+
+    async function captureScan() {
+      if (!state.stream || !state.detector) return;
+      const video = document.getElementById('cam-video');
+      const shutter = document.getElementById('cam-shutter');
+      shutter.disabled = true;
+      flashEffect();
+      if (navigator.vibrate) navigator.vibrate(50);
+      try {
+        const codes = await state.detector.detect(video);
+        if (!codes || codes.length === 0) {
+          showCamError('바코드를 찾지 못했습니다.\n더 가까이 비추거나 조명을 밝게 해주세요.');
+          shutter.disabled = false; return;
+        }
+        const vw = video.videoWidth, vh = video.videoHeight;
+        const gx1 = vw * 0.10, gx2 = vw * 0.90, gy1 = vh * 0.38, gy2 = vh * 0.62;
+        let chosen = null, minDist = Infinity;
+        const cx = vw / 2, cy = vh / 2;
+        for (const code of codes) {
+          const bb = code.boundingBox;
+          const bcx = bb.x + bb.width / 2, bcy = bb.y + bb.height / 2;
+          if (bcx >= gx1 && bcx <= gx2 && bcy >= gy1 && bcy <= gy2) {
+            const d = Math.hypot(bcx - cx, bcy - cy);
+            if (d < minDist) { minDist = d; chosen = code; }
+          }
+        }
+        if (!chosen) {
+          showCamError(`바코드 ${codes.length}개가 보이지만 노란 박스 안에 정확히 들어온 게 없습니다.\n원하는 바코드를 박스 안으로 넣어주세요.`);
+          shutter.disabled = false; return;
+        }
+        const code = chosen.rawValue;
+        if (navigator.vibrate) navigator.vibrate([60, 40, 60]);
+        showScanResult(code);
+      } catch (e) { showCamError('스캔 오류: ' + e.message); shutter.disabled = false; }
+    }
+
+    function showScanResult(code) {
+      state.lastScanned = code;
+      const info = state.partsMaster[code];
+      const resEl = document.getElementById('cam-result');
+      const tagEl = document.getElementById('cam-result-tag');
+      const codeEl = document.getElementById('cam-result-code');
+      const nameEl = document.getElementById('cam-result-name');
+      codeEl.textContent = code;
+      if (info) {
+        resEl.classList.remove('error');
+        tagEl.textContent = '✓ 마스터 매칭';
+        nameEl.textContent = `${info.name} · ${info.spec} · ${info.warehouse}`;
+      } else {
+        resEl.classList.add('error');
+        tagEl.textContent = '⚠ 마스터에 없음';
+        nameEl.textContent = '등록되지 않은 품번 (그대로 사용 가능)';
+      }
+      resEl.classList.add('active');
+      document.getElementById('cam-shutter').disabled = false;
+    }
+
+    function useScannedCode() { if (state.lastScanned) { setPartNumber(state.lastScanned); closeCamera(); } }
+    function retryScan() { document.getElementById('cam-result').classList.remove('active'); state.lastScanned = null; }
+
+    async function toggleTorch() {
+      if (!state.stream) return;
+      const track = state.stream.getVideoTracks()[0];
+      const caps = track.getCapabilities ? track.getCapabilities() : {};
+      if (!caps.torch) return;
+      const settings = track.getSettings();
+      try { await track.applyConstraints({ advanced: [{ torch: !settings.torch }] }); }
+      catch { showCamError('플래시 제어 실패'); }
+    }
+
+    // ============ ADD TO PENDING ============
+    function addToPending() {
+      const part = state.partNumber.trim();
+      if (!part || state.quantity < 1) return;
+      let totalDefect = 0;
+      let defectsToSave = [];
+      if (state.isDefect) {
+        if (state.defects.length === 0) { showToast('error', '불량 정보 누락'); return; }
+        for (const d of state.defects) {
+          if (!d.code) { showToast('error', '모든 불량 유형을 선택하세요'); return; }
+          if (!d.quantity || d.quantity < 1) { showToast('error', '불량 수량은 1 이상'); return; }
+          totalDefect += d.quantity;
+        }
+        if (totalDefect > state.quantity) {
+          showToast('error', `불량 합계(${totalDefect})가 생산(${state.quantity})보다 많습니다`); return;
+        }
+        defectsToSave = state.defects.map(d => ({ code: d.code, name: d.name, quantity: d.quantity }));
+      }
+      const info = state.partsMaster[part] || { name: '', spec: '', warehouse: '' };
+      const entry = {
+        localId: Date.now() + Math.random(),
+        worker: state.worker.name, workerId: state.worker.id,
+        partNumber: part,
+        partName: info.name || '', spec: info.spec || '', warehouse: info.warehouse || '',
+        quantity: state.quantity,
+        defectQuantity: totalDefect,
+        defects: defectsToSave,
+        timestamp: Date.now(),
+      };
+      state.pending = [entry, ...state.pending];
+      storage.set('pending', state.pending);
+      if (navigator.vibrate) navigator.vibrate([60, 40, 60]);
+      const sub = totalDefect > 0
+        ? `생산 ${state.quantity} · 불량 ${totalDefect} (${defectsToSave.length}종) · 미전송 ${state.pending.length}건`
+        : `양품 ${state.quantity} · 미전송 ${state.pending.length}건`;
+      showToast('success', '작업 내역에 추가됨', sub);
+      // 입력 초기화
+      state.partNumber = ''; state.quantity = 1;
+      state.isDefect = false; state.defects = []; state.editingDefectIndex = -1;
+      renderInput();
+      updateBadges();
+    }
+
+    function removePending(localId) {
+      state.pending = state.pending.filter(p => p.localId !== localId);
+      storage.set('pending', state.pending);
+      renderPending(); updateBadges();
+    }
+
+    // ============ PENDING TAB ============
+    function renderPending() {
+      const cnt = state.pending.length;
+      const totalQty = state.pending.reduce((s, e) => s + e.quantity, 0);
+      document.getElementById('pending-count').textContent = cnt;
+      document.getElementById('pending-qty').textContent = totalQty.toLocaleString();
+
+      const sendBtn = document.getElementById('btn-send-all');
+      const sendTxt = document.getElementById('send-btn-text');
+      if (cnt === 0) {
+        sendBtn.disabled = true;
+        sendTxt.textContent = '전송할 항목 없음';
+      } else if (state.isSending) {
+        sendBtn.disabled = true;
+        sendTxt.textContent = '전송 중...';
+      } else {
+        sendBtn.disabled = false;
+        sendTxt.textContent = `${cnt}건 최종 전송`;
+      }
+
+      const container = document.getElementById('pending-list-container');
+      if (cnt === 0) {
+        container.innerHTML = `<div class="empty">
+          <div class="empty-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#5a564f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+          입력 탭에서 작업을 추가하세요
+        </div>`;
+        return;
+      }
+      container.innerHTML = '<div class="item-list">' + state.pending.map(p => {
+        const dq = p.defectQuantity || 0;
+        const okQty = p.quantity - dq;
+        const defects = p.defects || (p.defectCode ? [{ code: p.defectCode, name: p.defectName, quantity: dq }] : []);
+        const badge = dq > 0
+          ? `<span class="item-defect">⚠ 불량 ${dq}${defects.length > 1 ? ` (${defects.length}종)` : ''}</span>`
+          : `<span class="item-ok">✓ 양품 ${p.quantity}</span>`;
+        const defectLines = defects.map(d => `<span style="color:#ff8caa;">${escapeHtml(d.code)} ${escapeHtml(d.name)} ×${d.quantity}</span>`).join(' · ');
+        const subline = dq > 0
+          ? `${defectLines} · 양품 ${okQty}`
+          : (p.partName ? escapeHtml(p.partName) + (p.spec ? ' · ' + escapeHtml(p.spec) : '') : '');
+        return `<div class="item-row">
+          <div class="item-info">
+            <div class="item-part">${escapeHtml(p.partNumber)}</div>
+            <div class="item-name">${badge}</div>
+            ${subline ? `<div class="item-name" style="margin-top:2px; white-space:normal;">${subline}</div>` : ''}
+            <div class="item-meta">${new Date(p.timestamp).toLocaleString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</div>
+          </div>
+          <span class="item-qty">${p.quantity}</span>
+          <div class="item-actions">
+            <button class="item-icon-btn delete" data-del="${p.localId}">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ff8caa" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+        </div>`;
+      }).join('') + '</div>';
+      container.querySelectorAll('[data-del]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = parseFloat(btn.dataset.del);
+          if (confirm('이 항목을 삭제하시겠습니까?')) removePending(id);
+        });
+      });
+    }
+
+    // ============ SEND TO SUPABASE ============
+    async function sendAllToServer() {
+      if (state.isSending || state.pending.length === 0) return;
+      const cfg = state.serverConfig;
+      if (!cfg.url || !cfg.key) {
+        showToast('error', '서버 설정이 필요합니다', '⚙ 설정에서 Supabase URL/key 입력');
+        setTimeout(() => openModal('modal-server'), 800);
+        return;
+      }
+      if (!navigator.onLine) {
+        showToast('error', '오프라인 상태', '인터넷 연결 후 다시 시도');
+        return;
+      }
+
+      state.isSending = true; renderPending();
+
+      const payload = state.pending.map(p => {
+        const dq = p.defectQuantity || 0;
+        const defects = p.defects || [];
+        // 호환을 위해 첫 번째 불량을 defect_code/name에도 저장
+        const first = defects[0] || null;
+        return {
+          worker_id: p.workerId,
+          worker_name: p.worker,
+          part_number: p.partNumber,
+          part_name: p.partName,
+          spec: p.spec,
+          warehouse: p.warehouse,
+          quantity: p.quantity,
+          defect_quantity: dq,
+          defect_code: first ? (first.code || null) : null,
+          defect_name: first ? (first.name || null) : null,
+          defects: defects.length > 0 ? defects : null,
+          // 클라이언트 timestamp를 서버에 같이 보냄 (ISO 형식)
+          created_at: new Date(p.timestamp).toISOString(),
+        };
+      });
+
+      try {
+        const url = cfg.url.replace(/\/$/, '') + '/rest/v1/submissions';
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'apikey': cfg.key,
+            'Authorization': 'Bearer ' + cfg.key,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation'
+          },
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) {
+          const errTxt = await res.text();
+          throw new Error(`HTTP ${res.status}: ${errTxt.slice(0, 200)}`);
+        }
+        const inserted = await res.json();
+        // 성공: pending → sent 이동
+        const sentEntries = state.pending.map((p, i) => ({
+          ...p,
+          status: 'sent',
+          serverId: inserted[i]?.id || null,
+          sentAt: Date.now(),
+        }));
+        state.sent = [...sentEntries, ...state.sent].slice(0, 5000);
+        state.pending = [];
+        storage.set('sent', state.sent);
+        storage.set('pending', state.pending);
+        if (navigator.vibrate) navigator.vibrate([80, 30, 80, 30, 80]);
+        showToast('success', `${sentEntries.length}건 전송 완료`, '서버에 저장되었습니다');
+        switchTab('sent');
+      } catch (e) {
+        console.error(e);
+        showToast('error', '전송 실패', e.message);
+      } finally {
+        state.isSending = false;
+        renderPending();
+        updateBadges();
+      }
+    }
+
+    // ============ SENT TAB ============
+    function renderSent() {
+      const today = new Date(); today.setHours(0,0,0,0);
+      const mine = state.sent.filter(s => s.workerId === state.worker.id);
+      const mineToday = mine.filter(s => s.timestamp >= today.getTime());
+      const todayQty = mineToday.reduce((s, e) => s + e.quantity, 0);
+      const todayDefect = mineToday.reduce((s, e) => s + (e.defectQuantity || 0), 0);
+      const rate = todayQty > 0 ? ((todayDefect / todayQty) * 100).toFixed(1) : '0';
+      document.getElementById('sent-today').textContent = todayQty.toLocaleString();
+      document.getElementById('sent-today-defect').textContent = todayDefect.toLocaleString();
+      document.getElementById('sent-today-rate').textContent = `${rate}%`;
+
+      // 오늘 품번별
+      const byPart = {};
+      mineToday.forEach(s => {
+        if (!byPart[s.partNumber]) byPart[s.partNumber] = { qty: 0, name: s.partName, spec: s.spec };
+        byPart[s.partNumber].qty += s.quantity;
+      });
+      const sorted = Object.entries(byPart).sort((a,b) => b[1].qty - a[1].qty);
+      const partListEl = document.getElementById('sent-part-list');
+      const partsSection = document.getElementById('sent-parts-section');
+      if (sorted.length === 0) {
+        partsSection.style.display = 'none';
+      } else {
+        partsSection.style.display = 'block';
+        partListEl.innerHTML = sorted.map(([part, info]) => {
+          const pct = todayQty > 0 ? (info.qty / todayQty) * 100 : 0;
+          const detail = info.name ? `${escapeHtml(info.name)}${info.spec ? ' · ' + escapeHtml(info.spec) : ''}` : '';
+          return `<div class="part-stat">
+            <div class="part-stat-header"><span class="part-stat-name">${escapeHtml(part)}</span><span class="part-stat-qty">${info.qty}</span></div>
+            ${detail ? `<div class="part-stat-detail">${detail}</div>` : ''}
+            <div class="part-stat-bar"><div class="part-stat-fill" style="width:${pct}%"></div></div>
+          </div>`;
+        }).join('');
+      }
+
+      // 최근 전송
+      const recentEl = document.getElementById('sent-recent-container');
+      const recent = mine.slice(0, 30);
+      if (recent.length === 0) {
+        recentEl.innerHTML = '<div class="empty"><div class="empty-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#5a564f" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></div>전송된 작업이 없습니다</div>';
+      } else {
+        recentEl.innerHTML = '<div class="item-list">' + recent.map(s => {
+          const dq = s.defectQuantity || 0;
+          const defects = s.defects || (s.defectCode ? [{ code: s.defectCode, name: s.defectName, quantity: dq }] : []);
+          const badge = dq > 0
+            ? `<span class="item-defect">⚠ 불량 ${dq}${defects.length > 1 ? ` (${defects.length}종)` : ''}</span>`
+            : `<span class="item-ok">✓ 양품 ${s.quantity}</span>`;
+          const defectLines = defects.map(d => `<span style="color:#ff8caa;">${escapeHtml(d.code || '')} ${escapeHtml(d.name || '')} ×${d.quantity || 0}</span>`).join(' · ');
+          const subline = dq > 0 ? defectLines : (s.partName ? escapeHtml(s.partName) : '');
+          return `<div class="item-row">
+            <div class="item-info">
+              <div class="item-part">${escapeHtml(s.partNumber)}</div>
+              <div class="item-name">${badge}</div>
+              ${subline ? `<div class="item-name" style="margin-top:2px; white-space:normal;">${subline}</div>` : ''}
+              <div class="item-meta">${new Date(s.timestamp).toLocaleString('ko-KR', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' })}${s.serverId ? ' · #' + s.serverId : ''}</div>
+            </div>
+            <span class="item-qty">+${s.quantity}</span>
+          </div>`;
+        }).join('') + '</div>';
+      }
+    }
+
+    function escapeHtml(s) {
+      return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    // ============ TOAST ============
+    function showToast(type, text, sub) {
+      const toast = document.getElementById('toast');
+      const card = document.getElementById('toast-card');
+      const icon = document.getElementById('toast-icon');
+      const txt = document.getElementById('toast-text');
+      const subEl = document.getElementById('toast-sub');
+      card.className = 'toast-card ' + type;
+      txt.textContent = text;
+      if (sub) { subEl.textContent = sub; subEl.style.display = 'block'; } else subEl.style.display = 'none';
+      const iconHtml = {
+        success: '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+        info:    '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#0f0f10" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>',
+        error:   '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>'
+      };
+      icon.innerHTML = iconHtml[type] || iconHtml.success;
+      toast.classList.remove('hidden');
+      card.style.animation = 'none'; void card.offsetWidth; card.style.animation = '';
+      setTimeout(() => toast.classList.add('hidden'), type === 'error' ? 3000 : 1600);
+    }
+
+    // ============ EXPORT/IMPORT ============
+    function exportSent() {
+      const mine = state.sent.filter(s => s.workerId === state.worker.id);
+      if (mine.length === 0) { alert('내보낼 데이터가 없습니다'); return; }
+      const header = '\uFEFF작업자,작업자ID,품번,품명,규격,창고,수량,품질,불량코드,불량유형,입력일시,서버ID\n';
+      const rows = mine.map(s => {
+        const date = new Date(s.timestamp).toLocaleString('ko-KR');
+        return [s.worker, s.workerId, s.partNumber, s.partName, s.spec, s.warehouse, s.quantity,
+                s.isDefect ? '불량' : '양품', s.defectCode || '', s.defectName || '',
+                date, s.serverId || '']
+          .map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',');
+      }).join('\n');
+      downloadCSV(header + rows, `제출내역_${state.worker.name}_${new Date().toISOString().slice(0,10)}.csv`);
+    }
+
+    function exportMaster() {
+      const entries = Object.entries(state.partsMaster);
+      if (entries.length === 0) { alert('마스터가 비어있습니다'); return; }
+      const header = '\uFEFF품번,품명,규격,창고명\n';
+      const rows = entries.map(([part, info]) =>
+        [part, info.name, info.spec, info.warehouse]
+          .map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')
+      ).join('\n');
+      downloadCSV(header + rows, `품번마스터_${new Date().toISOString().slice(0,10)}.csv`);
+    }
+
+    function downloadCSV(content, filename) {
+      const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function importMasterFromCSV(text) {
+      const cleaned = text.replace(/^\uFEFF/, '').trim();
+      if (!cleaned) { alert('내용이 비어있습니다'); return; }
+      const lines = cleaned.split(/\r?\n/);
+      const firstParsed = parseCSVLine(lines[0]);
+      const startIdx = firstParsed[0] && firstParsed[0].includes('품번') ? 1 : 0;
+      const newMaster = {};
+      let count = 0, skipped = 0;
+      for (let i = startIdx; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        const [partNumber, name, spec, warehouse] = parseCSVLine(line);
+        if (!partNumber) { skipped++; continue; }
+        newMaster[partNumber.trim()] = { name: (name||'').trim(), spec: (spec||'').trim(), warehouse: (warehouse||'').trim() };
+        count++;
+      }
+      if (count === 0) { alert('가져올 품목이 없습니다.'); return; }
+      const replace = confirm(`${count}건을 가져옵니다.\n\n[확인] = 기존 마스터를 모두 덮어쓰기\n[취소] = 기존에 추가/병합`);
+      if (replace) state.partsMaster = newMaster;
+      else Object.assign(state.partsMaster, newMaster);
+      storage.set('parts:master', state.partsMaster);
+      updateFooter(); renderInfoCard();
+      alert(`완료: ${count}건${skipped > 0 ? ` · ${skipped}건 무시` : ''}\n현재 마스터: ${Object.keys(state.partsMaster).length}건`);
+      closeImportModal();
+    }
+
+    function parseCSVLine(line) {
+      const result = []; let cur = '', inQuote = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') { if (inQuote && line[i+1] === '"') { cur += '"'; i++; } else inQuote = !inQuote; }
+        else if (ch === ',' && !inQuote) { result.push(cur); cur = ''; }
+        else cur += ch;
+      }
+      result.push(cur);
+      return result;
+    }
+
+    function clearSent() {
+      if (!confirm('로컬에 저장된 제출 내역 캐시를 삭제합니다.\n서버 데이터는 영향 없습니다 (관리자 화면에서 계속 조회 가능).\n계속하시겠습니까?')) return;
+      state.sent = [];
+      storage.set('sent', []);
+      renderSent();
+    }
+
+    function changeWorker() {
+      if (state.pending.length > 0) {
+        if (!confirm(`미전송 작업 ${state.pending.length}건이 있습니다.\n작업자를 변경하면 이 작업들의 작업자가 그대로 유지됩니다.\n계속하시겠습니까?`)) return;
+      } else if (!confirm('작업자를 변경하시겠습니까?')) return;
+      storage.remove('worker:me');
+      state.worker = null;
+      closeModal('modal-settings');
+      showScreen('setup');
+    }
+
+    // ============ SERVER CONFIG ============
+    function openServerModal() {
+      document.getElementById('cfg-url').value = state.serverConfig.url || '';
+      document.getElementById('cfg-key').value = state.serverConfig.key || '';
+      document.getElementById('cfg-status').className = 'modal-status';
+      closeModal('modal-settings');
+      openModal('modal-server');
+    }
+
+    async function testConnection() {
+      const url = document.getElementById('cfg-url').value.trim().replace(/\/$/, '');
+      const key = document.getElementById('cfg-key').value.trim();
+      const statusEl = document.getElementById('cfg-status');
+      if (!url || !key) {
+        statusEl.className = 'modal-status error';
+        statusEl.textContent = 'URL과 키를 모두 입력하세요';
+        return;
+      }
+      statusEl.className = 'modal-status';
+      statusEl.textContent = '연결 확인 중...';
+      statusEl.style.display = 'block';
+      try {
+        const res = await fetch(url + '/rest/v1/submissions?limit=1', {
+          headers: { 'apikey': key, 'Authorization': 'Bearer ' + key }
+        });
+        if (res.ok) {
+          statusEl.className = 'modal-status success';
+          statusEl.textContent = '✓ 연결 성공';
+        } else {
+          const txt = await res.text();
+          statusEl.className = 'modal-status error';
+          statusEl.textContent = `✗ HTTP ${res.status}: ${txt.slice(0, 100)}`;
+        }
+      } catch (e) {
+        statusEl.className = 'modal-status error';
+        statusEl.textContent = '✗ ' + e.message;
+      }
+    }
+
+    function saveServerConfig() {
+      const url = document.getElementById('cfg-url').value.trim().replace(/\/$/, '');
+      const key = document.getElementById('cfg-key').value.trim();
+      state.serverConfig = { url, key };
+      storage.set('config:server', state.serverConfig);
+      updateConnStatus();
+      closeModal('modal-server');
+      showToast('success', '서버 설정 저장됨');
+    }
+
+    function openModal(id) { document.getElementById(id).classList.add('active'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+    function closeImportModal() { closeModal('modal-import'); document.getElementById('csv-input').value = ''; }
+
+    // ============ EVENTS ============
+    function bindEvents() {
+      bindSetup();
+      document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => switchTab(t.dataset.tab)));
+
+      document.getElementById('btn-open-cam').addEventListener('click', openCamera);
+      document.getElementById('cam-close').addEventListener('click', closeCamera);
+      document.getElementById('cam-shutter').addEventListener('click', captureScan);
+      document.getElementById('cam-result-use').addEventListener('click', useScannedCode);
+      document.getElementById('cam-result-retry').addEventListener('click', retryScan);
+      document.getElementById('cam-torch').addEventListener('click', toggleTorch);
+
+      const partInput = document.getElementById('part-number');
+      partInput.addEventListener('input', e => setPartNumber(e.target.value));
+      document.getElementById('part-clear').addEventListener('click', () => { setPartNumber(''); partInput.focus(); });
+
+      // 수량 - 키보드 입력 + 스테퍼 + 빠른 버튼
+      const qtyInput = document.getElementById('qty-num');
+      qtyInput.addEventListener('input', e => {
+        const cleaned = e.target.value.replace(/[^0-9]/g, '');
+        if (cleaned !== e.target.value) e.target.value = cleaned;
+        const n = parseInt(cleaned) || 0;
+        state.quantity = n < 1 ? 1 : Math.min(999999, n);
+        document.getElementById('qty-minus').disabled = state.quantity <= 1;
+        document.getElementById('btn-add').disabled = !state.partNumber.trim() || state.quantity < 1;
+      });
+      qtyInput.addEventListener('blur', () => {
+        if (!qtyInput.value || parseInt(qtyInput.value) < 1) { qtyInput.value = state.quantity = 1; renderInput(); }
+      });
+      qtyInput.addEventListener('focus', () => qtyInput.select());
+
+      document.getElementById('qty-minus').addEventListener('click', () => setQuantity(state.quantity - 1));
+      document.getElementById('qty-plus').addEventListener('click', () => setQuantity(state.quantity + 1));
+      document.querySelectorAll('.qty-quick-btn').forEach(b => b.addEventListener('click', () => setQuantity(parseInt(b.dataset.qty))));
+
+      document.getElementById('btn-add').addEventListener('click', addToPending);
+      document.getElementById('btn-send-all').addEventListener('click', sendAllToServer);
+      document.getElementById('btn-clear-sent').addEventListener('click', clearSent);
+
+      // 불량 입력
+      document.getElementById('btn-add-defect').addEventListener('click', () => setDefectMode(true));
+      document.getElementById('btn-cancel-defect').addEventListener('click', () => setDefectMode(false));
+      document.getElementById('btn-add-more-defect').addEventListener('click', addDefectEntry);
+      document.getElementById('btn-defect-cancel').addEventListener('click', () => closeModal('modal-defect'));
+      document.getElementById('defect-search').addEventListener('input', e => renderDefectList(e.target.value));
+      document.getElementById('modal-defect').addEventListener('click', e => { if (e.target.id === 'modal-defect') closeModal('modal-defect'); });
+
+      // 설정 모달
+      document.getElementById('btn-settings').addEventListener('click', () => openModal('modal-settings'));
+      document.getElementById('btn-modal-close').addEventListener('click', () => closeModal('modal-settings'));
+      document.getElementById('btn-server-config').addEventListener('click', openServerModal);
+      document.getElementById('btn-change-worker').addEventListener('click', changeWorker);
+      document.getElementById('btn-export-master').addEventListener('click', exportMaster);
+      document.getElementById('btn-import-master').addEventListener('click', () => { closeModal('modal-settings'); openModal('modal-import'); });
+      document.getElementById('modal-settings').addEventListener('click', e => { if (e.target.id === 'modal-settings') closeModal('modal-settings'); });
+
+      // 서버 설정 모달
+      document.getElementById('btn-test-conn').addEventListener('click', testConnection);
+      document.getElementById('btn-save-cfg').addEventListener('click', saveServerConfig);
+      document.getElementById('btn-server-cancel').addEventListener('click', () => closeModal('modal-server'));
+      document.getElementById('modal-server').addEventListener('click', e => { if (e.target.id === 'modal-server') closeModal('modal-server'); });
+
+      // 임포트 모달
+      document.getElementById('btn-import-cancel').addEventListener('click', closeImportModal);
+      document.getElementById('btn-do-import').addEventListener('click', () => {
+        const text = document.getElementById('csv-input').value;
+        if (!text.trim()) { alert('CSV 내용을 붙여넣거나 파일을 선택하세요'); return; }
+        importMasterFromCSV(text);
+      });
+      document.getElementById('btn-load-file').addEventListener('click', () => document.getElementById('file-input').click());
+      document.getElementById('file-input').addEventListener('change', e => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = ev => { document.getElementById('csv-input').value = ev.target.result; };
+        reader.readAsText(file, 'utf-8');
+      });
+      document.getElementById('modal-import').addEventListener('click', e => { if (e.target.id === 'modal-import') closeImportModal(); });
+    }
+
+    init();
+  </script>
+</body>
+</html>
