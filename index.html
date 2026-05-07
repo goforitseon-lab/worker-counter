@@ -7,6 +7,10 @@
   ============================================================
   REVISION
   ============================================================
+  0507 03 · 부품 마스터 자동 동기화 + 공지사항 + 연차 신청
+            - 앱 시작 시 서버 parts_master에서 동기화 (관리자 변경 자동 반영)
+            - 메인 상단에 활성 공지사항 표시 (자동 갱신)
+            - 새 탭: 연차 (신청 폼 + 본인 신청 목록 + 승인 상태)
   0507 02 · 관리자 자동 분기 로직 추가
             - 작업자 등록 시 서버 workers 테이블 조회
             - 같은 이름 있으면 그 ID 재사용 (동명이인 주의)
@@ -280,6 +284,43 @@
 
     .footer { text-align: center; padding: 24px; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); letter-spacing: 0.15em; }
 
+    /* 공지사항 */
+    .notice-section { padding: 0 20px 16px; }
+    .notice-card { padding: 14px 16px; border-radius: 12px; background: linear-gradient(135deg, rgba(90,200,250,0.08), rgba(90,200,250,0.02)); border: 1px solid rgba(90,200,250,0.3); margin-bottom: 8px; cursor: pointer; }
+    .notice-card:active { transform: scale(0.99); }
+    .notice-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+    .notice-pin { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 0.2em; color: var(--blue); font-weight: 700; }
+    .notice-title { font-size: 14px; font-weight: 700; color: var(--text); flex: 1; min-width: 0; }
+    .notice-date { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); }
+    .notice-content { font-size: 13px; color: var(--text-dim); line-height: 1.5; max-height: 0; overflow: hidden; transition: max-height 0.3s ease, margin-top 0.3s; white-space: pre-wrap; }
+    .notice-card.expanded .notice-content { max-height: 600px; margin-top: 8px; }
+    .notice-card.expanded { background: linear-gradient(135deg, rgba(90,200,250,0.12), rgba(90,200,250,0.04)); }
+
+    /* 연차 */
+    .leave-form { padding: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; margin-bottom: 20px; }
+    .leave-form-row { margin-bottom: 12px; }
+    .leave-form-row:last-of-type { margin-bottom: 16px; }
+    .leave-input { width: 100%; padding: 12px 14px; background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: 10px; font-size: 14px; color: var(--text); }
+    .leave-input:focus { border-color: rgba(255,214,10,0.6); }
+    .leave-textarea { width: 100%; min-height: 80px; padding: 12px 14px; background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: 10px; font-size: 14px; color: var(--text); resize: vertical; font-family: inherit; }
+    .leave-textarea:focus { border-color: rgba(255,214,10,0.6); }
+    .leave-date-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+    .leave-list { display: flex; flex-direction: column; gap: 8px; }
+    .leave-item { padding: 14px; background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 12px; }
+    .leave-item-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 6px; }
+    .leave-item-dates { font-size: 14px; font-weight: 700; }
+    .leave-item-status { padding: 3px 10px; border-radius: 999px; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; flex-shrink: 0; }
+    .leave-item-status.pending { background: rgba(255,214,10,0.15); color: var(--amber); }
+    .leave-item-status.approved { background: rgba(0,217,126,0.15); color: var(--emerald); }
+    .leave-item-status.rejected { background: rgba(255,61,110,0.15); color: var(--red); }
+    .leave-item-reason { font-size: 13px; color: var(--text-dim); margin-bottom: 4px; white-space: pre-wrap; }
+    .leave-item-meta { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); }
+    .leave-item-note { margin-top: 8px; padding: 8px 10px; background: rgba(0,0,0,0.2); border-radius: 8px; font-size: 12px; color: var(--text-dim); }
+    .leave-item-note strong { color: var(--text); font-weight: 700; }
+    .leave-item-cancel { margin-top: 8px; padding: 8px 12px; background: rgba(255,61,110,0.1); color: #ff8caa; border-radius: 8px; font-size: 12px; font-weight: 600; }
+    .leave-item-cancel:active { background: rgba(255,61,110,0.18); }
+
     /* QC (불량 입력) */
     .qc-section { padding: 0 20px; margin-bottom: 24px; }
 
@@ -374,6 +415,12 @@
         </button>
       </header>
 
+      <!-- 공지사항 (있을 때만 표시) -->
+      <div class="notice-section" id="notice-section" style="display:none;">
+        <div class="label">📢 공지사항</div>
+        <div id="notice-list"></div>
+      </div>
+
       <div class="tabs">
         <button class="tab active" data-tab="input">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -386,6 +433,10 @@
         <button class="tab" data-tab="sent">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
           제출내역
+        </button>
+        <button class="tab" data-tab="leave">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          연차
         </button>
       </div>
 
@@ -541,7 +592,34 @@
         </div>
       </div>
 
-      <div class="footer" id="footer">WORKER COUNTER · v3.0</div>
+      <!-- ============ TAB: LEAVE (연차) ============ -->
+      <div id="tab-leave" class="tab-content" style="display:none;">
+        <div class="label">새 연차 신청</div>
+        <div class="leave-form">
+          <div class="leave-form-row">
+            <div class="label">시작일 / 종료일 (하루면 같게)</div>
+            <div class="leave-date-row">
+              <input type="date" id="leave-start" class="leave-input">
+              <input type="date" id="leave-end" class="leave-input">
+            </div>
+          </div>
+          <div class="leave-form-row">
+            <div class="label">사유</div>
+            <textarea id="leave-reason" class="leave-textarea" placeholder="예: 개인 사유, 가족 행사 등"></textarea>
+          </div>
+          <button class="submit-btn" id="btn-submit-leave" disabled>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            연차 신청
+          </button>
+        </div>
+
+        <div class="label">내 신청 내역</div>
+        <div id="leave-list-container">
+          <div class="empty">신청 내역이 없습니다</div>
+        </div>
+      </div>
+
+      <div class="footer" id="footer">Worker counter 0507 03</div>
     </div>
   </div>
 
@@ -677,6 +755,7 @@
       worker: null, tab: 'input', partNumber: '', quantity: 1,
       isDefect: false, defects: [], editingDefectIndex: -1,
       pending: [], sent: [], partsMaster: {},
+      notices: [], myLeaves: [],
       stream: null, detector: null, lastScanned: null,
       isSending: false,
       serverConfig: { url: '', key: '' },
@@ -751,7 +830,158 @@
 
       window.addEventListener('online', updateConnStatus);
       window.addEventListener('offline', updateConnStatus);
+
+      // 백그라운드 서버 동기화
+      if (state.worker) {
+        syncFromServer();
+        setInterval(() => { fetchNotices(); fetchMyLeaves(); }, 60000);
+      }
     }
+
+    async function syncFromServer() {
+      await Promise.all([syncPartsMaster(), fetchNotices(), fetchMyLeaves()]);
+    }
+
+    async function syncPartsMaster() {
+      const cfg = state.serverConfig;
+      if (!cfg.url || !cfg.key) return;
+      try {
+        const url = `${cfg.url.replace(/\/$/,'')}/rest/v1/parts_master?order=part_number.asc`;
+        const res = await fetch(url, { headers: { 'apikey': cfg.key, 'Authorization': 'Bearer ' + cfg.key } });
+        if (!res.ok) return;
+        const list = await res.json();
+        const newMaster = {};
+        list.forEach(m => { newMaster[m.part_number] = { name: m.name || '', spec: m.spec || '', warehouse: m.warehouse || '' }; });
+        state.partsMaster = newMaster;
+        storage.set('parts:master', state.partsMaster);
+        updateFooter();
+        renderInfoCard();
+      } catch (e) { console.warn('Master sync failed:', e); }
+    }
+
+    async function fetchNotices() {
+      const cfg = state.serverConfig;
+      if (!cfg.url || !cfg.key) return;
+      try {
+        const url = `${cfg.url.replace(/\/$/,'')}/rest/v1/notices?active=eq.true&order=created_at.desc&limit=20`;
+        const res = await fetch(url, { headers: { 'apikey': cfg.key, 'Authorization': 'Bearer ' + cfg.key } });
+        if (!res.ok) return;
+        state.notices = await res.json();
+        renderNotices();
+      } catch (e) { console.warn('Notices fetch failed:', e); }
+    }
+
+    function renderNotices() {
+      const section = document.getElementById('notice-section');
+      const list = document.getElementById('notice-list');
+      if (!state.notices || state.notices.length === 0) { section.style.display = 'none'; return; }
+      section.style.display = 'block';
+      list.innerHTML = state.notices.map(n => {
+        const date = new Date(n.created_at).toLocaleDateString('ko-KR', { month:'2-digit', day:'2-digit' });
+        return `<div class="notice-card" data-notice="${n.id}">
+          <div class="notice-header">
+            <span class="notice-pin">📌 NOTICE</span>
+            <span class="notice-title">${escapeHtml(n.title)}</span>
+            <span class="notice-date">${date}</span>
+          </div>
+          ${n.content ? `<div class="notice-content">${escapeHtml(n.content)}</div>` : ''}
+        </div>`;
+      }).join('');
+      list.querySelectorAll('.notice-card').forEach(c => {
+        c.addEventListener('click', () => c.classList.toggle('expanded'));
+      });
+    }
+
+    async function fetchMyLeaves() {
+      const cfg = state.serverConfig;
+      if (!cfg.url || !cfg.key || !state.worker) return;
+      try {
+        const url = `${cfg.url.replace(/\/$/,'')}/rest/v1/leave_requests?worker_id=eq.${encodeURIComponent(state.worker.id)}&order=requested_at.desc&limit=50`;
+        const res = await fetch(url, { headers: { 'apikey': cfg.key, 'Authorization': 'Bearer ' + cfg.key } });
+        if (!res.ok) return;
+        state.myLeaves = await res.json();
+        renderLeaves();
+      } catch (e) { console.warn('Leaves fetch failed:', e); }
+    }
+
+    function renderLeaves() {
+      const container = document.getElementById('leave-list-container');
+      if (!container) return;
+      if (!state.myLeaves || state.myLeaves.length === 0) {
+        container.innerHTML = '<div class="empty">신청 내역이 없습니다</div>';
+        return;
+      }
+      container.innerHTML = '<div class="leave-list">' + state.myLeaves.map(l => {
+        const start = l.start_date;
+        const end = l.end_date || l.start_date;
+        const dates = start === end ? start : `${start} ~ ${end}`;
+        const statusText = { pending:'대기', approved:'승인', rejected:'반려' }[l.status] || l.status;
+        const requested = new Date(l.requested_at).toLocaleString('ko-KR', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+        const reviewed = l.reviewed_at ? new Date(l.reviewed_at).toLocaleString('ko-KR', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }) : null;
+        return `<div class="leave-item">
+          <div class="leave-item-header">
+            <div class="leave-item-dates">📅 ${dates}</div>
+            <div class="leave-item-status ${l.status}">${statusText}</div>
+          </div>
+          ${l.reason ? `<div class="leave-item-reason">${escapeHtml(l.reason)}</div>` : ''}
+          <div class="leave-item-meta">신청: ${requested}${reviewed ? ` · 처리: ${reviewed}` : ''}${l.reviewed_by ? ` · ${escapeHtml(l.reviewed_by)}` : ''}</div>
+          ${l.review_note ? `<div class="leave-item-note"><strong>관리자 메모:</strong> ${escapeHtml(l.review_note)}</div>` : ''}
+          ${l.status === 'pending' ? `<button class="leave-item-cancel" data-cancel="${l.id}">신청 취소</button>` : ''}
+        </div>`;
+      }).join('') + '</div>';
+      container.querySelectorAll('[data-cancel]').forEach(b => b.addEventListener('click', () => cancelLeave(parseInt(b.dataset.cancel))));
+    }
+
+    async function submitLeave() {
+      const start = document.getElementById('leave-start').value;
+      const end = document.getElementById('leave-end').value || start;
+      const reason = document.getElementById('leave-reason').value.trim();
+      if (!start) { showToast('error', '시작일 필수'); return; }
+      if (end < start) { showToast('error', '종료일이 시작일보다 빠릅니다'); return; }
+      const cfg = state.serverConfig;
+      if (!cfg.url || !cfg.key) { showToast('error', '서버 설정 필요'); return; }
+      const btn = document.getElementById('btn-submit-leave');
+      btn.disabled = true;
+      try {
+        const res = await fetch(`${cfg.url.replace(/\/$/,'')}/rest/v1/leave_requests`, {
+          method: 'POST',
+          headers: { 'apikey': cfg.key, 'Authorization': 'Bearer ' + cfg.key, 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+          body: JSON.stringify({
+            worker_id: state.worker.id, worker_name: state.worker.name,
+            start_date: start, end_date: end, reason: reason || null
+          })
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        showToast('success', '연차 신청 완료', '관리자 승인 대기 중');
+        document.getElementById('leave-start').value = '';
+        document.getElementById('leave-end').value = '';
+        document.getElementById('leave-reason').value = '';
+        updateLeaveBtn();
+        await fetchMyLeaves();
+      } catch (e) {
+        showToast('error', '신청 실패: ' + e.message);
+        btn.disabled = false;
+      }
+    }
+
+    async function cancelLeave(id) {
+      if (!confirm('신청을 취소하시겠습니까?')) return;
+      const cfg = state.serverConfig;
+      try {
+        const res = await fetch(`${cfg.url.replace(/\/$/,'')}/rest/v1/leave_requests?id=eq.${id}`, {
+          method: 'DELETE',
+          headers: { 'apikey': cfg.key, 'Authorization': 'Bearer ' + cfg.key }
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        showToast('success', '취소됨');
+        await fetchMyLeaves();
+      } catch (e) { showToast('error', '취소 실패: ' + e.message); }
+    }
+
+    function updateLeaveBtn() {
+      const start = document.getElementById('leave-start').value;
+      const reason = document.getElementById('leave-reason').value.trim();
+      document.getElementById('btn-submit-leave').disabled = !start || !reason;
 
     function showScreen(name) {
       document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -760,7 +990,7 @@
 
     function updateFooter() {
       const cnt = Object.keys(state.partsMaster).length;
-      document.getElementById('footer').textContent = `Worker counter 0507 02 · 마스터 ${cnt}건`;
+      document.getElementById('footer').textContent = `Worker counter 0507 03 · 마스터 ${cnt}건`;
     }
 
     function updateConnStatus() {
@@ -831,6 +1061,8 @@
       document.getElementById('setup-name').value = '';
       btn.innerHTML = originalText;
       showScreen('main'); renderHeader(); renderInput(); updateBadges();
+      // 등록 직후 서버 동기화
+      syncFromServer();
     }
 
     async function fetchWorkerByName(name) {
@@ -875,8 +1107,10 @@
       document.getElementById('tab-input').style.display = tab === 'input' ? 'block' : 'none';
       document.getElementById('tab-pending').style.display = tab === 'pending' ? 'block' : 'none';
       document.getElementById('tab-sent').style.display = tab === 'sent' ? 'block' : 'none';
+      document.getElementById('tab-leave').style.display = tab === 'leave' ? 'block' : 'none';
       if (tab === 'pending') renderPending();
       if (tab === 'sent') renderSent();
+      if (tab === 'leave') { fetchMyLeaves(); renderLeaves(); }
     }
 
     // ============ INPUT TAB ============
@@ -1719,6 +1953,21 @@
         reader.readAsText(file, 'utf-8');
       });
       document.getElementById('modal-import').addEventListener('click', e => { if (e.target.id === 'modal-import') closeImportModal(); });
+
+      // 연차 폼
+      const leaveStart = document.getElementById('leave-start');
+      const leaveEnd = document.getElementById('leave-end');
+      const leaveReason = document.getElementById('leave-reason');
+      if (leaveStart) {
+        leaveStart.addEventListener('change', () => {
+          // 시작일 바뀌면 종료일이 비어있으면 같게 자동 설정
+          if (!leaveEnd.value) leaveEnd.value = leaveStart.value;
+          updateLeaveBtn();
+        });
+        leaveEnd.addEventListener('change', updateLeaveBtn);
+        leaveReason.addEventListener('input', updateLeaveBtn);
+        document.getElementById('btn-submit-leave').addEventListener('click', submitLeave);
+      }
     }
 
     init();
