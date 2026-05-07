@@ -1,0 +1,1197 @@
+<!DOCTYPE html>
+<!--
+  ============================================================
+  Worker counter ADMIN · 관리자 페이지
+  배포: https://goforitseon-lab.github.io/worker-counter/admin.html
+  백엔드: Supabase
+  ============================================================
+  REVISION
+  ============================================================
+  admin 0507 01 · 최초 버전
+                  - 대시보드 (오늘/주간 통계, 작업자별/품번별 집계)
+                  - 제출 내역 (날짜·작업자·품번 필터, CSV 내보내기)
+                  - 작업자 관리 (목록, 관리자 권한 토글, 삭제)
+                  - 부품 마스터 (CRUD, CSV 가져오기/내보내기)
+  ============================================================
+-->
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta name="theme-color" content="#0f0f10">
+  <title>관리자 · Worker Counter</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@500;700&family=Noto+Sans+KR:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    :root {
+      --bg: #0f0f10;
+      --surface: rgba(255,255,255,0.03);
+      --surface-2: rgba(255,255,255,0.05);
+      --border: rgba(255,255,255,0.08);
+      --text: #f5f0e6;
+      --text-dim: #8a857a;
+      --text-muted: #5a564f;
+      --amber: #ffd60a;
+      --emerald: #00d97e;
+      --red: #ff3d6e;
+      --blue: #5ac8fa;
+      --purple: #c084fc;
+    }
+    html, body {
+      background: var(--bg); color: var(--text);
+      font-family: 'Noto Sans KR', system-ui, -apple-system, sans-serif;
+      min-height: 100vh; -webkit-font-smoothing: antialiased;
+    }
+    body {
+      background-image:
+        linear-gradient(rgba(255,214,10,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,214,10,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+    button { background: none; border: none; color: inherit; font: inherit; cursor: pointer; }
+    input, textarea, select { background: none; border: none; color: inherit; font: inherit; outline: none; }
+
+    .app { max-width: 1200px; margin: 0 auto; padding: 0 16px 32px; min-height: 100vh; }
+
+    /* HEADER */
+    .header { padding: 24px 4px 16px; display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+    .header-left { display: flex; align-items: center; gap: 12px; }
+    .admin-badge { padding: 6px 12px; border-radius: 6px; background: linear-gradient(135deg, var(--amber), #ffaa00); color: #0f0f10; font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.2em; font-weight: 700; }
+    .header-info .header-tag { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.25em; color: var(--text-muted); }
+    .header-info .header-name { font-size: 22px; font-weight: 700; margin-top: 2px; }
+    .header-info .header-meta { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); margin-top: 2px; display: flex; align-items: center; gap: 6px; }
+    .conn-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-muted); }
+    .conn-dot.online { background: var(--emerald); box-shadow: 0 0 6px rgba(0,217,126,0.6); }
+    .conn-dot.offline { background: var(--red); }
+
+    .header-right { display: flex; gap: 8px; align-items: center; }
+    .icon-btn { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; transition: background 0.15s; }
+    .icon-btn:hover, .icon-btn:active { background: var(--surface); }
+    .icon-btn.refresh.spinning svg { animation: spin 0.8s linear; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .text-btn { padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border); font-size: 13px; font-weight: 600; color: var(--text-dim); display: flex; align-items: center; gap: 6px; }
+    .text-btn:hover { background: var(--surface); color: var(--text); }
+
+    /* TABS */
+    .tabs { padding: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; display: flex; gap: 4px; margin-bottom: 24px; overflow-x: auto; }
+    .tab { flex: 1; min-width: 90px; padding: 10px 8px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--text-dim); display: flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; transition: all 0.15s; }
+    .tab.active { background: var(--amber); color: #0f0f10; }
+    .tab:not(.active):hover { background: rgba(255,255,255,0.04); color: var(--text); }
+
+    .label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.2em; color: var(--text-muted); margin-bottom: 8px; }
+    .section { margin-bottom: 28px; }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* DASHBOARD */
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 24px; }
+    .stat-card { padding: 18px; border-radius: 14px; border: 1px solid var(--border); background: var(--surface); position: relative; overflow: hidden; }
+    .stat-card.amber { background: linear-gradient(135deg, rgba(255,214,10,0.1), transparent); border-color: rgba(255,214,10,0.3); }
+    .stat-card.emerald { background: linear-gradient(135deg, rgba(0,217,126,0.1), transparent); border-color: rgba(0,217,126,0.3); }
+    .stat-card.red { background: linear-gradient(135deg, rgba(255,61,110,0.1), transparent); border-color: rgba(255,61,110,0.3); }
+    .stat-card.blue { background: linear-gradient(135deg, rgba(90,200,250,0.1), transparent); border-color: rgba(90,200,250,0.3); }
+    .stat-tag { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 0.2em; color: var(--text-dim); }
+    .stat-num { font-family: 'Bebas Neue', sans-serif; font-size: 48px; line-height: 1; margin-top: 6px; font-variant-numeric: tabular-nums; }
+    .stat-card.amber .stat-num { color: var(--amber); }
+    .stat-card.emerald .stat-num { color: var(--emerald); }
+    .stat-card.red .stat-num { color: var(--red); }
+    .stat-card.blue .stat-num { color: var(--blue); }
+    .stat-sub { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+    /* CHARTS / RANKING */
+    .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 760px) { .chart-grid { grid-template-columns: 1fr; } }
+    .chart-card { padding: 18px; border-radius: 14px; border: 1px solid var(--border); background: var(--surface); }
+    .chart-title { font-size: 14px; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+    .chart-title .chart-count { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted); font-weight: 500; }
+
+    .rank-list { display: flex; flex-direction: column; gap: 8px; }
+    .rank-row { display: flex; align-items: center; gap: 10px; padding: 8px 4px; }
+    .rank-num { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted); width: 24px; text-align: center; }
+    .rank-info { flex: 1; min-width: 0; }
+    .rank-name { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .rank-detail { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+    .rank-bar { height: 4px; border-radius: 2px; background: rgba(255,255,255,0.05); overflow: hidden; margin-top: 4px; }
+    .rank-fill { height: 100%; border-radius: 2px; background: var(--amber); transition: width 0.4s; }
+    .rank-fill.red { background: var(--red); }
+    .rank-fill.emerald { background: var(--emerald); }
+    .rank-qty { font-family: 'Bebas Neue', sans-serif; font-size: 22px; color: var(--amber); font-variant-numeric: tabular-nums; flex-shrink: 0; min-width: 50px; text-align: right; }
+    .rank-qty.red { color: var(--red); }
+
+    /* SUBMISSIONS TAB */
+    .filter-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)) auto; gap: 8px; margin-bottom: 16px; padding: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; }
+    .filter-input, .filter-select { padding: 10px 12px; background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: 8px; font-size: 13px; color: var(--text); }
+    .filter-input:focus, .filter-select:focus { border-color: rgba(255,214,10,0.6); }
+    .filter-input::placeholder { color: var(--text-muted); }
+    .filter-btn { padding: 10px 14px; border-radius: 8px; background: var(--amber); color: #0f0f10; font-size: 13px; font-weight: 700; }
+    .filter-btn.ghost { background: rgba(255,255,255,0.06); color: var(--text-dim); }
+
+    .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+    .table-header { display: grid; grid-template-columns: 110px 90px 100px 1fr 60px 60px 100px; gap: 8px; padding: 10px 14px; background: rgba(255,255,255,0.04); border-bottom: 1px solid var(--border); font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.15em; color: var(--text-muted); font-weight: 700; }
+    @media (max-width: 760px) { .table-header { display: none; } }
+    .table-row { display: grid; grid-template-columns: 110px 90px 100px 1fr 60px 60px 100px; gap: 8px; padding: 12px 14px; border-bottom: 1px solid var(--border); font-size: 13px; align-items: center; }
+    .table-row:hover { background: rgba(255,255,255,0.02); }
+    .table-row:last-child { border-bottom: none; }
+    @media (max-width: 760px) {
+      .table-row { display: block; padding: 14px; }
+      .table-row > div { display: flex; justify-content: space-between; padding: 3px 0; }
+      .table-row > div::before { content: attr(data-label); font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); margin-right: 8px; }
+    }
+    .table-cell-time { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim); }
+    .table-cell-worker { font-weight: 600; }
+    .table-cell-part { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; }
+    .table-cell-name { font-size: 12px; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .table-cell-qty { font-family: 'Bebas Neue', sans-serif; font-size: 22px; color: var(--text); text-align: right; font-variant-numeric: tabular-nums; }
+    .table-cell-defect { font-family: 'Bebas Neue', sans-serif; font-size: 22px; color: var(--red); text-align: right; font-variant-numeric: tabular-nums; }
+    .table-cell-defect.zero { color: var(--text-muted); }
+    .defect-pill { display: inline-block; padding: 1px 6px; border-radius: 4px; background: rgba(255,61,110,0.15); color: #ff8caa; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; margin-right: 4px; margin-top: 2px; }
+
+    .pagination { display: flex; justify-content: center; gap: 6px; padding: 16px; }
+    .page-btn { width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: var(--text-dim); }
+    .page-btn:hover:not(:disabled) { background: var(--surface); color: var(--text); }
+    .page-btn.active { background: var(--amber); color: #0f0f10; border-color: var(--amber); }
+    .page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    .page-info { padding: 8px 12px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-muted); }
+
+    /* WORKERS / MASTER */
+    .crud-bar { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; align-items: center; }
+    .crud-search { flex: 1; min-width: 180px; padding: 10px 12px; background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: 8px; font-size: 13px; }
+    .crud-btn { padding: 10px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+    .crud-btn.primary { background: var(--amber); color: #0f0f10; }
+    .crud-btn.secondary { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
+    .crud-btn.secondary:hover { background: rgba(255,255,255,0.08); }
+
+    .worker-table-header { display: grid; grid-template-columns: 1fr 140px 100px 90px; gap: 8px; padding: 10px 14px; background: rgba(255,255,255,0.04); border-bottom: 1px solid var(--border); font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.15em; color: var(--text-muted); font-weight: 700; }
+    .worker-row { display: grid; grid-template-columns: 1fr 140px 100px 90px; gap: 8px; padding: 12px 14px; border-bottom: 1px solid var(--border); font-size: 13px; align-items: center; }
+    .worker-row:last-child { border-bottom: none; }
+    .worker-row:hover { background: rgba(255,255,255,0.02); }
+    @media (max-width: 760px) {
+      .worker-table-header { display: none; }
+      .worker-row { display: block; padding: 14px; }
+      .worker-row > div { display: flex; justify-content: space-between; padding: 3px 0; }
+    }
+    .worker-name { font-weight: 600; font-size: 14px; }
+    .worker-id { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim); }
+
+    .toggle-wrap { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+    .toggle { width: 36px; height: 20px; border-radius: 999px; background: rgba(255,255,255,0.1); position: relative; transition: background 0.2s; }
+    .toggle::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: white; transition: left 0.2s; }
+    .toggle.on { background: var(--amber); }
+    .toggle.on::after { left: 18px; }
+    .toggle-label { font-size: 12px; font-weight: 600; }
+    .toggle-label.on { color: var(--amber); }
+    .toggle-label.off { color: var(--text-muted); }
+
+    .row-icon-btn { width: 32px; height: 32px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; }
+    .row-icon-btn:hover { background: var(--surface); }
+    .row-icon-btn.danger:hover { background: rgba(255,61,110,0.15); }
+
+    /* MASTER specific */
+    .master-row { display: grid; grid-template-columns: 130px 1fr 1fr 100px 90px; gap: 8px; padding: 12px 14px; border-bottom: 1px solid var(--border); font-size: 13px; align-items: center; }
+    .master-table-header { display: grid; grid-template-columns: 130px 1fr 1fr 100px 90px; gap: 8px; padding: 10px 14px; background: rgba(255,255,255,0.04); border-bottom: 1px solid var(--border); font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.15em; color: var(--text-muted); font-weight: 700; }
+    .master-row:last-child { border-bottom: none; }
+    @media (max-width: 760px) {
+      .master-table-header { display: none; }
+      .master-row { display: block; padding: 14px; }
+      .master-row > div { display: flex; justify-content: space-between; padding: 3px 0; }
+    }
+    .master-part { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; color: var(--amber); }
+
+    /* EMPTY */
+    .empty { text-align: center; padding: 60px 24px; color: var(--text-muted); font-size: 14px; }
+    .empty-icon { width: 56px; height: 56px; border-radius: 16px; background: rgba(255,255,255,0.03); display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; }
+
+    /* MODAL */
+    .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); z-index: 90; display: none; align-items: center; justify-content: center; padding: 16px; }
+    .modal-bg.active { display: flex; }
+    .modal { width: 100%; max-width: 520px; background: #18181a; border-radius: 16px; padding: 24px; max-height: 90vh; overflow-y: auto; }
+    .modal-title { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+    .modal-sub { font-size: 13px; color: var(--text-dim); margin-bottom: 20px; }
+    .modal-input { width: 100%; padding: 12px 14px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 10px; font-size: 14px; color: var(--text); margin-bottom: 12px; }
+    .modal-input:focus { border-color: rgba(255,214,10,0.6); }
+    .modal-row { display: flex; gap: 8px; margin-top: 12px; }
+    .modal-btn { flex: 1; padding: 14px; border-radius: 10px; font-size: 14px; font-weight: 700; }
+    .modal-btn.primary { background: var(--amber); color: #0f0f10; }
+    .modal-btn.ghost { background: rgba(255,255,255,0.06); color: var(--text-dim); }
+    .modal-btn.danger { background: var(--red); color: white; }
+    .modal-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.15em; color: var(--text-muted); margin-bottom: 4px; margin-top: 12px; }
+    .csv-area { width: 100%; min-height: 160px; padding: 12px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 10px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text); resize: vertical; }
+    .modal-status { padding: 10px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; margin: 8px 0; display: none; }
+    .modal-status.success { display: block; background: rgba(0,217,126,0.1); color: var(--emerald); }
+    .modal-status.error { display: block; background: rgba(255,61,110,0.1); color: #ff8caa; }
+
+    /* TOAST */
+    .toast { position: fixed; top: 24px; left: 50%; transform: translateX(-50%); z-index: 100; padding: 14px 24px; border-radius: 12px; font-weight: 700; font-size: 14px; display: none; animation: slidedown 0.3s; }
+    .toast.show { display: block; }
+    .toast.success { background: var(--emerald); color: white; }
+    .toast.error { background: var(--red); color: white; }
+    .toast.info { background: var(--blue); color: #0f0f10; }
+    @keyframes slidedown { from { transform: translate(-50%, -20px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
+
+    .footer { text-align: center; padding: 24px; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); letter-spacing: 0.15em; }
+
+    /* LOADING */
+    .loading { text-align: center; padding: 48px; color: var(--text-muted); }
+    .loading-spinner { display: inline-block; width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--amber); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <div class="header-left">
+        <span class="admin-badge">ADMIN</span>
+        <div class="header-info">
+          <div class="header-tag">MANAGER</div>
+          <div class="header-name" id="admin-name">-</div>
+          <div class="header-meta">
+            <span class="conn-dot" id="conn-dot"></span>
+            <span id="conn-text">-</span>
+          </div>
+        </div>
+      </div>
+      <div class="header-right">
+        <button class="icon-btn refresh" id="btn-refresh" title="새로고침">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a8a29e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+        </button>
+        <button class="text-btn" id="btn-go-worker">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          작업자 페이지
+        </button>
+        <button class="icon-btn" id="btn-server-cfg" title="서버 설정">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a8a29e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="dashboard">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        대시보드
+      </button>
+      <button class="tab" data-tab="submissions">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        제출 내역
+      </button>
+      <button class="tab" data-tab="workers">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        작업자
+      </button>
+      <button class="tab" data-tab="master">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7h-7m7 5h-7m7 5h-7M3 7h.01M3 12h.01M3 17h.01"/></svg>
+        부품 마스터
+      </button>
+    </div>
+
+    <!-- ============ DASHBOARD ============ -->
+    <div class="tab-content active" id="tab-dashboard">
+      <div id="dashboard-loading" class="loading"><div class="loading-spinner"></div><div style="margin-top:12px;">데이터 로딩 중...</div></div>
+      <div id="dashboard-content" style="display:none;">
+        <div class="stats-grid">
+          <div class="stat-card amber">
+            <div class="stat-tag">TODAY · 생산</div>
+            <div class="stat-num" id="stat-today-prod">0</div>
+            <div class="stat-sub" id="stat-today-records">0건 제출</div>
+          </div>
+          <div class="stat-card red">
+            <div class="stat-tag">TODAY · 불량</div>
+            <div class="stat-num" id="stat-today-defect">0</div>
+            <div class="stat-sub" id="stat-today-rate">불량률 0%</div>
+          </div>
+          <div class="stat-card emerald">
+            <div class="stat-tag">TODAY · 양품</div>
+            <div class="stat-num" id="stat-today-good">0</div>
+            <div class="stat-sub" id="stat-today-good-rate">양품률 0%</div>
+          </div>
+          <div class="stat-card blue">
+            <div class="stat-tag">TODAY · 활동 작업자</div>
+            <div class="stat-num" id="stat-today-workers">0</div>
+            <div class="stat-sub" id="stat-total-workers">전체 0명</div>
+          </div>
+        </div>
+
+        <div class="chart-grid">
+          <div class="chart-card">
+            <div class="chart-title">작업자별 생산 (오늘) <span class="chart-count" id="rank-worker-count"></span></div>
+            <div id="rank-workers" class="rank-list"></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">품번별 생산 (오늘) <span class="chart-count" id="rank-part-count"></span></div>
+            <div id="rank-parts" class="rank-list"></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">불량 유형 Top (오늘) <span class="chart-count" id="rank-defect-count"></span></div>
+            <div id="rank-defects" class="rank-list"></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">최근 7일 추이 <span class="chart-count">일별 생산/불량</span></div>
+            <div id="trend-7d" class="rank-list"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ SUBMISSIONS ============ -->
+    <div class="tab-content" id="tab-submissions">
+      <div class="filter-bar">
+        <input type="date" id="filter-date-from" class="filter-input" title="시작일">
+        <input type="date" id="filter-date-to" class="filter-input" title="종료일">
+        <select id="filter-worker" class="filter-select"><option value="">전체 작업자</option></select>
+        <input type="text" id="filter-part" class="filter-input" placeholder="품번 (선택)">
+        <select id="filter-defect" class="filter-select">
+          <option value="">전체</option>
+          <option value="ok">양품만</option>
+          <option value="ng">불량 포함</option>
+        </select>
+        <button class="filter-btn" id="btn-apply-filter">적용</button>
+        <button class="filter-btn ghost" id="btn-clear-filter">초기화</button>
+        <button class="filter-btn ghost" id="btn-export-sub">CSV</button>
+      </div>
+
+      <div id="sub-loading" class="loading" style="display:none;"><div class="loading-spinner"></div></div>
+      <div class="table-wrap" id="sub-table-wrap">
+        <div class="table-header">
+          <div>일시</div><div>작업자</div><div>품번</div><div>품명</div>
+          <div style="text-align:right;">생산</div><div style="text-align:right;">불량</div><div>불량유형</div>
+        </div>
+        <div id="sub-list"></div>
+      </div>
+      <div class="pagination" id="sub-pagination"></div>
+    </div>
+
+    <!-- ============ WORKERS ============ -->
+    <div class="tab-content" id="tab-workers">
+      <div class="crud-bar">
+        <input type="text" id="worker-search" class="crud-search" placeholder="이름 검색">
+        <button class="crud-btn primary" id="btn-add-worker">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          작업자/관리자 추가
+        </button>
+      </div>
+      <div id="worker-loading" class="loading" style="display:none;"><div class="loading-spinner"></div></div>
+      <div class="table-wrap">
+        <div class="worker-table-header">
+          <div>이름 / ID</div><div>등록일</div><div>관리자</div><div>작업</div>
+        </div>
+        <div id="worker-list"></div>
+      </div>
+    </div>
+
+    <!-- ============ MASTER ============ -->
+    <div class="tab-content" id="tab-master">
+      <div class="crud-bar">
+        <input type="text" id="master-search" class="crud-search" placeholder="품번 또는 품명 검색">
+        <button class="crud-btn primary" id="btn-add-master">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          품번 추가
+        </button>
+        <button class="crud-btn secondary" id="btn-import-master">CSV 가져오기</button>
+        <button class="crud-btn secondary" id="btn-export-master">CSV 내보내기</button>
+      </div>
+      <div id="master-loading" class="loading" style="display:none;"><div class="loading-spinner"></div></div>
+      <div class="table-wrap">
+        <div class="master-table-header">
+          <div>품번</div><div>품명</div><div>규격</div><div>창고</div><div>작업</div>
+        </div>
+        <div id="master-list"></div>
+      </div>
+    </div>
+
+    <div class="footer" id="footer">Worker counter admin 0507 01</div>
+  </div>
+
+  <!-- TOAST -->
+  <div class="toast" id="toast">완료</div>
+
+  <!-- WORKER MODAL -->
+  <div class="modal-bg" id="modal-worker">
+    <div class="modal">
+      <div class="modal-title" id="worker-modal-title">작업자 추가</div>
+      <div class="modal-sub">관리자로 등록하면 그 이름으로 폰에서 등록 시 admin 페이지로 이동</div>
+      <div class="modal-label">이름</div>
+      <input type="text" id="worker-modal-name" class="modal-input" placeholder="예: 김관리">
+      <div class="modal-label">ID (자동, 비워두면 자동 생성)</div>
+      <input type="text" id="worker-modal-id" class="modal-input" placeholder="비우면 자동 생성">
+      <label class="toggle-wrap" style="margin-top:12px;">
+        <span class="toggle" id="worker-modal-admin-toggle"></span>
+        <span class="toggle-label off" id="worker-modal-admin-label">관리자 권한 OFF</span>
+      </label>
+      <div class="modal-row">
+        <button class="modal-btn ghost" id="worker-modal-cancel">취소</button>
+        <button class="modal-btn primary" id="worker-modal-save">저장</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MASTER MODAL -->
+  <div class="modal-bg" id="modal-master">
+    <div class="modal">
+      <div class="modal-title" id="master-modal-title">품번 추가</div>
+      <div class="modal-label">품번</div>
+      <input type="text" id="master-modal-part" class="modal-input" placeholder="예: BOLT-M8-25">
+      <div class="modal-label">품명</div>
+      <input type="text" id="master-modal-name" class="modal-input" placeholder="예: 헥사 볼트">
+      <div class="modal-label">규격</div>
+      <input type="text" id="master-modal-spec" class="modal-input" placeholder="예: M8 x 25mm SUS304">
+      <div class="modal-label">창고명</div>
+      <input type="text" id="master-modal-warehouse" class="modal-input" placeholder="예: 1번 창고">
+      <div class="modal-row">
+        <button class="modal-btn ghost" id="master-modal-cancel">취소</button>
+        <button class="modal-btn primary" id="master-modal-save">저장</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- IMPORT MASTER MODAL -->
+  <div class="modal-bg" id="modal-import">
+    <div class="modal">
+      <div class="modal-title">품번 마스터 CSV 가져오기</div>
+      <div class="modal-sub">형식: 품번,품명,규격,창고명 (헤더 포함). 같은 품번은 덮어쓰기.</div>
+      <textarea id="csv-input" class="csv-area" placeholder="품번,품명,규격,창고명&#10;BOLT-M8-25,헥사 볼트,M8 x 25mm SUS304,1번 창고"></textarea>
+      <div class="modal-row" style="margin-top:8px;">
+        <button class="modal-btn ghost" id="import-load-file">파일에서</button>
+        <input type="file" id="import-file-input" accept=".csv,.txt" style="display:none;">
+        <button class="modal-btn primary" id="import-do">가져오기</button>
+      </div>
+      <button class="modal-btn ghost" id="import-cancel" style="margin-top:8px;width:100%;">취소</button>
+    </div>
+  </div>
+
+  <!-- SERVER CONFIG MODAL -->
+  <div class="modal-bg" id="modal-server">
+    <div class="modal">
+      <div class="modal-title">서버 연결 설정</div>
+      <div class="modal-sub">Supabase URL과 anon public 키</div>
+      <div class="modal-label">SUPABASE URL</div>
+      <input type="text" id="cfg-url" class="modal-input" placeholder="https://xxxxxxx.supabase.co">
+      <div class="modal-label">ANON PUBLIC KEY</div>
+      <textarea id="cfg-key" class="csv-area" placeholder="sb_publishable_..." style="min-height:80px;"></textarea>
+      <div class="modal-status" id="cfg-status"></div>
+      <div class="modal-row">
+        <button class="modal-btn ghost" id="cfg-test">연결 테스트</button>
+        <button class="modal-btn primary" id="cfg-save">저장</button>
+      </div>
+      <button class="modal-btn ghost" id="cfg-cancel" style="margin-top:8px;width:100%;">닫기</button>
+    </div>
+  </div>
+
+  <script>
+    // ============ STORAGE ============
+    const memStore = {};
+    const storage = {
+      get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : (d ?? null); } catch { return memStore[k] ?? d ?? null; } },
+      set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { memStore[k] = v; } },
+    };
+
+    // 기본 Supabase 설정 (작업자 화면과 공유 키)
+    const DEFAULT_SERVER_CONFIG = {
+      url: 'https://dkdnqbkulaweoiypwdih.supabase.co',
+      key: 'sb_publishable_DIJzW9_tjUytnnV643KROQ_OIDk5n-w'
+    };
+
+    const state = {
+      tab: 'dashboard',
+      worker: null,
+      serverConfig: { url: '', key: '' },
+      submissions: [], workers: [], master: [],
+      // 필터
+      filterDateFrom: '', filterDateTo: '', filterWorker: '', filterPart: '', filterDefect: '',
+      page: 1, pageSize: 50,
+      filteredSubmissions: [],
+      // 모달 편집 상태
+      editingWorker: null, editingMaster: null, workerModalAdminOn: false,
+    };
+
+    // ============ INIT ============
+    async function init() {
+      const savedCfg = storage.get('config:server');
+      state.serverConfig = (savedCfg && savedCfg.url) ? savedCfg : { ...DEFAULT_SERVER_CONFIG };
+
+      state.worker = storage.get('worker:me');
+      if (state.worker) {
+        document.getElementById('admin-name').textContent = state.worker.name + (state.worker.isAdmin ? '' : ' (권한확인필요)');
+      } else {
+        document.getElementById('admin-name').textContent = '관리자';
+      }
+
+      updateConnStatus();
+      bindEvents();
+
+      // 오늘 날짜를 필터 기본값으로
+      const today = new Date().toISOString().slice(0,10);
+      document.getElementById('filter-date-from').value = today;
+      document.getElementById('filter-date-to').value = today;
+      state.filterDateFrom = today; state.filterDateTo = today;
+
+      // 모든 데이터 로드
+      await loadAll();
+
+      // 탭 진입
+      switchTab('dashboard');
+    }
+
+    function updateConnStatus() {
+      const dot = document.getElementById('conn-dot');
+      const txt = document.getElementById('conn-text');
+      if (!state.serverConfig.url) { dot.className = 'conn-dot'; txt.textContent = '서버 미설정'; }
+      else if (!navigator.onLine) { dot.className = 'conn-dot offline'; txt.textContent = '오프라인'; }
+      else { dot.className = 'conn-dot online'; txt.textContent = state.serverConfig.url.replace('https://','').slice(0,30); }
+    }
+
+    // ============ SUPABASE HELPERS ============
+    async function sbGet(path) {
+      const cfg = state.serverConfig;
+      if (!cfg.url || !cfg.key) throw new Error('서버 설정 없음');
+      const res = await fetch(`${cfg.url.replace(/\/$/,'')}/rest/v1/${path}`, {
+        headers: { 'apikey': cfg.key, 'Authorization': 'Bearer ' + cfg.key }
+      });
+      if (!res.ok) { const t = await res.text(); throw new Error(`GET ${path}: ${res.status} ${t.slice(0,150)}`); }
+      return await res.json();
+    }
+    async function sbPost(path, body) {
+      const cfg = state.serverConfig;
+      const res = await fetch(`${cfg.url.replace(/\/$/,'')}/rest/v1/${path}`, {
+        method: 'POST',
+        headers: { 'apikey': cfg.key, 'Authorization': 'Bearer ' + cfg.key, 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+        body: JSON.stringify(body)
+      });
+      if (!res.ok) { const t = await res.text(); throw new Error(`POST ${path}: ${res.status} ${t.slice(0,150)}`); }
+      return await res.json();
+    }
+    async function sbPatch(path, body) {
+      const cfg = state.serverConfig;
+      const res = await fetch(`${cfg.url.replace(/\/$/,'')}/rest/v1/${path}`, {
+        method: 'PATCH',
+        headers: { 'apikey': cfg.key, 'Authorization': 'Bearer ' + cfg.key, 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+        body: JSON.stringify(body)
+      });
+      if (!res.ok) { const t = await res.text(); throw new Error(`PATCH ${path}: ${res.status} ${t.slice(0,150)}`); }
+      return await res.json();
+    }
+    async function sbDelete(path) {
+      const cfg = state.serverConfig;
+      const res = await fetch(`${cfg.url.replace(/\/$/,'')}/rest/v1/${path}`, {
+        method: 'DELETE',
+        headers: { 'apikey': cfg.key, 'Authorization': 'Bearer ' + cfg.key }
+      });
+      if (!res.ok) { const t = await res.text(); throw new Error(`DELETE ${path}: ${res.status} ${t.slice(0,150)}`); }
+      return true;
+    }
+    async function sbUpsert(path, body) {
+      const cfg = state.serverConfig;
+      const res = await fetch(`${cfg.url.replace(/\/$/,'')}/rest/v1/${path}`, {
+        method: 'POST',
+        headers: { 'apikey': cfg.key, 'Authorization': 'Bearer ' + cfg.key, 'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates,return=representation' },
+        body: JSON.stringify(body)
+      });
+      if (!res.ok) { const t = await res.text(); throw new Error(`UPSERT ${path}: ${res.status} ${t.slice(0,150)}`); }
+      return await res.json();
+    }
+
+    // ============ LOAD ALL ============
+    async function loadAll() {
+      try {
+        const [subs, workers, master] = await Promise.all([
+          sbGet('submissions?order=created_at.desc&limit=2000'),
+          sbGet('workers?order=created_at.asc'),
+          sbGet('parts_master?order=part_number.asc'),
+        ]);
+        state.submissions = subs;
+        state.workers = workers;
+        state.master = master;
+        renderAll();
+      } catch (e) {
+        showToast('error', '데이터 로드 실패: ' + e.message);
+        console.error(e);
+      }
+    }
+
+    function renderAll() {
+      renderDashboard();
+      renderSubmissions();
+      renderWorkers();
+      renderMaster();
+      populateWorkerFilter();
+    }
+
+    function populateWorkerFilter() {
+      const sel = document.getElementById('filter-worker');
+      const cur = sel.value;
+      sel.innerHTML = '<option value="">전체 작업자</option>' +
+        state.workers.map(w => `<option value="${escapeHtml(w.id)}">${escapeHtml(w.name)}${w.is_admin ? ' (관리자)' : ''}</option>`).join('');
+      sel.value = cur;
+    }
+
+    // ============ TABS ============
+    function switchTab(tab) {
+      state.tab = tab;
+      document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.toggle('active', c.id === 'tab-' + tab));
+    }
+
+    // ============ DASHBOARD ============
+    function renderDashboard() {
+      document.getElementById('dashboard-loading').style.display = 'none';
+      document.getElementById('dashboard-content').style.display = 'block';
+
+      const today = new Date(); today.setHours(0,0,0,0);
+      const todaySubs = state.submissions.filter(s => new Date(s.created_at).getTime() >= today.getTime());
+
+      const totalProd = todaySubs.reduce((s, e) => s + (e.quantity || 0), 0);
+      const totalDefect = todaySubs.reduce((s, e) => s + (e.defect_quantity || 0), 0);
+      const totalGood = totalProd - totalDefect;
+      const defectRate = totalProd > 0 ? ((totalDefect / totalProd) * 100).toFixed(1) : '0';
+      const goodRate = totalProd > 0 ? ((totalGood / totalProd) * 100).toFixed(1) : '0';
+
+      const activeWorkers = new Set(todaySubs.map(s => s.worker_id)).size;
+
+      document.getElementById('stat-today-prod').textContent = totalProd.toLocaleString();
+      document.getElementById('stat-today-records').textContent = `${todaySubs.length}건 제출`;
+      document.getElementById('stat-today-defect').textContent = totalDefect.toLocaleString();
+      document.getElementById('stat-today-rate').textContent = `불량률 ${defectRate}%`;
+      document.getElementById('stat-today-good').textContent = totalGood.toLocaleString();
+      document.getElementById('stat-today-good-rate').textContent = `양품률 ${goodRate}%`;
+      document.getElementById('stat-today-workers').textContent = activeWorkers;
+      document.getElementById('stat-total-workers').textContent = `전체 ${state.workers.length}명 등록`;
+
+      // 작업자별 생산 (오늘)
+      const byWorker = {};
+      todaySubs.forEach(s => {
+        const k = s.worker_id;
+        if (!byWorker[k]) byWorker[k] = { name: s.worker_name, prod: 0, defect: 0 };
+        byWorker[k].prod += (s.quantity || 0);
+        byWorker[k].defect += (s.defect_quantity || 0);
+      });
+      const workerArr = Object.values(byWorker).sort((a,b) => b.prod - a.prod);
+      const maxProd = Math.max(...workerArr.map(w => w.prod), 1);
+      document.getElementById('rank-worker-count').textContent = `${workerArr.length}명`;
+      const wl = document.getElementById('rank-workers');
+      if (workerArr.length === 0) { wl.innerHTML = '<div style="color:var(--text-muted); font-size:13px; text-align:center; padding:24px;">오늘 활동 작업자 없음</div>'; }
+      else {
+        wl.innerHTML = workerArr.slice(0, 10).map((w, i) => `
+          <div class="rank-row">
+            <div class="rank-num">${i+1}</div>
+            <div class="rank-info">
+              <div class="rank-name">${escapeHtml(w.name)}</div>
+              <div class="rank-detail">불량 ${w.defect} · 양품 ${w.prod - w.defect}</div>
+              <div class="rank-bar"><div class="rank-fill" style="width:${(w.prod/maxProd)*100}%"></div></div>
+            </div>
+            <div class="rank-qty">${w.prod}</div>
+          </div>
+        `).join('');
+      }
+
+      // 품번별 생산 (오늘)
+      const byPart = {};
+      todaySubs.forEach(s => {
+        const k = s.part_number;
+        if (!byPart[k]) byPart[k] = { name: s.part_name, prod: 0, defect: 0 };
+        byPart[k].prod += (s.quantity || 0);
+        byPart[k].defect += (s.defect_quantity || 0);
+      });
+      const partArr = Object.entries(byPart).map(([k, v]) => ({ part: k, ...v })).sort((a,b) => b.prod - a.prod);
+      const maxPart = Math.max(...partArr.map(p => p.prod), 1);
+      document.getElementById('rank-part-count').textContent = `${partArr.length}개`;
+      const pl = document.getElementById('rank-parts');
+      if (partArr.length === 0) { pl.innerHTML = '<div style="color:var(--text-muted); font-size:13px; text-align:center; padding:24px;">오늘 생산 품번 없음</div>'; }
+      else {
+        pl.innerHTML = partArr.slice(0, 10).map((p, i) => `
+          <div class="rank-row">
+            <div class="rank-num">${i+1}</div>
+            <div class="rank-info">
+              <div class="rank-name">${escapeHtml(p.part)}</div>
+              <div class="rank-detail">${p.name ? escapeHtml(p.name) + ' · ' : ''}불량 ${p.defect}</div>
+              <div class="rank-bar"><div class="rank-fill" style="width:${(p.prod/maxPart)*100}%"></div></div>
+            </div>
+            <div class="rank-qty">${p.prod}</div>
+          </div>
+        `).join('');
+      }
+
+      // 불량 유형 Top (오늘)
+      const byDefect = {};
+      todaySubs.forEach(s => {
+        const list = s.defects || (s.defect_code ? [{ code: s.defect_code, name: s.defect_name, quantity: s.defect_quantity }] : []);
+        list.forEach(d => {
+          const k = d.code || '?';
+          if (!byDefect[k]) byDefect[k] = { name: d.name || '', qty: 0 };
+          byDefect[k].qty += (d.quantity || 0);
+        });
+      });
+      const defectArr = Object.entries(byDefect).map(([k, v]) => ({ code: k, ...v })).sort((a,b) => b.qty - a.qty);
+      const maxDef = Math.max(...defectArr.map(d => d.qty), 1);
+      document.getElementById('rank-defect-count').textContent = `${defectArr.length}종`;
+      const dl = document.getElementById('rank-defects');
+      if (defectArr.length === 0) { dl.innerHTML = '<div style="color:var(--text-muted); font-size:13px; text-align:center; padding:24px;">오늘 불량 없음 ✓</div>'; }
+      else {
+        dl.innerHTML = defectArr.slice(0, 10).map((d, i) => `
+          <div class="rank-row">
+            <div class="rank-num">${i+1}</div>
+            <div class="rank-info">
+              <div class="rank-name">${escapeHtml(d.code)} · ${escapeHtml(d.name)}</div>
+              <div class="rank-bar"><div class="rank-fill red" style="width:${(d.qty/maxDef)*100}%"></div></div>
+            </div>
+            <div class="rank-qty red">${d.qty}</div>
+          </div>
+        `).join('');
+      }
+
+      // 최근 7일 추이
+      const trend = [];
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() - i);
+        const next = new Date(d); next.setDate(next.getDate() + 1);
+        const dayMs = d.getTime(), nextMs = next.getTime();
+        const subs = state.submissions.filter(s => { const t = new Date(s.created_at).getTime(); return t >= dayMs && t < nextMs; });
+        const prod = subs.reduce((s, e) => s + (e.quantity || 0), 0);
+        const defect = subs.reduce((s, e) => s + (e.defect_quantity || 0), 0);
+        trend.push({ label: `${d.getMonth()+1}/${d.getDate()}`, prod, defect });
+      }
+      const maxTrend = Math.max(...trend.map(t => t.prod), 1);
+      document.getElementById('trend-7d').innerHTML = trend.map(t => `
+        <div class="rank-row">
+          <div class="rank-num" style="width:36px;">${t.label}</div>
+          <div class="rank-info">
+            <div class="rank-detail">생산 ${t.prod} · 불량 ${t.defect}${t.prod > 0 ? ` (${((t.defect/t.prod)*100).toFixed(1)}%)` : ''}</div>
+            <div class="rank-bar"><div class="rank-fill" style="width:${(t.prod/maxTrend)*100}%"></div></div>
+          </div>
+          <div class="rank-qty">${t.prod}</div>
+        </div>
+      `).join('');
+    }
+
+    // ============ SUBMISSIONS ============
+    function applyFilter() {
+      const fromDate = state.filterDateFrom ? new Date(state.filterDateFrom).getTime() : 0;
+      const toDate = state.filterDateTo ? new Date(state.filterDateTo).getTime() + 86400000 : Infinity;
+      const part = state.filterPart.trim().toLowerCase();
+      const wid = state.filterWorker;
+      const def = state.filterDefect;
+
+      state.filteredSubmissions = state.submissions.filter(s => {
+        const t = new Date(s.created_at).getTime();
+        if (t < fromDate || t >= toDate) return false;
+        if (wid && s.worker_id !== wid) return false;
+        if (part && !(s.part_number || '').toLowerCase().includes(part)) return false;
+        if (def === 'ok' && (s.defect_quantity || 0) > 0) return false;
+        if (def === 'ng' && (s.defect_quantity || 0) === 0) return false;
+        return true;
+      });
+      state.page = 1;
+      renderSubmissions();
+    }
+
+    function renderSubmissions() {
+      const list = state.filteredSubmissions.length > 0 || state.filterDateFrom ? state.filteredSubmissions : state.submissions;
+      const totalPages = Math.max(1, Math.ceil(list.length / state.pageSize));
+      if (state.page > totalPages) state.page = totalPages;
+      const start = (state.page - 1) * state.pageSize;
+      const slice = list.slice(start, start + state.pageSize);
+
+      const el = document.getElementById('sub-list');
+      if (slice.length === 0) {
+        el.innerHTML = '<div class="empty"><div class="empty-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#5a564f" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>조건에 맞는 제출 내역이 없습니다</div>';
+      } else {
+        el.innerHTML = slice.map(s => {
+          const dq = s.defect_quantity || 0;
+          const defects = s.defects || (s.defect_code ? [{ code: s.defect_code, name: s.defect_name, quantity: dq }] : []);
+          const time = new Date(s.created_at).toLocaleString('ko-KR', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+          const defectPills = defects.map(d => `<span class="defect-pill">${escapeHtml(d.code || '')}×${d.quantity || 0}</span>`).join('');
+          return `<div class="table-row">
+            <div class="table-cell-time" data-label="일시">${time}</div>
+            <div class="table-cell-worker" data-label="작업자">${escapeHtml(s.worker_name || '-')}</div>
+            <div class="table-cell-part" data-label="품번">${escapeHtml(s.part_number || '')}</div>
+            <div class="table-cell-name" data-label="품명">${escapeHtml(s.part_name || '')}${s.spec ? ' · ' + escapeHtml(s.spec) : ''}</div>
+            <div class="table-cell-qty" data-label="생산">${s.quantity || 0}</div>
+            <div class="table-cell-defect ${dq===0?'zero':''}" data-label="불량">${dq}</div>
+            <div data-label="불량유형">${defectPills || '<span style="color:var(--text-muted); font-size:11px;">-</span>'}</div>
+          </div>`;
+        }).join('');
+      }
+
+      // 페이지네이션
+      const pg = document.getElementById('sub-pagination');
+      if (totalPages <= 1) { pg.innerHTML = `<span class="page-info">전체 ${list.length}건</span>`; return; }
+      const buttons = [];
+      buttons.push(`<button class="page-btn" data-page="${state.page-1}" ${state.page<=1?'disabled':''}><</button>`);
+      const startP = Math.max(1, state.page - 2);
+      const endP = Math.min(totalPages, state.page + 2);
+      for (let p = startP; p <= endP; p++) buttons.push(`<button class="page-btn ${p===state.page?'active':''}" data-page="${p}">${p}</button>`);
+      buttons.push(`<button class="page-btn" data-page="${state.page+1}" ${state.page>=totalPages?'disabled':''}>></button>`);
+      buttons.push(`<span class="page-info">${state.page}/${totalPages} · 전체 ${list.length}건</span>`);
+      pg.innerHTML = buttons.join('');
+      pg.querySelectorAll('[data-page]').forEach(b => b.addEventListener('click', () => { state.page = parseInt(b.dataset.page); renderSubmissions(); }));
+    }
+
+    function exportSubmissions() {
+      const list = state.filteredSubmissions.length > 0 || state.filterDateFrom ? state.filteredSubmissions : state.submissions;
+      if (list.length === 0) { showToast('error', '내보낼 데이터 없음'); return; }
+      const header = '\uFEFF일시,작업자,작업자ID,품번,품명,규격,창고,생산,불량,불량코드,불량유형,서버ID\n';
+      const rows = list.map(s => {
+        const dq = s.defect_quantity || 0;
+        const defects = s.defects || (s.defect_code ? [{ code: s.defect_code, name: s.defect_name, quantity: dq }] : []);
+        const dCodes = defects.map(d => `${d.code}×${d.quantity}`).join(';');
+        const dNames = defects.map(d => d.name).join(';');
+        return [
+          new Date(s.created_at).toLocaleString('ko-KR'),
+          s.worker_name, s.worker_id, s.part_number, s.part_name, s.spec, s.warehouse,
+          s.quantity, dq, dCodes, dNames, s.id
+        ].map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',');
+      }).join('\n');
+      downloadCSV(header + rows, `제출내역_${new Date().toISOString().slice(0,10)}.csv`);
+    }
+
+    // ============ WORKERS ============
+    function renderWorkers() {
+      const search = document.getElementById('worker-search').value.trim().toLowerCase();
+      const filtered = state.workers.filter(w => !search || (w.name || '').toLowerCase().includes(search) || (w.id || '').toLowerCase().includes(search));
+      const el = document.getElementById('worker-list');
+      if (filtered.length === 0) {
+        el.innerHTML = '<div class="empty">등록된 작업자가 없습니다</div>';
+        return;
+      }
+      el.innerHTML = filtered.map(w => {
+        const date = w.created_at ? new Date(w.created_at).toLocaleDateString('ko-KR') : '-';
+        return `<div class="worker-row">
+          <div data-label="이름">
+            <div>
+              <div class="worker-name">${escapeHtml(w.name)}</div>
+              <div class="worker-id">${escapeHtml(w.id)}</div>
+            </div>
+          </div>
+          <div data-label="등록일" style="font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--text-dim);">${date}</div>
+          <div data-label="관리자">
+            <label class="toggle-wrap" data-admin="${w.id}">
+              <span class="toggle ${w.is_admin?'on':''}"></span>
+              <span class="toggle-label ${w.is_admin?'on':'off'}">${w.is_admin?'ON':'OFF'}</span>
+            </label>
+          </div>
+          <div data-label="작업">
+            <button class="row-icon-btn danger" data-del-worker="${w.id}" title="삭제">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ff8caa" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            </button>
+          </div>
+        </div>`;
+      }).join('');
+      el.querySelectorAll('[data-admin]').forEach(b => b.addEventListener('click', () => toggleAdmin(b.dataset.admin)));
+      el.querySelectorAll('[data-del-worker]').forEach(b => b.addEventListener('click', () => deleteWorker(b.dataset.delWorker)));
+    }
+
+    async function toggleAdmin(workerId) {
+      const w = state.workers.find(x => x.id === workerId);
+      if (!w) return;
+      const newVal = !w.is_admin;
+      if (!confirm(`${w.name}의 관리자 권한을 ${newVal ? 'ON' : 'OFF'}하시겠습니까?`)) return;
+      try {
+        await sbPatch(`workers?id=eq.${encodeURIComponent(workerId)}`, { is_admin: newVal });
+        w.is_admin = newVal;
+        renderWorkers(); populateWorkerFilter();
+        showToast('success', `${w.name} 관리자 권한 ${newVal ? 'ON' : 'OFF'}`);
+      } catch (e) { showToast('error', '실패: ' + e.message); }
+    }
+
+    async function deleteWorker(workerId) {
+      const w = state.workers.find(x => x.id === workerId);
+      if (!w) return;
+      if (!confirm(`${w.name} (${workerId}) 를 삭제하시겠습니까?\n과거 제출 내역은 유지됩니다.`)) return;
+      try {
+        await sbDelete(`workers?id=eq.${encodeURIComponent(workerId)}`);
+        state.workers = state.workers.filter(x => x.id !== workerId);
+        renderWorkers(); populateWorkerFilter();
+        showToast('success', '삭제됨');
+      } catch (e) { showToast('error', '실패: ' + e.message); }
+    }
+
+    function openWorkerModal(worker) {
+      state.editingWorker = worker;
+      document.getElementById('worker-modal-title').textContent = worker ? '작업자 수정' : '작업자 추가';
+      document.getElementById('worker-modal-name').value = worker ? worker.name : '';
+      document.getElementById('worker-modal-id').value = worker ? worker.id : '';
+      document.getElementById('worker-modal-id').disabled = !!worker;
+      state.workerModalAdminOn = worker ? !!worker.is_admin : false;
+      updateWorkerToggle();
+      document.getElementById('modal-worker').classList.add('active');
+    }
+
+    function updateWorkerToggle() {
+      const t = document.getElementById('worker-modal-admin-toggle');
+      const l = document.getElementById('worker-modal-admin-label');
+      t.className = 'toggle' + (state.workerModalAdminOn ? ' on' : '');
+      l.className = 'toggle-label ' + (state.workerModalAdminOn ? 'on' : 'off');
+      l.textContent = '관리자 권한 ' + (state.workerModalAdminOn ? 'ON' : 'OFF');
+    }
+
+    async function saveWorkerModal() {
+      const name = document.getElementById('worker-modal-name').value.trim();
+      let id = document.getElementById('worker-modal-id').value.trim();
+      if (!name) { showToast('error', '이름 필수'); return; }
+      if (!id) id = 'W-' + Date.now().toString(36).toUpperCase().slice(-5);
+      const isAdmin = state.workerModalAdminOn;
+      try {
+        if (state.editingWorker) {
+          await sbPatch(`workers?id=eq.${encodeURIComponent(id)}`, { name, is_admin: isAdmin });
+          const w = state.workers.find(x => x.id === id);
+          if (w) { w.name = name; w.is_admin = isAdmin; }
+          showToast('success', '수정됨');
+        } else {
+          const inserted = await sbPost('workers', { id, name, is_admin: isAdmin });
+          state.workers.push(inserted[0] || { id, name, is_admin: isAdmin, created_at: new Date().toISOString() });
+          showToast('success', '추가됨');
+        }
+        document.getElementById('modal-worker').classList.remove('active');
+        renderWorkers(); populateWorkerFilter();
+      } catch (e) { showToast('error', '실패: ' + e.message); }
+    }
+
+    // ============ MASTER ============
+    function renderMaster() {
+      const search = document.getElementById('master-search').value.trim().toLowerCase();
+      const filtered = state.master.filter(m => !search || (m.part_number || '').toLowerCase().includes(search) || (m.name || '').toLowerCase().includes(search));
+      const el = document.getElementById('master-list');
+      if (filtered.length === 0) {
+        el.innerHTML = '<div class="empty">등록된 품번이 없습니다</div>';
+        return;
+      }
+      el.innerHTML = filtered.map(m => `<div class="master-row">
+        <div data-label="품번"><span class="master-part">${escapeHtml(m.part_number)}</span></div>
+        <div data-label="품명">${escapeHtml(m.name || '-')}</div>
+        <div data-label="규격">${escapeHtml(m.spec || '-')}</div>
+        <div data-label="창고">${escapeHtml(m.warehouse || '-')}</div>
+        <div data-label="작업">
+          <button class="row-icon-btn" data-edit-master="${escapeHtml(m.part_number)}" title="수정">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a8a29e" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+          <button class="row-icon-btn danger" data-del-master="${escapeHtml(m.part_number)}" title="삭제">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ff8caa" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+          </button>
+        </div>
+      </div>`).join('');
+      el.querySelectorAll('[data-edit-master]').forEach(b => b.addEventListener('click', () => {
+        const m = state.master.find(x => x.part_number === b.dataset.editMaster);
+        if (m) openMasterModal(m);
+      }));
+      el.querySelectorAll('[data-del-master]').forEach(b => b.addEventListener('click', () => deleteMaster(b.dataset.delMaster)));
+    }
+
+    function openMasterModal(m) {
+      state.editingMaster = m;
+      document.getElementById('master-modal-title').textContent = m ? '품번 수정' : '품번 추가';
+      document.getElementById('master-modal-part').value = m ? m.part_number : '';
+      document.getElementById('master-modal-part').disabled = !!m;
+      document.getElementById('master-modal-name').value = m ? (m.name || '') : '';
+      document.getElementById('master-modal-spec').value = m ? (m.spec || '') : '';
+      document.getElementById('master-modal-warehouse').value = m ? (m.warehouse || '') : '';
+      document.getElementById('modal-master').classList.add('active');
+    }
+
+    async function saveMasterModal() {
+      const part_number = document.getElementById('master-modal-part').value.trim();
+      const name = document.getElementById('master-modal-name').value.trim();
+      const spec = document.getElementById('master-modal-spec').value.trim();
+      const warehouse = document.getElementById('master-modal-warehouse').value.trim();
+      if (!part_number) { showToast('error', '품번 필수'); return; }
+      try {
+        if (state.editingMaster) {
+          await sbPatch(`parts_master?part_number=eq.${encodeURIComponent(part_number)}`, { name, spec, warehouse, updated_at: new Date().toISOString() });
+          const m = state.master.find(x => x.part_number === part_number);
+          if (m) { m.name = name; m.spec = spec; m.warehouse = warehouse; }
+          showToast('success', '수정됨');
+        } else {
+          const inserted = await sbPost('parts_master', { part_number, name, spec, warehouse });
+          state.master.push(inserted[0] || { part_number, name, spec, warehouse });
+          showToast('success', '추가됨');
+        }
+        document.getElementById('modal-master').classList.remove('active');
+        renderMaster();
+      } catch (e) { showToast('error', '실패: ' + e.message); }
+    }
+
+    async function deleteMaster(partNumber) {
+      if (!confirm(`품번 "${partNumber}" 를 삭제하시겠습니까?`)) return;
+      try {
+        await sbDelete(`parts_master?part_number=eq.${encodeURIComponent(partNumber)}`);
+        state.master = state.master.filter(x => x.part_number !== partNumber);
+        renderMaster();
+        showToast('success', '삭제됨');
+      } catch (e) { showToast('error', '실패: ' + e.message); }
+    }
+
+    function exportMaster() {
+      if (state.master.length === 0) { showToast('error', '내보낼 데이터 없음'); return; }
+      const header = '\uFEFF품번,품명,규격,창고명\n';
+      const rows = state.master.map(m =>
+        [m.part_number, m.name, m.spec, m.warehouse].map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')
+      ).join('\n');
+      downloadCSV(header + rows, `품번마스터_${new Date().toISOString().slice(0,10)}.csv`);
+    }
+
+    async function importMasterCSV(text) {
+      const cleaned = text.replace(/^\uFEFF/, '').trim();
+      if (!cleaned) { showToast('error', '내용 비어있음'); return; }
+      const lines = cleaned.split(/\r?\n/);
+      const first = parseCSVLine(lines[0]);
+      const startIdx = first[0] && first[0].includes('품번') ? 1 : 0;
+      const items = [];
+      for (let i = startIdx; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        const [part_number, name, spec, warehouse] = parseCSVLine(line);
+        if (!part_number) continue;
+        items.push({ part_number: part_number.trim(), name: (name||'').trim(), spec: (spec||'').trim(), warehouse: (warehouse||'').trim() });
+      }
+      if (items.length === 0) { showToast('error', '가져올 품목 없음'); return; }
+      if (!confirm(`${items.length}건을 서버에 업로드합니다. 동일 품번은 덮어쓰기됩니다. 계속?`)) return;
+      try {
+        // Upsert (resolution=merge-duplicates)
+        await sbUpsert('parts_master', items);
+        showToast('success', `${items.length}건 업로드 완료`);
+        document.getElementById('modal-import').classList.remove('active');
+        document.getElementById('csv-input').value = '';
+        // 재로드
+        state.master = await sbGet('parts_master?order=part_number.asc');
+        renderMaster();
+      } catch (e) { showToast('error', '실패: ' + e.message); }
+    }
+
+    function parseCSVLine(line) {
+      const result = []; let cur = '', inQuote = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') { if (inQuote && line[i+1] === '"') { cur += '"'; i++; } else inQuote = !inQuote; }
+        else if (ch === ',' && !inQuote) { result.push(cur); cur = ''; }
+        else cur += ch;
+      }
+      result.push(cur);
+      return result;
+    }
+
+    function downloadCSV(content, filename) {
+      const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function escapeHtml(s) {
+      return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    function showToast(type, msg) {
+      const t = document.getElementById('toast');
+      t.className = 'toast show ' + type;
+      t.textContent = msg;
+      setTimeout(() => t.classList.remove('show'), type === 'error' ? 3000 : 1800);
+    }
+
+    // ============ SERVER CONFIG ============
+    function openServerCfg() {
+      document.getElementById('cfg-url').value = state.serverConfig.url || '';
+      document.getElementById('cfg-key').value = state.serverConfig.key || '';
+      document.getElementById('cfg-status').className = 'modal-status';
+      document.getElementById('modal-server').classList.add('active');
+    }
+
+    async function testCfg() {
+      const url = document.getElementById('cfg-url').value.trim().replace(/\/$/, '');
+      const key = document.getElementById('cfg-key').value.trim();
+      const s = document.getElementById('cfg-status');
+      s.className = 'modal-status'; s.textContent = '확인 중...'; s.style.display = 'block';
+      try {
+        const res = await fetch(url + '/rest/v1/submissions?limit=1', { headers: { 'apikey': key, 'Authorization': 'Bearer ' + key } });
+        if (res.ok) { s.className = 'modal-status success'; s.textContent = '✓ 연결 성공'; }
+        else { const t = await res.text(); s.className = 'modal-status error'; s.textContent = `✗ HTTP ${res.status}: ${t.slice(0,100)}`; }
+      } catch (e) { s.className = 'modal-status error'; s.textContent = '✗ ' + e.message; }
+    }
+
+    function saveCfg() {
+      const url = document.getElementById('cfg-url').value.trim().replace(/\/$/, '');
+      const key = document.getElementById('cfg-key').value.trim();
+      state.serverConfig = { url, key };
+      storage.set('config:server', state.serverConfig);
+      updateConnStatus();
+      document.getElementById('modal-server').classList.remove('active');
+      showToast('success', '저장됨');
+      loadAll();
+    }
+
+    // ============ EVENTS ============
+    function bindEvents() {
+      document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => switchTab(t.dataset.tab)));
+      document.getElementById('btn-refresh').addEventListener('click', async () => {
+        const btn = document.getElementById('btn-refresh');
+        btn.classList.add('spinning');
+        await loadAll();
+        setTimeout(() => btn.classList.remove('spinning'), 800);
+      });
+      document.getElementById('btn-go-worker').addEventListener('click', () => { window.location.href = 'index.html'; });
+      document.getElementById('btn-server-cfg').addEventListener('click', openServerCfg);
+
+      // 필터
+      document.getElementById('btn-apply-filter').addEventListener('click', () => {
+        state.filterDateFrom = document.getElementById('filter-date-from').value;
+        state.filterDateTo = document.getElementById('filter-date-to').value;
+        state.filterWorker = document.getElementById('filter-worker').value;
+        state.filterPart = document.getElementById('filter-part').value;
+        state.filterDefect = document.getElementById('filter-defect').value;
+        applyFilter();
+      });
+      document.getElementById('btn-clear-filter').addEventListener('click', () => {
+        document.getElementById('filter-date-from').value = '';
+        document.getElementById('filter-date-to').value = '';
+        document.getElementById('filter-worker').value = '';
+        document.getElementById('filter-part').value = '';
+        document.getElementById('filter-defect').value = '';
+        state.filterDateFrom = ''; state.filterDateTo = ''; state.filterWorker = ''; state.filterPart = ''; state.filterDefect = '';
+        state.filteredSubmissions = [];
+        state.page = 1;
+        renderSubmissions();
+      });
+      document.getElementById('btn-export-sub').addEventListener('click', exportSubmissions);
+
+      // 작업자
+      document.getElementById('worker-search').addEventListener('input', renderWorkers);
+      document.getElementById('btn-add-worker').addEventListener('click', () => openWorkerModal(null));
+      document.getElementById('worker-modal-cancel').addEventListener('click', () => document.getElementById('modal-worker').classList.remove('active'));
+      document.getElementById('worker-modal-save').addEventListener('click', saveWorkerModal);
+      document.getElementById('worker-modal-admin-toggle').addEventListener('click', () => { state.workerModalAdminOn = !state.workerModalAdminOn; updateWorkerToggle(); });
+      document.getElementById('worker-modal-admin-label').addEventListener('click', () => { state.workerModalAdminOn = !state.workerModalAdminOn; updateWorkerToggle(); });
+
+      // 마스터
+      document.getElementById('master-search').addEventListener('input', renderMaster);
+      document.getElementById('btn-add-master').addEventListener('click', () => openMasterModal(null));
+      document.getElementById('btn-export-master').addEventListener('click', exportMaster);
+      document.getElementById('btn-import-master').addEventListener('click', () => document.getElementById('modal-import').classList.add('active'));
+      document.getElementById('master-modal-cancel').addEventListener('click', () => document.getElementById('modal-master').classList.remove('active'));
+      document.getElementById('master-modal-save').addEventListener('click', saveMasterModal);
+
+      // 임포트 모달
+      document.getElementById('import-cancel').addEventListener('click', () => document.getElementById('modal-import').classList.remove('active'));
+      document.getElementById('import-do').addEventListener('click', () => importMasterCSV(document.getElementById('csv-input').value));
+      document.getElementById('import-load-file').addEventListener('click', () => document.getElementById('import-file-input').click());
+      document.getElementById('import-file-input').addEventListener('change', e => {
+        const f = e.target.files[0]; if (!f) return;
+        const r = new FileReader(); r.onload = ev => { document.getElementById('csv-input').value = ev.target.result; }; r.readAsText(f, 'utf-8');
+      });
+
+      // 서버 설정 모달
+      document.getElementById('cfg-cancel').addEventListener('click', () => document.getElementById('modal-server').classList.remove('active'));
+      document.getElementById('cfg-test').addEventListener('click', testCfg);
+      document.getElementById('cfg-save').addEventListener('click', saveCfg);
+
+      // 모달 배경 클릭으로 닫기
+      ['modal-worker', 'modal-master', 'modal-import', 'modal-server'].forEach(id => {
+        document.getElementById(id).addEventListener('click', e => { if (e.target.id === id) document.getElementById(id).classList.remove('active'); });
+      });
+
+      window.addEventListener('online', updateConnStatus);
+      window.addEventListener('offline', updateConnStatus);
+    }
+
+    init();
+  </script>
+</body>
+</html>

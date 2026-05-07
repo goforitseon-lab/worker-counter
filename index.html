@@ -1,32 +1,28 @@
 <!DOCTYPE html>
 <!--
   ============================================================
-  WORKER COUNTER · 작업자 입력 앱
-  ============================================================
-  배포: GitHub Pages (https://goforitseon-lab.github.io/worker-counter/)
+  Worker counter
+  배포: https://goforitseon-lab.github.io/worker-counter/
   백엔드: Supabase
-
   ============================================================
   REVISION
   ============================================================
-  2026-05-07-07 · 한 작업에 다중 불량 타입 지원 + 리비전 표기 도입
-                  (DEFECT 1,2,3... 카드, "다른 불량 추가" 버튼,
-                   defects JSONB 컬럼, 불량 합계 자동 계산)
-  2026-05-07-06 · 생산/불량 통합 모델 (워크플로우 변경)
-                  - 1 record에 생산수량 + 불량수량 통합
-                  - 양품/불량 토글 → "불량 추가" 옵션 방식
-                  - 제출내역 CSV 내보내기 제거
-  2026-05-07-05 · 56개 불량 코드 검색 모달 + 양품/불량 토글
-  2026-05-07-04 · 기본 Supabase 설정 자동 적용
-  2026-05-07-03 · 3-탭 구조 + Supabase 연동
-                  - 입력 / 작업내역 / 제출내역
-                  - 키보드 수량 입력
-                  - 최종 전송 워크플로우
-                  - 서버 연결 상태 표시
-  2026-05-07-02 · 수동 캡처 모드 + 부품 마스터 DB
-                  - 셔터 버튼 + 노란 가이드 박스
-                  - 품번 자동 매칭, CSV 가져오기/내보내기
-  2026-05-07-01 · 최초 버전 (단일 HTML, 자동 바코드 스캔, localStorage)
+  0507 02 · 관리자 자동 분기 로직 추가
+            - 작업자 등록 시 서버 workers 테이블 조회
+            - 같은 이름 있으면 그 ID 재사용 (동명이인 주의)
+            - is_admin=true면 admin.html로 자동 이동
+            - 신규 등록 시 workers 테이블에 INSERT
+  0507 01 · 리비전 표기 단순화 (이 형식으로 새로 시작)
+
+  ─ 이전 작업 (참고용 요약) ─
+  · 다중 불량 타입 입력 (DEFECT 1, 2, 3...)
+  · 생산/불량 통합 모델 (1 record에 quantity + defect_quantity)
+  · 56개 불량 코드 검색 모달
+  · Supabase 연동 (3-탭: 입력 / 작업내역 / 제출내역)
+  · 키보드 수량 입력
+  · 부품 마스터 DB + CSV 가져오기/내보내기
+  · 수동 캡처 모드 (셔터 + 가이드 박스)
+  · 자동 바코드 스캔 → 단일 HTML 최초 버전
   ============================================================
 -->
 <html lang="ko">
@@ -764,7 +760,7 @@
 
     function updateFooter() {
       const cnt = Object.keys(state.partsMaster).length;
-      document.getElementById('footer').textContent = `WORKER COUNTER · 2026-05-07-07 · 마스터 ${cnt}건`;
+      document.getElementById('footer').textContent = `Worker counter 0507 02 · 마스터 ${cnt}건`;
     }
 
     function updateConnStatus() {
@@ -797,15 +793,74 @@
       btn.addEventListener('click', saveWorker);
     }
 
-    function saveWorker() {
+    async function saveWorker() {
       const name = document.getElementById('setup-name').value.trim();
       if (!name) return;
-      const worker = { name, id: 'W-' + Date.now().toString(36).toUpperCase().slice(-5) };
-      storage.set('worker:me', worker);
-      state.worker = worker;
+      const btn = document.getElementById('setup-save');
+      const originalText = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = '확인 중...';
+
+      try {
+        // 서버에 같은 이름 조회 (있으면 그 ID 재사용)
+        const existing = await fetchWorkerByName(name);
+
+        if (existing) {
+          state.worker = { name: existing.name, id: existing.id, isAdmin: !!existing.is_admin };
+          storage.set('worker:me', state.worker);
+          if (state.worker.isAdmin) {
+            // 관리자 → admin.html로 자동 이동
+            window.location.href = 'admin.html';
+            return;
+          }
+        } else {
+          // 새 작업자 등록 (workers 테이블에 INSERT)
+          const worker = { name, id: 'W-' + Date.now().toString(36).toUpperCase().slice(-5) };
+          await registerWorker(worker);
+          state.worker = { ...worker, isAdmin: false };
+          storage.set('worker:me', state.worker);
+        }
+      } catch (e) {
+        // 서버 연결 실패 → 오프라인 모드로 로컬에만 저장
+        console.warn('Worker server lookup failed:', e);
+        const worker = { name, id: 'W-' + Date.now().toString(36).toUpperCase().slice(-5), isAdmin: false };
+        state.worker = worker;
+        storage.set('worker:me', worker);
+      }
+
       document.getElementById('setup-name').value = '';
-      document.getElementById('setup-save').disabled = true;
+      btn.innerHTML = originalText;
       showScreen('main'); renderHeader(); renderInput(); updateBadges();
+    }
+
+    async function fetchWorkerByName(name) {
+      const cfg = state.serverConfig;
+      if (!cfg.url || !cfg.key) return null;
+      const url = `${cfg.url.replace(/\/$/, '')}/rest/v1/workers?name=eq.${encodeURIComponent(name)}&limit=1`;
+      const res = await fetch(url, {
+        headers: { 'apikey': cfg.key, 'Authorization': 'Bearer ' + cfg.key }
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      return data[0] || null;
+    }
+
+    async function registerWorker(worker) {
+      const cfg = state.serverConfig;
+      if (!cfg.url || !cfg.key) return null;
+      const url = `${cfg.url.replace(/\/$/, '')}/rest/v1/workers`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'apikey': cfg.key,
+          'Authorization': 'Bearer ' + cfg.key,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation'
+        },
+        body: JSON.stringify({ id: worker.id, name: worker.name, is_admin: false })
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
     }
 
     function renderHeader() {
