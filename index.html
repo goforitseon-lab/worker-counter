@@ -7,6 +7,10 @@
   ============================================================
   REVISION
   ============================================================
+  0507 04 · iOS Safari 카메라 지원 (ZXing-js fallback)
+            - BarcodeDetector 미지원 브라우저(iOS Safari 등) 자동 fallback
+            - 가이드 박스 영역만 캔버스로 잘라 분석 (다중 바코드 자동 제외)
+            - 캐시 무효화 메타 태그 추가
   0507 03 · 부품 마스터 자동 동기화 + 공지사항 + 연차 신청
             - 앱 시작 시 서버 parts_master에서 동기화 (관리자 변경 자동 반영)
             - 메인 상단에 활성 공지사항 표시 (자동 갱신)
@@ -37,13 +41,15 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <meta name="version" content="worker-counter-0507-03">
+  <meta name="version" content="worker-counter-0507-04">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>작업량 입력</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@500;700&family=Noto+Sans+KR:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+  <!-- ZXing-js: iOS Safari 등 BarcodeDetector 미지원 브라우저용 fallback -->
+  <script src="https://unpkg.com/@zxing/library@0.20.0/umd/index.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     :root {
@@ -995,7 +1001,7 @@
 
     function updateFooter() {
       const cnt = Object.keys(state.partsMaster).length;
-      document.getElementById('footer').textContent = `Worker counter 0507 03 · 마스터 ${cnt}건`;
+      document.getElementById('footer').textContent = `Worker counter 0507 04 · 마스터 ${cnt}건`;
     }
 
     function updateConnStatus() {
@@ -1355,19 +1361,26 @@
       document.getElementById('cam-result').classList.remove('active');
       state.lastScanned = null;
       modal.classList.add('active');
-      if (!('BarcodeDetector' in window)) {
-        showCamError('이 브라우저는 바코드 스캔을 지원하지 않습니다.\n안드로이드 Chrome으로 접속해주세요.'); return;
+
+      const hasNative = 'BarcodeDetector' in window;
+      const hasZXing = typeof ZXing !== 'undefined';
+      if (!hasNative && !hasZXing) {
+        showCamError('바코드 라이브러리가 로드되지 않았습니다.\n인터넷 연결 확인 후 새로고침하세요.'); return;
       }
       try {
         state.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } } });
         const video = document.getElementById('cam-video');
         video.srcObject = state.stream;
         await video.play().catch(() => {});
-        state.detector = new window.BarcodeDetector({ formats: ['code_128', 'ean_13', 'ean_8', 'qr_code', 'code_39', 'upc_a', 'upc_e', 'codabar', 'itf'] });
+        if (hasNative) {
+          state.detector = new window.BarcodeDetector({ formats: ['code_128', 'ean_13', 'ean_8', 'qr_code', 'code_39', 'upc_a', 'upc_e', 'codabar', 'itf'] });
+        } else {
+          state.detector = null; // iOS Safari: ZXing 사용
+        }
         const track = state.stream.getVideoTracks()[0];
         const caps = track.getCapabilities ? track.getCapabilities() : {};
         if (caps.torch) document.getElementById('cam-torch').style.visibility = 'visible';
-      } catch (e) { showCamError('카메라 접근 실패: ' + e.message); }
+      } catch (e) { showCamError('카메라 접근 실패: ' + e.message + '\n\niOS는 Safari로 접속해야 합니다.'); }
     }
 
     function closeCamera() {
@@ -1391,38 +1404,59 @@
     }
 
     async function captureScan() {
-      if (!state.stream || !state.detector) return;
+      if (!state.stream) return;
       const video = document.getElementById('cam-video');
       const shutter = document.getElementById('cam-shutter');
       shutter.disabled = true;
       flashEffect();
       if (navigator.vibrate) navigator.vibrate(50);
       try {
-        const codes = await state.detector.detect(video);
-        if (!codes || codes.length === 0) {
-          showCamError('바코드를 찾지 못했습니다.\n더 가까이 비추거나 조명을 밝게 해주세요.');
-          shutter.disabled = false; return;
-        }
         const vw = video.videoWidth, vh = video.videoHeight;
-        const gx1 = vw * 0.10, gx2 = vw * 0.90, gy1 = vh * 0.38, gy2 = vh * 0.62;
-        let chosen = null, minDist = Infinity;
-        const cx = vw / 2, cy = vh / 2;
-        for (const code of codes) {
-          const bb = code.boundingBox;
-          const bcx = bb.x + bb.width / 2, bcy = bb.y + bb.height / 2;
-          if (bcx >= gx1 && bcx <= gx2 && bcy >= gy1 && bcy <= gy2) {
-            const d = Math.hypot(bcx - cx, bcy - cy);
-            if (d < minDist) { minDist = d; chosen = code; }
-          }
-        }
-        if (!chosen) {
-          showCamError(`바코드 ${codes.length}개가 보이지만 노란 박스 안에 정확히 들어온 게 없습니다.\n원하는 바코드를 박스 안으로 넣어주세요.`);
+        if (!vw || !vh) {
+          showCamError('카메라 준비 중. 잠시 후 다시 시도하세요.');
           shutter.disabled = false; return;
         }
-        const code = chosen.rawValue;
+        // 가이드 박스 영역만 캔버스로 잘라냄 (다중 바코드 자동 제외)
+        const gx = vw * 0.10, gy = vh * 0.38;
+        const gw = vw * 0.80, gh = vh * 0.24;
+        const canvas = document.createElement('canvas');
+        canvas.width = gw; canvas.height = gh;
+        canvas.getContext('2d').drawImage(video, gx, gy, gw, gh, 0, 0, gw, gh);
+
+        // 디코딩 - BarcodeDetector 우선, 없으면 ZXing
+        let code = null;
+        if (state.detector) {
+          // Android Chrome: native API
+          const codes = await state.detector.detect(canvas);
+          if (codes && codes.length > 0) code = codes[0].rawValue;
+        } else if (typeof ZXing !== 'undefined') {
+          // iOS Safari: ZXing-js fallback
+          code = await decodeWithZXing(canvas);
+        }
+
+        if (!code) {
+          showCamError('바코드를 인식하지 못했습니다.\n노란 박스 안에 정확히 넣고 다시 시도하세요.\n(거리/조명/각도 조정)');
+          shutter.disabled = false; return;
+        }
         if (navigator.vibrate) navigator.vibrate([60, 40, 60]);
         showScanResult(code);
       } catch (e) { showCamError('스캔 오류: ' + e.message); shutter.disabled = false; }
+    }
+
+    function decodeWithZXing(canvas) {
+      return new Promise((resolve) => {
+        try {
+          const reader = new ZXing.BrowserMultiFormatReader();
+          const img = new Image();
+          img.onload = () => {
+            reader.decodeFromImage(img)
+              .then(r => resolve(r && r.text ? r.text : null))
+              .catch(() => resolve(null));
+          };
+          img.onerror = () => resolve(null);
+          img.src = canvas.toDataURL('image/png');
+        } catch (e) { resolve(null); }
+      });
     }
 
     function showScanResult(code) {
