@@ -7,11 +7,12 @@
   ============================================================
   REVISION
   ============================================================
+  admin 0507 02 · 공지사항, 연차 관리, ERP 등록 추가
+                  - 새 탭: 공지사항 (CRUD, 활성/비활성 토글)
+                  - 새 탭: 연차 (전체 신청 조회, 승인/반려, 메모)
+                  - 제출 내역: ERP 등록 표시 + 일괄 등록 버튼
+                  - 헤더 우측: 공지/연차 대기 건수 뱃지
   admin 0507 01 · 최초 버전
-                  - 대시보드 (오늘/주간 통계, 작업자별/품번별 집계)
-                  - 제출 내역 (날짜·작업자·품번 필터, CSV 내보내기)
-                  - 작업자 관리 (목록, 관리자 권한 토글, 삭제)
-                  - 부품 마스터 (CRUD, CSV 가져오기/내보내기)
   ============================================================
 -->
 <html lang="ko">
@@ -236,6 +237,69 @@
     /* LOADING */
     .loading { text-align: center; padding: 48px; color: var(--text-muted); }
     .loading-spinner { display: inline-block; width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--amber); border-radius: 50%; animation: spin 0.8s linear infinite; }
+
+    /* TAB BADGE */
+    .tab-badge { display: inline-block; min-width: 18px; height: 18px; line-height: 18px; padding: 0 5px; border-radius: 999px; background: var(--red); color: white; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; text-align: center; margin-left: 4px; vertical-align: middle; }
+    .tab.active .tab-badge { background: rgba(15,15,16,0.3); color: #0f0f10; }
+
+    /* NOTICES */
+    .notice-row { padding: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 8px; }
+    .notice-row.inactive { opacity: 0.5; }
+    .notice-row-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .notice-row-title { font-size: 15px; font-weight: 700; flex: 1; min-width: 0; }
+    .notice-row-meta { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
+    .notice-row-content { font-size: 13px; color: var(--text-dim); white-space: pre-wrap; line-height: 1.5; margin-bottom: 8px; }
+    .notice-row-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    .notice-status-pill { padding: 3px 10px; border-radius: 999px; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; }
+    .notice-status-pill.active { background: rgba(0,217,126,0.15); color: var(--emerald); }
+    .notice-status-pill.inactive { background: rgba(255,255,255,0.05); color: var(--text-muted); }
+
+    /* LEAVES */
+    .leave-tabs { display: flex; gap: 4px; padding: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 16px; max-width: 480px; }
+    .leave-tab { flex: 1; padding: 8px 12px; border-radius: 6px; font-size: 13px; font-weight: 600; color: var(--text-dim); display: flex; align-items: center; justify-content: center; gap: 6px; }
+    .leave-tab.active { background: var(--amber); color: #0f0f10; }
+    .leave-tab .tab-badge { background: var(--red); color: white; }
+    .leave-tab.active .tab-badge { background: rgba(15,15,16,0.3); color: #0f0f10; }
+
+    .leave-row { padding: 14px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 8px; display: grid; grid-template-columns: 1fr auto auto; gap: 12px; align-items: center; }
+    @media (max-width: 760px) { .leave-row { grid-template-columns: 1fr; } }
+    .leave-row.pending { border-color: rgba(255,214,10,0.3); }
+    .leave-row.approved { border-color: rgba(0,217,126,0.2); }
+    .leave-row.rejected { border-color: rgba(255,61,110,0.2); opacity: 0.7; }
+    .leave-info { min-width: 0; }
+    .leave-worker { font-size: 14px; font-weight: 700; }
+    .leave-dates { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text); margin-top: 2px; }
+    .leave-reason { font-size: 13px; color: var(--text-dim); margin-top: 4px; white-space: pre-wrap; }
+    .leave-meta { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); margin-top: 4px; }
+    .leave-status-pill { padding: 4px 12px; border-radius: 999px; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; flex-shrink: 0; }
+    .leave-status-pill.pending { background: rgba(255,214,10,0.15); color: var(--amber); }
+    .leave-status-pill.approved { background: rgba(0,217,126,0.15); color: var(--emerald); }
+    .leave-status-pill.rejected { background: rgba(255,61,110,0.15); color: var(--red); }
+    .leave-row-actions { display: flex; gap: 6px; flex-shrink: 0; }
+    .leave-action-btn { padding: 8px 14px; border-radius: 8px; font-size: 12px; font-weight: 700; }
+    .leave-action-btn.approve { background: var(--emerald); color: white; }
+    .leave-action-btn.reject { background: var(--red); color: white; }
+    .leave-action-btn.review { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
+
+    /* ERP */
+    .erp-pill { display: inline-block; padding: 2px 8px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; }
+    .erp-pill.registered { background: rgba(0,217,126,0.15); color: var(--emerald); }
+    .erp-pill.pending { background: rgba(255,255,255,0.05); color: var(--text-muted); }
+    .erp-bar { padding: 12px 16px; background: rgba(192,132,252,0.08); border: 1px solid rgba(192,132,252,0.3); border-radius: 10px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .erp-bar-info { font-size: 13px; }
+    .erp-bar-info strong { color: var(--purple); font-weight: 700; }
+    .erp-bar-btn { padding: 10px 16px; border-radius: 8px; background: var(--purple); color: #0f0f10; font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+    .erp-bar-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .erp-bar-btn:hover:not(:disabled) { filter: brightness(1.1); }
+
+    /* sub-table needs new column */
+    .table-header.with-erp { grid-template-columns: 110px 90px 100px 1fr 60px 60px 90px 70px; }
+    .table-row.with-erp { grid-template-columns: 110px 90px 100px 1fr 60px 60px 90px 70px; }
+    @media (max-width: 760px) {
+      .table-row.with-erp { display: block; }
+      .table-row.with-erp > div { display: flex; justify-content: space-between; padding: 3px 0; }
+      .table-row.with-erp > div::before { content: attr(data-label); font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); margin-right: 8px; }
+    }
   </style>
 </head>
 <body>
@@ -282,6 +346,14 @@
       <button class="tab" data-tab="master">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7h-7m7 5h-7m7 5h-7M3 7h.01M3 12h.01M3 17h.01"/></svg>
         부품 마스터
+      </button>
+      <button class="tab" data-tab="notices">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M9 11l3 3L22 4"/></svg>
+        공지사항<span class="tab-badge" id="badge-notices" style="display:none;">0</span>
+      </button>
+      <button class="tab" data-tab="leaves">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        연차<span class="tab-badge" id="badge-leaves" style="display:none;">0</span>
       </button>
     </div>
 
@@ -350,11 +422,21 @@
         <button class="filter-btn ghost" id="btn-export-sub">CSV</button>
       </div>
 
+      <div id="erp-bar" class="erp-bar" style="display:none;">
+        <div class="erp-bar-info">
+          <strong id="erp-pending-count">0건</strong>이 ERP 미등록 상태입니다 (현재 필터 기준)
+        </div>
+        <button class="erp-bar-btn" id="btn-erp-register">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          전체 ERP 등록 처리
+        </button>
+      </div>
+
       <div id="sub-loading" class="loading" style="display:none;"><div class="loading-spinner"></div></div>
       <div class="table-wrap" id="sub-table-wrap">
-        <div class="table-header">
+        <div class="table-header with-erp">
           <div>일시</div><div>작업자</div><div>품번</div><div>품명</div>
-          <div style="text-align:right;">생산</div><div style="text-align:right;">불량</div><div>불량유형</div>
+          <div style="text-align:right;">생산</div><div style="text-align:right;">불량</div><div>불량유형</div><div>ERP</div>
         </div>
         <div id="sub-list"></div>
       </div>
@@ -399,11 +481,69 @@
       </div>
     </div>
 
-    <div class="footer" id="footer">Worker counter admin 0507 01</div>
+    <!-- ============ NOTICES ============ -->
+    <div class="tab-content" id="tab-notices">
+      <div class="crud-bar">
+        <input type="text" id="notice-search" class="crud-search" placeholder="공지 제목/내용 검색">
+        <button class="crud-btn primary" id="btn-add-notice">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          공지 추가
+        </button>
+      </div>
+      <div id="notice-list-container"></div>
+    </div>
+
+    <!-- ============ LEAVES ============ -->
+    <div class="tab-content" id="tab-leaves">
+      <div class="leave-tabs">
+        <button class="leave-tab active" data-ltab="pending">대기<span class="tab-badge" id="ltab-badge-pending" style="display:none;">0</span></button>
+        <button class="leave-tab" data-ltab="approved">승인</button>
+        <button class="leave-tab" data-ltab="rejected">반려</button>
+        <button class="leave-tab" data-ltab="all">전체</button>
+      </div>
+      <div id="leave-list-container"></div>
+    </div>
+
+    <div class="footer" id="footer">Worker counter admin 0507 02</div>
   </div>
 
   <!-- TOAST -->
   <div class="toast" id="toast">완료</div>
+
+  <!-- NOTICE MODAL -->
+  <div class="modal-bg" id="modal-notice">
+    <div class="modal">
+      <div class="modal-title" id="notice-modal-title">공지 추가</div>
+      <div class="modal-sub">활성 상태인 공지만 작업자 화면에 표시됩니다</div>
+      <div class="modal-label">제목</div>
+      <input type="text" id="notice-modal-title-input" class="modal-input" placeholder="예: 이번주 토요일 휴무 안내">
+      <div class="modal-label">내용</div>
+      <textarea id="notice-modal-content" class="csv-area" placeholder="공지 본문 (개행 가능)" style="min-height:120px;"></textarea>
+      <label class="toggle-wrap" style="margin-top:12px;">
+        <span class="toggle on" id="notice-modal-active-toggle"></span>
+        <span class="toggle-label on" id="notice-modal-active-label">활성 (작업자에게 표시)</span>
+      </label>
+      <div class="modal-row">
+        <button class="modal-btn ghost" id="notice-modal-cancel">취소</button>
+        <button class="modal-btn primary" id="notice-modal-save">저장</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LEAVE REVIEW MODAL -->
+  <div class="modal-bg" id="modal-leave-review">
+    <div class="modal">
+      <div class="modal-title" id="leave-review-title">연차 처리</div>
+      <div class="modal-sub" id="leave-review-info">-</div>
+      <div class="modal-label">메모 (선택)</div>
+      <textarea id="leave-review-note" class="csv-area" placeholder="작업자에게 전달할 메모 (선택)" style="min-height:80px;"></textarea>
+      <div class="modal-row">
+        <button class="modal-btn danger" id="leave-review-reject">반려</button>
+        <button class="modal-btn primary" style="background:var(--emerald); color:white;" id="leave-review-approve">승인</button>
+      </div>
+      <button class="modal-btn ghost" id="leave-review-cancel" style="margin-top:8px;width:100%;">닫기</button>
+    </div>
+  </div>
 
   <!-- WORKER MODAL -->
   <div class="modal-bg" id="modal-worker">
@@ -496,12 +636,16 @@
       worker: null,
       serverConfig: { url: '', key: '' },
       submissions: [], workers: [], master: [],
+      notices: [], leaves: [],
       // 필터
       filterDateFrom: '', filterDateTo: '', filterWorker: '', filterPart: '', filterDefect: '',
       page: 1, pageSize: 50,
       filteredSubmissions: [],
       // 모달 편집 상태
       editingWorker: null, editingMaster: null, workerModalAdminOn: false,
+      editingNotice: null, noticeModalActive: true,
+      editingLeave: null,
+      leaveTab: 'pending',
     };
 
     // ============ INIT ============
@@ -593,14 +737,18 @@
     // ============ LOAD ALL ============
     async function loadAll() {
       try {
-        const [subs, workers, master] = await Promise.all([
+        const [subs, workers, master, notices, leaves] = await Promise.all([
           sbGet('submissions?order=created_at.desc&limit=2000'),
           sbGet('workers?order=created_at.asc'),
           sbGet('parts_master?order=part_number.asc'),
+          sbGet('notices?order=created_at.desc&limit=200'),
+          sbGet('leave_requests?order=requested_at.desc&limit=500'),
         ]);
         state.submissions = subs;
         state.workers = workers;
         state.master = master;
+        state.notices = notices;
+        state.leaves = leaves;
         renderAll();
       } catch (e) {
         showToast('error', '데이터 로드 실패: ' + e.message);
@@ -613,7 +761,27 @@
       renderSubmissions();
       renderWorkers();
       renderMaster();
+      renderNotices();
+      renderLeaves();
       populateWorkerFilter();
+      updateBadges();
+    }
+
+    function updateBadges() {
+      // 활성 공지 수
+      const activeNotices = state.notices.filter(n => n.active).length;
+      const nb = document.getElementById('badge-notices');
+      if (activeNotices > 0) { nb.style.display = 'inline-block'; nb.textContent = activeNotices; }
+      else nb.style.display = 'none';
+      // 대기 연차 수
+      const pendingLeaves = state.leaves.filter(l => l.status === 'pending').length;
+      const lb = document.getElementById('badge-leaves');
+      if (pendingLeaves > 0) { lb.style.display = 'inline-block'; lb.textContent = pendingLeaves; }
+      else lb.style.display = 'none';
+      // 연차 서브 탭
+      const ltb = document.getElementById('ltab-badge-pending');
+      if (pendingLeaves > 0) { ltb.style.display = 'inline-block'; ltb.textContent = pendingLeaves; }
+      else ltb.style.display = 'none';
     }
 
     function populateWorkerFilter() {
@@ -790,6 +958,20 @@
       const start = (state.page - 1) * state.pageSize;
       const slice = list.slice(start, start + state.pageSize);
 
+      // ERP 미등록 카운트
+      const pendingErp = list.filter(s => !s.erp_registered).length;
+      const erpBar = document.getElementById('erp-bar');
+      const erpBtn = document.getElementById('btn-erp-register');
+      if (list.length === 0) { erpBar.style.display = 'none'; }
+      else {
+        erpBar.style.display = 'flex';
+        document.getElementById('erp-pending-count').textContent = `${pendingErp}건`;
+        erpBtn.disabled = pendingErp === 0;
+        erpBtn.innerHTML = pendingErp === 0
+          ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>전체 등록 완료'
+          : `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>${pendingErp}건 ERP 등록 처리`;
+      }
+
       const el = document.getElementById('sub-list');
       if (slice.length === 0) {
         el.innerHTML = '<div class="empty"><div class="empty-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#5a564f" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>조건에 맞는 제출 내역이 없습니다</div>';
@@ -799,7 +981,10 @@
           const defects = s.defects || (s.defect_code ? [{ code: s.defect_code, name: s.defect_name, quantity: dq }] : []);
           const time = new Date(s.created_at).toLocaleString('ko-KR', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
           const defectPills = defects.map(d => `<span class="defect-pill">${escapeHtml(d.code || '')}×${d.quantity || 0}</span>`).join('');
-          return `<div class="table-row">
+          const erpPill = s.erp_registered
+            ? `<span class="erp-pill registered">✓ 등록</span>`
+            : `<span class="erp-pill pending">미등록</span>`;
+          return `<div class="table-row with-erp">
             <div class="table-cell-time" data-label="일시">${time}</div>
             <div class="table-cell-worker" data-label="작업자">${escapeHtml(s.worker_name || '-')}</div>
             <div class="table-cell-part" data-label="품번">${escapeHtml(s.part_number || '')}</div>
@@ -807,6 +992,7 @@
             <div class="table-cell-qty" data-label="생산">${s.quantity || 0}</div>
             <div class="table-cell-defect ${dq===0?'zero':''}" data-label="불량">${dq}</div>
             <div data-label="불량유형">${defectPills || '<span style="color:var(--text-muted); font-size:11px;">-</span>'}</div>
+            <div data-label="ERP">${erpPill}</div>
           </div>`;
         }).join('');
       }
@@ -823,6 +1009,22 @@
       buttons.push(`<span class="page-info">${state.page}/${totalPages} · 전체 ${list.length}건</span>`);
       pg.innerHTML = buttons.join('');
       pg.querySelectorAll('[data-page]').forEach(b => b.addEventListener('click', () => { state.page = parseInt(b.dataset.page); renderSubmissions(); }));
+    }
+
+    async function registerErp() {
+      const list = state.filteredSubmissions.length > 0 || state.filterDateFrom ? state.filteredSubmissions : state.submissions;
+      const ids = list.filter(s => !s.erp_registered).map(s => s.id);
+      if (ids.length === 0) { showToast('info', '등록 대상 없음'); return; }
+      if (!confirm(`${ids.length}건을 ERP 등록 처리하시겠습니까?\n(실제 ERP 시스템 연동은 추후 추가 예정. 현재는 표시만 됩니다.)`)) return;
+      try {
+        const now = new Date().toISOString();
+        // PostgREST: id=in.(1,2,3) 형식
+        await sbPatch(`submissions?id=in.(${ids.join(',')})`, { erp_registered: true, erp_registered_at: now });
+        // 로컬 상태 업데이트
+        state.submissions.forEach(s => { if (ids.includes(s.id)) { s.erp_registered = true; s.erp_registered_at = now; } });
+        applyFilter();
+        showToast('success', `${ids.length}건 ERP 등록 처리됨`);
+      } catch (e) { showToast('error', 'ERP 등록 실패: ' + e.message); }
     }
 
     function exportSubmissions() {
@@ -1055,6 +1257,185 @@
       } catch (e) { showToast('error', '실패: ' + e.message); }
     }
 
+    // ============ NOTICES ============
+    function renderNotices() {
+      const search = document.getElementById('notice-search').value.trim().toLowerCase();
+      const filtered = state.notices.filter(n => !search ||
+        (n.title || '').toLowerCase().includes(search) ||
+        (n.content || '').toLowerCase().includes(search));
+      const el = document.getElementById('notice-list-container');
+      if (filtered.length === 0) { el.innerHTML = '<div class="empty">공지사항이 없습니다</div>'; return; }
+      el.innerHTML = filtered.map(n => {
+        const date = new Date(n.created_at).toLocaleString('ko-KR', { year:'2-digit', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+        return `<div class="notice-row ${n.active ? '' : 'inactive'}">
+          <div class="notice-row-header">
+            <span class="notice-status-pill ${n.active ? 'active' : 'inactive'}">${n.active ? '● 활성' : '○ 비활성'}</span>
+            <span class="notice-row-title">${escapeHtml(n.title)}</span>
+            <span class="notice-row-meta">${date}${n.created_by ? ' · ' + escapeHtml(n.created_by) : ''}</span>
+          </div>
+          ${n.content ? `<div class="notice-row-content">${escapeHtml(n.content)}</div>` : ''}
+          <div class="notice-row-actions">
+            <button class="crud-btn secondary" data-toggle-notice="${n.id}">${n.active ? '비활성화' : '활성화'}</button>
+            <button class="crud-btn secondary" data-edit-notice="${n.id}">수정</button>
+            <button class="crud-btn secondary" data-del-notice="${n.id}" style="color:#ff8caa;">삭제</button>
+          </div>
+        </div>`;
+      }).join('');
+      el.querySelectorAll('[data-toggle-notice]').forEach(b => b.addEventListener('click', () => toggleNotice(parseInt(b.dataset.toggleNotice))));
+      el.querySelectorAll('[data-edit-notice]').forEach(b => b.addEventListener('click', () => {
+        const n = state.notices.find(x => x.id === parseInt(b.dataset.editNotice));
+        if (n) openNoticeModal(n);
+      }));
+      el.querySelectorAll('[data-del-notice]').forEach(b => b.addEventListener('click', () => deleteNotice(parseInt(b.dataset.delNotice))));
+    }
+
+    function openNoticeModal(notice) {
+      state.editingNotice = notice;
+      document.getElementById('notice-modal-title').textContent = notice ? '공지 수정' : '공지 추가';
+      document.getElementById('notice-modal-title-input').value = notice ? notice.title : '';
+      document.getElementById('notice-modal-content').value = notice ? (notice.content || '') : '';
+      state.noticeModalActive = notice ? !!notice.active : true;
+      updateNoticeToggle();
+      document.getElementById('modal-notice').classList.add('active');
+    }
+
+    function updateNoticeToggle() {
+      const t = document.getElementById('notice-modal-active-toggle');
+      const l = document.getElementById('notice-modal-active-label');
+      t.className = 'toggle' + (state.noticeModalActive ? ' on' : '');
+      l.className = 'toggle-label ' + (state.noticeModalActive ? 'on' : 'off');
+      l.textContent = state.noticeModalActive ? '활성 (작업자에게 표시)' : '비활성 (숨김)';
+    }
+
+    async function saveNoticeModal() {
+      const title = document.getElementById('notice-modal-title-input').value.trim();
+      const content = document.getElementById('notice-modal-content').value.trim();
+      const active = state.noticeModalActive;
+      if (!title) { showToast('error', '제목 필수'); return; }
+      try {
+        if (state.editingNotice) {
+          await sbPatch(`notices?id=eq.${state.editingNotice.id}`, { title, content, active });
+          const n = state.notices.find(x => x.id === state.editingNotice.id);
+          if (n) { n.title = title; n.content = content; n.active = active; }
+          showToast('success', '수정됨');
+        } else {
+          const inserted = await sbPost('notices', { title, content, active, created_by: state.worker?.name || 'admin' });
+          state.notices = [inserted[0] || { id: Date.now(), title, content, active, created_at: new Date().toISOString() }, ...state.notices];
+          showToast('success', '추가됨');
+        }
+        document.getElementById('modal-notice').classList.remove('active');
+        renderNotices(); updateBadges();
+      } catch (e) { showToast('error', '실패: ' + e.message); }
+    }
+
+    async function toggleNotice(id) {
+      const n = state.notices.find(x => x.id === id);
+      if (!n) return;
+      try {
+        await sbPatch(`notices?id=eq.${id}`, { active: !n.active });
+        n.active = !n.active;
+        renderNotices(); updateBadges();
+        showToast('success', n.active ? '활성화됨' : '비활성화됨');
+      } catch (e) { showToast('error', '실패: ' + e.message); }
+    }
+
+    async function deleteNotice(id) {
+      if (!confirm('이 공지를 삭제하시겠습니까?')) return;
+      try {
+        await sbDelete(`notices?id=eq.${id}`);
+        state.notices = state.notices.filter(x => x.id !== id);
+        renderNotices(); updateBadges();
+        showToast('success', '삭제됨');
+      } catch (e) { showToast('error', '실패: ' + e.message); }
+    }
+
+    // ============ LEAVES ============
+    function setLeaveTab(tab) {
+      state.leaveTab = tab;
+      document.querySelectorAll('.leave-tab').forEach(t => t.classList.toggle('active', t.dataset.ltab === tab));
+      renderLeaves();
+    }
+
+    function renderLeaves() {
+      let list = state.leaves;
+      if (state.leaveTab !== 'all') list = list.filter(l => l.status === state.leaveTab);
+      const el = document.getElementById('leave-list-container');
+      if (list.length === 0) {
+        el.innerHTML = '<div class="empty">' + (state.leaveTab === 'pending' ? '대기 중인 신청이 없습니다 ✓' : '내역 없음') + '</div>';
+        return;
+      }
+      el.innerHTML = list.map(l => {
+        const start = l.start_date;
+        const end = l.end_date || l.start_date;
+        const dates = start === end ? start : `${start} ~ ${end}`;
+        const requested = new Date(l.requested_at).toLocaleString('ko-KR', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+        const reviewed = l.reviewed_at ? new Date(l.reviewed_at).toLocaleString('ko-KR', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }) : null;
+        const statusText = { pending:'대기', approved:'승인', rejected:'반려' }[l.status] || l.status;
+        const actions = l.status === 'pending'
+          ? `<div class="leave-row-actions">
+              <button class="leave-action-btn approve" data-approve="${l.id}">승인</button>
+              <button class="leave-action-btn reject" data-reject="${l.id}">반려</button>
+            </div>`
+          : `<div class="leave-row-actions">
+              <button class="leave-action-btn review" data-review="${l.id}">메모 확인</button>
+            </div>`;
+        return `<div class="leave-row ${l.status}">
+          <div class="leave-info">
+            <div class="leave-worker">${escapeHtml(l.worker_name)}</div>
+            <div class="leave-dates">📅 ${dates}</div>
+            ${l.reason ? `<div class="leave-reason">${escapeHtml(l.reason)}</div>` : ''}
+            <div class="leave-meta">신청: ${requested}${reviewed ? ` · 처리: ${reviewed}` : ''}${l.reviewed_by ? ` · ${escapeHtml(l.reviewed_by)}` : ''}${l.review_note ? ` · 메모: ${escapeHtml(l.review_note)}` : ''}</div>
+          </div>
+          <div class="leave-status-pill ${l.status}">${statusText}</div>
+          ${actions}
+        </div>`;
+      }).join('');
+      el.querySelectorAll('[data-approve]').forEach(b => b.addEventListener('click', () => openLeaveReview(parseInt(b.dataset.approve), 'approve')));
+      el.querySelectorAll('[data-reject]').forEach(b => b.addEventListener('click', () => openLeaveReview(parseInt(b.dataset.reject), 'reject')));
+      el.querySelectorAll('[data-review]').forEach(b => b.addEventListener('click', () => openLeaveReview(parseInt(b.dataset.review), 'view')));
+    }
+
+    function openLeaveReview(id, action) {
+      const l = state.leaves.find(x => x.id === id);
+      if (!l) return;
+      state.editingLeave = { ...l, _action: action };
+      document.getElementById('leave-review-title').textContent =
+        action === 'approve' ? '연차 승인' : action === 'reject' ? '연차 반려' : '처리 내역';
+      const dates = l.start_date === (l.end_date || l.start_date) ? l.start_date : `${l.start_date} ~ ${l.end_date}`;
+      document.getElementById('leave-review-info').textContent = `${l.worker_name} · ${dates}${l.reason ? ' · ' + l.reason : ''}`;
+      document.getElementById('leave-review-note').value = l.review_note || '';
+      document.getElementById('leave-review-note').readOnly = (action === 'view');
+      document.getElementById('leave-review-approve').style.display = (action === 'view') ? 'none' : 'block';
+      document.getElementById('leave-review-reject').style.display = (action === 'view') ? 'none' : 'block';
+      // 액션이 단일이면 해당 버튼만 강조 (둘 다 보이지만 색으로 구분)
+      document.getElementById('modal-leave-review').classList.add('active');
+    }
+
+    async function reviewLeave(status) {
+      const l = state.editingLeave;
+      if (!l) return;
+      const note = document.getElementById('leave-review-note').value.trim();
+      const reviewer = state.worker?.name || 'admin';
+      try {
+        await sbPatch(`leave_requests?id=eq.${l.id}`, {
+          status,
+          reviewed_by: reviewer,
+          reviewed_at: new Date().toISOString(),
+          review_note: note || null
+        });
+        const target = state.leaves.find(x => x.id === l.id);
+        if (target) {
+          target.status = status;
+          target.reviewed_by = reviewer;
+          target.reviewed_at = new Date().toISOString();
+          target.review_note = note || null;
+        }
+        document.getElementById('modal-leave-review').classList.remove('active');
+        renderLeaves(); updateBadges();
+        showToast('success', status === 'approved' ? '승인됨' : '반려됨');
+      } catch (e) { showToast('error', '실패: ' + e.message); }
+    }
+
     function parseCSVLine(line) {
       const result = []; let cur = '', inQuote = false;
       for (let i = 0; i < line.length; i++) {
@@ -1183,9 +1564,26 @@
       document.getElementById('cfg-save').addEventListener('click', saveCfg);
 
       // 모달 배경 클릭으로 닫기
-      ['modal-worker', 'modal-master', 'modal-import', 'modal-server'].forEach(id => {
+      ['modal-worker', 'modal-master', 'modal-import', 'modal-server', 'modal-notice', 'modal-leave-review'].forEach(id => {
         document.getElementById(id).addEventListener('click', e => { if (e.target.id === id) document.getElementById(id).classList.remove('active'); });
       });
+
+      // ERP 등록
+      document.getElementById('btn-erp-register').addEventListener('click', registerErp);
+
+      // 공지사항
+      document.getElementById('notice-search').addEventListener('input', renderNotices);
+      document.getElementById('btn-add-notice').addEventListener('click', () => openNoticeModal(null));
+      document.getElementById('notice-modal-cancel').addEventListener('click', () => document.getElementById('modal-notice').classList.remove('active'));
+      document.getElementById('notice-modal-save').addEventListener('click', saveNoticeModal);
+      document.getElementById('notice-modal-active-toggle').addEventListener('click', () => { state.noticeModalActive = !state.noticeModalActive; updateNoticeToggle(); });
+      document.getElementById('notice-modal-active-label').addEventListener('click', () => { state.noticeModalActive = !state.noticeModalActive; updateNoticeToggle(); });
+
+      // 연차
+      document.querySelectorAll('.leave-tab').forEach(t => t.addEventListener('click', () => setLeaveTab(t.dataset.ltab)));
+      document.getElementById('leave-review-cancel').addEventListener('click', () => document.getElementById('modal-leave-review').classList.remove('active'));
+      document.getElementById('leave-review-approve').addEventListener('click', () => reviewLeave('approved'));
+      document.getElementById('leave-review-reject').addEventListener('click', () => reviewLeave('rejected'));
 
       window.addEventListener('online', updateConnStatus);
       window.addEventListener('offline', updateConnStatus);
