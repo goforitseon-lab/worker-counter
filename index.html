@@ -7,6 +7,7 @@
   ============================================================
   REVISION
   ============================================================
+  0507 05 · 라이트 테마 (흰 배경 + 검은 글자)
   0507 04 · iOS Safari 카메라 지원 (ZXing-js fallback)
             - BarcodeDetector 미지원 브라우저(iOS Safari 등) 자동 fallback
             - 가이드 박스 영역만 캔버스로 잘라 분석 (다중 바코드 자동 제외)
@@ -41,7 +42,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <meta name="version" content="worker-counter-0507-04">
+  <meta name="version" content="worker-counter-0507-05">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>작업량 입력</title>
@@ -53,16 +54,16 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     :root {
-      --bg: #0f0f10;
-      --surface: rgba(255,255,255,0.03);
-      --border: rgba(255,255,255,0.08);
-      --text: #f5f0e6;
-      --text-dim: #8a857a;
-      --text-muted: #5a564f;
-      --amber: #ffd60a;
-      --emerald: #00d97e;
-      --red: #ff3d6e;
-      --blue: #5ac8fa;
+      --bg: #f7f7f5;
+      --surface: #ffffff;
+      --border: rgba(0,0,0,0.1);
+      --text: #1a1a1a;
+      --text-dim: #555;
+      --text-muted: #999;
+      --amber: #f5b800;
+      --emerald: #00a865;
+      --red: #d92847;
+      --blue: #0080c7;
     }
     html, body {
       background: var(--bg); color: var(--text);
@@ -72,8 +73,8 @@
     }
     body {
       background-image:
-        linear-gradient(rgba(255,214,10,0.04) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,214,10,0.04) 1px, transparent 1px);
+        linear-gradient(rgba(0,0,0,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,0,0,0.025) 1px, transparent 1px);
       background-size: 32px 32px;
     }
     button { background: none; border: none; color: inherit; font: inherit; cursor: pointer; }
@@ -225,7 +226,7 @@
     .actions-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 16px; }
     .action-btn { padding: 14px; border-radius: 12px; border: 1px solid var(--border); background: rgba(255,255,255,0.03); font-size: 14px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px; }
     .action-btn:active { background: var(--surface); }
-    .action-btn.danger { border-color: rgba(255,61,110,0.3); color: #ff8caa; }
+    .action-btn.danger { border-color: rgba(255,61,110,0.3); color: var(--red); }
 
     /* TOAST */
     .toast { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; pointer-events: none; padding: 24px; }
@@ -252,13 +253,13 @@
     .modal-btn { width: 100%; padding: 16px; border-radius: 12px; font-size: 15px; font-weight: 600; background: rgba(255,255,255,0.06); color: var(--text); display: flex; align-items: center; justify-content: center; gap: 8px; }
     .modal-btn:active { background: rgba(255,255,255,0.1); }
     .modal-btn.ghost { background: transparent; color: var(--text-dim); }
-    .modal-btn.danger { background: rgba(255,61,110,0.1); color: #ff8caa; }
-    .csv-area { width: 100%; min-height: 120px; padding: 12px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 12px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text); resize: vertical; }
-    .modal-input { width: 100%; padding: 14px 16px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 10px; font-size: 14px; color: var(--text); margin-bottom: 8px; font-family: 'JetBrains Mono', monospace; }
+    .modal-btn.danger { background: rgba(255,61,110,0.1); color: var(--red); }
+    .csv-area { width: 100%; min-height: 120px; padding: 12px; background: #f8f8f8; border: 1px solid var(--border); border-radius: 12px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text); resize: vertical; }
+    .modal-input { width: 100%; padding: 14px 16px; background: #f8f8f8; border: 1px solid var(--border); border-radius: 10px; font-size: 14px; color: var(--text); margin-bottom: 8px; font-family: 'JetBrains Mono', monospace; }
     .modal-input:focus { border-color: rgba(255,214,10,0.6); }
     .modal-status { padding: 10px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; margin: 8px 0; display: none; }
     .modal-status.success { display: block; background: rgba(0,217,126,0.1); color: var(--emerald); }
-    .modal-status.error { display: block; background: rgba(255,61,110,0.1); color: #ff8caa; }
+    .modal-status.error { display: block; background: rgba(255,61,110,0.1); color: var(--red); }
 
     /* CAMERA */
     .cam-modal { position: fixed; inset: 0; background: #000; z-index: 200; display: none; }
@@ -289,7 +290,7 @@
     .cam-shutter:disabled { background: rgba(255,255,255,0.3); border-color: rgba(255,255,255,0.5); box-shadow: none; }
     .cam-flash { position: absolute; inset: 0; background: white; opacity: 0; pointer-events: none; }
     .cam-flash.flashing { opacity: 0.6; transition: opacity 0.15s; }
-    .cam-error-msg { position: absolute; left: 16px; right: 16px; bottom: 180px; padding: 14px; background: rgba(0,0,0,0.9); border: 1px solid var(--red); border-radius: 12px; color: #ff8caa; font-size: 13px; line-height: 1.5; display: none; }
+    .cam-error-msg { position: absolute; left: 16px; right: 16px; bottom: 180px; padding: 14px; background: rgba(0,0,0,0.9); border: 1px solid var(--red); border-radius: 12px; color: var(--red); font-size: 13px; line-height: 1.5; display: none; }
     .cam-error-msg.active { display: block; animation: pop 0.3s ease-out; }
 
     .footer { text-align: center; padding: 24px; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); letter-spacing: 0.15em; }
@@ -310,9 +311,9 @@
     .leave-form { padding: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; margin-bottom: 20px; }
     .leave-form-row { margin-bottom: 12px; }
     .leave-form-row:last-of-type { margin-bottom: 16px; }
-    .leave-input { width: 100%; padding: 12px 14px; background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: 10px; font-size: 14px; color: var(--text); }
+    .leave-input { width: 100%; padding: 12px 14px; background: #f8f8f8; border: 1px solid var(--border); border-radius: 10px; font-size: 14px; color: var(--text); }
     .leave-input:focus { border-color: rgba(255,214,10,0.6); }
-    .leave-textarea { width: 100%; min-height: 80px; padding: 12px 14px; background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: 10px; font-size: 14px; color: var(--text); resize: vertical; font-family: inherit; }
+    .leave-textarea { width: 100%; min-height: 80px; padding: 12px 14px; background: #f8f8f8; border: 1px solid var(--border); border-radius: 10px; font-size: 14px; color: var(--text); resize: vertical; font-family: inherit; }
     .leave-textarea:focus { border-color: rgba(255,214,10,0.6); }
     .leave-date-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 
@@ -326,38 +327,38 @@
     .leave-item-status.rejected { background: rgba(255,61,110,0.15); color: var(--red); }
     .leave-item-reason { font-size: 13px; color: var(--text-dim); margin-bottom: 4px; white-space: pre-wrap; }
     .leave-item-meta { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); }
-    .leave-item-note { margin-top: 8px; padding: 8px 10px; background: rgba(0,0,0,0.2); border-radius: 8px; font-size: 12px; color: var(--text-dim); }
+    .leave-item-note { margin-top: 8px; padding: 8px 10px; background: #f8f8f8; border-radius: 8px; font-size: 12px; color: var(--text-dim); }
     .leave-item-note strong { color: var(--text); font-weight: 700; }
-    .leave-item-cancel { margin-top: 8px; padding: 8px 12px; background: rgba(255,61,110,0.1); color: #ff8caa; border-radius: 8px; font-size: 12px; font-weight: 600; }
+    .leave-item-cancel { margin-top: 8px; padding: 8px 12px; background: rgba(255,61,110,0.1); color: var(--red); border-radius: 8px; font-size: 12px; font-weight: 600; }
     .leave-item-cancel:active { background: rgba(255,61,110,0.18); }
 
     /* QC (불량 입력) */
     .qc-section { padding: 0 20px; margin-bottom: 24px; }
 
-    .add-defect-btn { width: 100%; padding: 14px; border-radius: 12px; background: rgba(255,61,110,0.06); border: 1.5px dashed rgba(255,61,110,0.3); color: #ff8caa; font-size: 14px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .add-defect-btn { width: 100%; padding: 14px; border-radius: 12px; background: rgba(255,61,110,0.06); border: 1.5px dashed rgba(255,61,110,0.3); color: var(--red); font-size: 14px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; }
     .add-defect-btn:active { background: rgba(255,61,110,0.1); }
 
     .defect-area { padding: 16px; background: rgba(255,61,110,0.05); border: 1px solid rgba(255,61,110,0.25); border-radius: 14px; }
 
-    .defect-select { width: 100%; padding: 12px 14px; background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 10px; display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
-    .defect-select:active { background: rgba(0,0,0,0.3); }
+    .defect-select { width: 100%; padding: 12px 14px; background: #f8f8f8; border: 1px solid var(--border); border-radius: 10px; display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+    .defect-select:active { background: #efefef; }
     .defect-select-info { min-width: 0; flex: 1; text-align: left; }
     .defect-select-label { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--text-muted); letter-spacing: 0.15em; margin-bottom: 2px; }
     .defect-select-value { font-size: 14px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .defect-select.empty .defect-select-value { color: var(--text-muted); font-weight: 500; }
-    .defect-select-code { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #ff8caa; margin-top: 2px; }
+    .defect-select-code { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--red); margin-top: 2px; }
 
     .defect-qty-row { margin-bottom: 12px; }
     .defect-qty-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); letter-spacing: 0.15em; margin-bottom: 6px; }
-    .defect-qty-warn { color: #ff8caa; font-weight: 700; }
+    .defect-qty-warn { color: var(--red); font-weight: 700; }
 
-    .qty-stepper-mini { display: flex; align-items: center; gap: 8px; padding: 8px; background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 10px; }
+    .qty-stepper-mini { display: flex; align-items: center; gap: 8px; padding: 8px; background: #f8f8f8; border: 1px solid var(--border); border-radius: 10px; }
     .qty-mini-btn { width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
     .qty-mini-btn-minus { background: rgba(255,255,255,0.06); }
     .qty-mini-btn-plus { background: rgba(255,61,110,0.2); }
     .qty-mini-btn:active { transform: scale(0.95); }
     .qty-mini-btn:disabled { opacity: 0.3; }
-    .qty-mini-input { flex: 1; min-width: 0; text-align: center; font-family: 'Bebas Neue', sans-serif; font-size: 32px; line-height: 1; color: #ff8caa; font-variant-numeric: tabular-nums; padding: 0; background: transparent; border: 1px dashed transparent; border-radius: 6px; }
+    .qty-mini-input { flex: 1; min-width: 0; text-align: center; font-family: 'Bebas Neue', sans-serif; font-size: 32px; line-height: 1; color: var(--red); font-variant-numeric: tabular-nums; padding: 0; background: transparent; border: 1px dashed transparent; border-radius: 6px; }
     .qty-mini-input:focus { border-color: rgba(255,61,110,0.4); }
     .qty-mini-unit { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted); padding: 0 4px; flex-shrink: 0; }
 
@@ -365,16 +366,16 @@
     .defect-cancel-btn:active { background: rgba(255,255,255,0.08); }
 
     /* 다중 불량 카드 */
-    .defect-card { padding: 12px; background: rgba(0,0,0,0.15); border: 1px solid rgba(255,61,110,0.15); border-radius: 10px; margin-bottom: 8px; }
+    .defect-card { padding: 12px; background: #fafafa; border: 1px solid rgba(255,61,110,0.15); border-radius: 10px; margin-bottom: 8px; }
     .defect-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-    .defect-card-tag { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.15em; color: #ff8caa; font-weight: 700; }
+    .defect-card-tag { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.15em; color: var(--red); font-weight: 700; }
     .defect-remove-btn { width: 26px; height: 26px; border-radius: 50%; background: rgba(255,61,110,0.18); display: flex; align-items: center; justify-content: center; }
     .defect-remove-btn:active { background: rgba(255,61,110,0.32); }
     .add-more-defect-btn { width: 100%; padding: 10px; border-radius: 10px; background: rgba(255,255,255,0.04); border: 1px dashed rgba(255,255,255,0.15); color: var(--text-dim); font-size: 13px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 10px; }
     .add-more-defect-btn:active { background: rgba(255,255,255,0.08); }
-    .defect-total { padding: 10px 12px; background: rgba(0,0,0,0.25); border-radius: 8px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-dim); margin-bottom: 8px; text-align: center; }
-    .defect-total strong { color: #ff8caa; font-weight: 700; }
-    .defect-total.warn { color: #ff8caa; background: rgba(255,61,110,0.1); }
+    .defect-total { padding: 10px 12px; background: #f8f8f8; border-radius: 8px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-dim); margin-bottom: 8px; text-align: center; }
+    .defect-total strong { color: var(--red); font-weight: 700; }
+    .defect-total.warn { color: var(--red); background: rgba(255,61,110,0.1); }
 
     /* DEFECT MODAL */
     .defect-list { max-height: 50vh; overflow-y: auto; margin: 8px -4px 12px; padding: 0 4px; }
@@ -385,7 +386,7 @@
     .defect-empty { text-align: center; padding: 32px 12px; color: var(--text-muted); font-size: 13px; }
 
     /* DEFECT BADGE in lists */
-    .item-defect { display: inline-flex; align-items: center; gap: 4px; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: rgba(255,61,110,0.15); color: #ff8caa; margin-right: 4px; }
+    .item-defect { display: inline-flex; align-items: center; gap: 4px; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: rgba(255,61,110,0.15); color: var(--red); margin-right: 4px; }
     .item-ok { display: inline-flex; align-items: center; gap: 4px; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: rgba(0,217,126,0.12); color: var(--emerald); margin-right: 4px; }
   </style>
 </head>
@@ -1001,7 +1002,7 @@
 
     function updateFooter() {
       const cnt = Object.keys(state.partsMaster).length;
-      document.getElementById('footer').textContent = `Worker counter 0507 04 · 마스터 ${cnt}건`;
+      document.getElementById('footer').textContent = `Worker counter 0507 05 · 마스터 ${cnt}건`;
     }
 
     function updateConnStatus() {

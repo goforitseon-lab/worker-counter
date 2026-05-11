@@ -7,12 +7,11 @@
   ============================================================
   REVISION
   ============================================================
-  admin 0507 02 · 공지사항, 연차 관리, ERP 등록 추가
-                  - 새 탭: 공지사항 (CRUD, 활성/비활성 토글)
-                  - 새 탭: 연차 (전체 신청 조회, 승인/반려, 메모)
-                  - 제출 내역: ERP 등록 표시 + 일괄 등록 버튼
-                  - 헤더 우측: 공지/연차 대기 건수 뱃지
-  admin 0507 01 · 최초 버전
+  admin 0507 04 · 라이트 테마 + 불량 CSV 다운로드
+                  - 흰색 배경, 검은 글자 (대비 강화)
+                  - 제출 내역: 불량만 모은 CSV 다운로드 (이카운트 양식)
+                  - ecount-sync v3 호환 (GoodsReceipt API)
+  admin 0507 03 · 이카운트 ERP 실제 등록 (Edge Function 호출)
   ============================================================
 -->
 <html lang="ko">
@@ -20,6 +19,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
   <meta name="theme-color" content="#0f0f10">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <meta name="version" content="admin-0507-04">
   <title>관리자 · Worker Counter</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -27,18 +30,18 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     :root {
-      --bg: #0f0f10;
-      --surface: rgba(255,255,255,0.03);
-      --surface-2: rgba(255,255,255,0.05);
-      --border: rgba(255,255,255,0.08);
-      --text: #f5f0e6;
-      --text-dim: #8a857a;
-      --text-muted: #5a564f;
-      --amber: #ffd60a;
-      --emerald: #00d97e;
-      --red: #ff3d6e;
-      --blue: #5ac8fa;
-      --purple: #c084fc;
+      --bg: #f7f7f5;
+      --surface: #ffffff;
+      --surface-2: #f0f0ee;
+      --border: rgba(0,0,0,0.1);
+      --text: #1a1a1a;
+      --text-dim: #555;
+      --text-muted: #999;
+      --amber: #f5b800;
+      --emerald: #00a865;
+      --red: #d92847;
+      --blue: #0080c7;
+      --purple: #8b5cf6;
     }
     html, body {
       background: var(--bg); color: var(--text);
@@ -47,8 +50,8 @@
     }
     body {
       background-image:
-        linear-gradient(rgba(255,214,10,0.03) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,214,10,0.03) 1px, transparent 1px);
+        linear-gradient(rgba(0,0,0,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,0,0,0.025) 1px, transparent 1px);
       background-size: 40px 40px;
     }
     button { background: none; border: none; color: inherit; font: inherit; cursor: pointer; }
@@ -124,8 +127,8 @@
 
     /* SUBMISSIONS TAB */
     .filter-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)) auto; gap: 8px; margin-bottom: 16px; padding: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; }
-    .filter-input, .filter-select { padding: 10px 12px; background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: 8px; font-size: 13px; color: var(--text); }
-    .filter-input:focus, .filter-select:focus { border-color: rgba(255,214,10,0.6); }
+    .filter-input, .filter-select { padding: 10px 12px; background: #ffffff; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; color: var(--text); }
+    .filter-input:focus, .filter-select:focus { border-color: var(--amber); }
     .filter-input::placeholder { color: var(--text-muted); }
     .filter-btn { padding: 10px 14px; border-radius: 8px; background: var(--amber); color: #0f0f10; font-size: 13px; font-weight: 700; }
     .filter-btn.ghost { background: rgba(255,255,255,0.06); color: var(--text-dim); }
@@ -159,7 +162,7 @@
 
     /* WORKERS / MASTER */
     .crud-bar { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; align-items: center; }
-    .crud-search { flex: 1; min-width: 180px; padding: 10px 12px; background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: 8px; font-size: 13px; }
+    .crud-search { flex: 1; min-width: 180px; padding: 10px 12px; background: #ffffff; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; }
     .crud-btn { padding: 10px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
     .crud-btn.primary { background: var(--amber); color: #0f0f10; }
     .crud-btn.secondary { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
@@ -206,23 +209,23 @@
     .empty-icon { width: 56px; height: 56px; border-radius: 16px; background: rgba(255,255,255,0.03); display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; }
 
     /* MODAL */
-    .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); z-index: 90; display: none; align-items: center; justify-content: center; padding: 16px; }
+    .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(4px); z-index: 90; display: none; align-items: center; justify-content: center; padding: 16px; }
     .modal-bg.active { display: flex; }
-    .modal { width: 100%; max-width: 520px; background: #18181a; border-radius: 16px; padding: 24px; max-height: 90vh; overflow-y: auto; }
+    .modal { width: 100%; max-width: 520px; background: #ffffff; border: 1px solid var(--border); border-radius: 16px; padding: 24px; max-height: 90vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0,0,0,0.12); }
     .modal-title { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
     .modal-sub { font-size: 13px; color: var(--text-dim); margin-bottom: 20px; }
-    .modal-input { width: 100%; padding: 12px 14px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 10px; font-size: 14px; color: var(--text); margin-bottom: 12px; }
-    .modal-input:focus { border-color: rgba(255,214,10,0.6); }
+    .modal-input { width: 100%; padding: 12px 14px; background: #ffffff; border: 1px solid var(--border); border-radius: 10px; font-size: 14px; color: var(--text); margin-bottom: 12px; }
+    .modal-input:focus { border-color: var(--amber); }
     .modal-row { display: flex; gap: 8px; margin-top: 12px; }
     .modal-btn { flex: 1; padding: 14px; border-radius: 10px; font-size: 14px; font-weight: 700; }
     .modal-btn.primary { background: var(--amber); color: #0f0f10; }
     .modal-btn.ghost { background: rgba(255,255,255,0.06); color: var(--text-dim); }
     .modal-btn.danger { background: var(--red); color: white; }
     .modal-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.15em; color: var(--text-muted); margin-bottom: 4px; margin-top: 12px; }
-    .csv-area { width: 100%; min-height: 160px; padding: 12px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 10px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text); resize: vertical; }
+    .csv-area { width: 100%; min-height: 160px; padding: 12px; background: #fafafa; border: 1px solid var(--border); border-radius: 10px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text); resize: vertical; }
     .modal-status { padding: 10px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; margin: 8px 0; display: none; }
-    .modal-status.success { display: block; background: rgba(0,217,126,0.1); color: var(--emerald); }
-    .modal-status.error { display: block; background: rgba(255,61,110,0.1); color: #ff8caa; }
+    .modal-status.success { display: block; background: rgba(0,168,101,0.1); color: var(--emerald); }
+    .modal-status.error { display: block; background: rgba(217,40,71,0.1); color: var(--red); }
 
     /* TOAST */
     .toast { position: fixed; top: 24px; left: 50%; transform: translateX(-50%); z-index: 100; padding: 14px 24px; border-radius: 12px; font-weight: 700; font-size: 14px; display: none; animation: slidedown 0.3s; }
@@ -426,10 +429,16 @@
         <div class="erp-bar-info">
           <strong id="erp-pending-count">0건</strong>이 ERP 미등록 상태입니다 (현재 필터 기준)
         </div>
-        <button class="erp-bar-btn" id="btn-erp-register">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-          전체 ERP 등록 처리
-        </button>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="erp-bar-btn" id="btn-export-defects" style="background:var(--red);">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            불량 CSV 다운로드
+          </button>
+          <button class="erp-bar-btn" id="btn-erp-register">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            전체 ERP 등록 처리
+          </button>
+        </div>
       </div>
 
       <div id="sub-loading" class="loading" style="display:none;"><div class="loading-spinner"></div></div>
@@ -504,7 +513,7 @@
       <div id="leave-list-container"></div>
     </div>
 
-    <div class="footer" id="footer">Worker counter admin 0507 02</div>
+    <div class="footer" id="footer">Worker counter admin 0507 04</div>
   </div>
 
   <!-- TOAST -->
@@ -1011,20 +1020,98 @@
       pg.querySelectorAll('[data-page]').forEach(b => b.addEventListener('click', () => { state.page = parseInt(b.dataset.page); renderSubmissions(); }));
     }
 
+    function exportDefectsCSV() {
+      const list = state.filteredSubmissions.length > 0 || state.filterDateFrom ? state.filteredSubmissions : state.submissions;
+      // 불량이 있는 건만, 각 불량 라인별로 펼침
+      const rows = [];
+      let seq = 1;
+      list.forEach(s => {
+        const defects = s.defects || (s.defect_code ? [{ code: s.defect_code, name: s.defect_name, quantity: s.defect_quantity }] : []);
+        defects.forEach(d => {
+          if (!d.quantity || d.quantity <= 0) return;
+          const dateStr = new Date(s.created_at).toISOString().slice(0,10).replace(/-/g, '');
+          rows.push({
+            일자: dateStr,
+            순번: seq++,
+            담당자: '',
+            발견창고: s.warehouse || '',
+            처리방법: '',
+            프로젝트: '',
+            '품목코드(불량)': s.part_number,
+            '품목명(불량)': s.part_name || '',
+            '규격(불량)': s.spec || '',
+            '추가수량(불량)': '',
+            '수량(불량)': d.quantity,
+            '불량유형코드(불량)': d.code || '',
+            '적요(불량)': `작업자: ${s.worker_name}${d.name ? ' / ' + d.name : ''}`,
+            '관리항목코드(불량)': ''
+          });
+        });
+      });
+      if (rows.length === 0) { showToast('error', '불량 내역이 없습니다'); return; }
+      const headers = Object.keys(rows[0]);
+      const csv = '\uFEFF' + headers.join(',') + '\n' +
+        rows.map(r => headers.map(h => `"${String(r[h] ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+      downloadCSV(csv, `불량입력_${new Date().toISOString().slice(0,10)}.csv`);
+      showToast('success', `${rows.length}건 다운로드 (이카운트 양식)`);
+    }
+
     async function registerErp() {
       const list = state.filteredSubmissions.length > 0 || state.filterDateFrom ? state.filteredSubmissions : state.submissions;
       const ids = list.filter(s => !s.erp_registered).map(s => s.id);
       if (ids.length === 0) { showToast('info', '등록 대상 없음'); return; }
-      if (!confirm(`${ids.length}건을 ERP 등록 처리하시겠습니까?\n(실제 ERP 시스템 연동은 추후 추가 예정. 현재는 표시만 됩니다.)`)) return;
+      if (!confirm(`${ids.length}건을 이카운트 ERP에 생산입고로 등록합니다.\n계속하시겠습니까?`)) return;
+
+      const btn = document.getElementById('btn-erp-register');
+      const originalHtml = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/></svg>전송 중...`;
+      showToast('info', `${ids.length}건 이카운트 전송 중...`);
+
       try {
-        const now = new Date().toISOString();
-        // PostgREST: id=in.(1,2,3) 형식
-        await sbPatch(`submissions?id=in.(${ids.join(',')})`, { erp_registered: true, erp_registered_at: now });
-        // 로컬 상태 업데이트
-        state.submissions.forEach(s => { if (ids.includes(s.id)) { s.erp_registered = true; s.erp_registered_at = now; } });
-        applyFilter();
-        showToast('success', `${ids.length}건 ERP 등록 처리됨`);
-      } catch (e) { showToast('error', 'ERP 등록 실패: ' + e.message); }
+        const cfg = state.serverConfig;
+        const res = await fetch(`${cfg.url.replace(/\/$/,'')}/functions/v1/ecount-sync`, {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + cfg.key,
+            'apikey': cfg.key,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ submission_ids: ids })
+        });
+        const result = await res.json();
+
+        if (!res.ok) {
+          console.error('ERP 등록 응답:', result);
+          showToast('error', `ERP 등록 실패: ${result.error || res.status}`);
+          if (result.missing) {
+            alert('환경변수 미설정:\n' + Object.keys(result.missing).filter(k => result.missing[k]).join('\n') +
+                  '\n\nSupabase Dashboard > Edge Functions > Secrets에서 설정하세요.');
+          }
+          return;
+        }
+
+        // 성공 시
+        if (result.success > 0 && result.failed === 0) {
+          showToast('success', `${result.success}건 ERP 등록 완료 ✓`);
+        } else if (result.success > 0 && result.failed > 0) {
+          showToast('error', `${result.success}건 성공, ${result.failed}건 실패 (콘솔 확인)`);
+          console.warn('실패 건:', result.failed_items);
+        } else {
+          showToast('error', `전체 실패 (${result.failed}건). 콘솔에서 원인 확인`);
+          console.error('이카운트 응답:', result.ecount_raw);
+          console.error('실패 상세:', result.failed_items);
+        }
+
+        // 로컬 상태 갱신
+        await loadAll();
+      } catch (e) {
+        showToast('error', 'ERP 호출 실패: ' + e.message);
+        console.error(e);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+      }
     }
 
     function exportSubmissions() {
@@ -1570,6 +1657,7 @@
 
       // ERP 등록
       document.getElementById('btn-erp-register').addEventListener('click', registerErp);
+      document.getElementById('btn-export-defects').addEventListener('click', exportDefectsCSV);
 
       // 공지사항
       document.getElementById('notice-search').addEventListener('input', renderNotices);
