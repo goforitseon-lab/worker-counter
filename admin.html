@@ -7,6 +7,9 @@
   ============================================================
   REVISION
   ============================================================
+  admin 0507 07 · 데이터 로드 안정성 강화 (Promise.allSettled)
+                  - 한 테이블 없어도 나머지 화면은 정상 동작
+                  - 실패한 테이블명을 토스트로 표시
   admin 0507 06 · 창고/공정 관리 (마스터 탭 → 부품/창고 서브탭)
                   - warehouses 테이블 CRUD
                   - 작업자가 입력 시 공정 선택한 코드가 ERP/CSV에 반영됨
@@ -25,7 +28,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <meta name="version" content="admin-0507-06">
+  <meta name="version" content="admin-0507-07">
   <title>관리자 · Worker Counter</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -555,7 +558,7 @@
       <div id="leave-list-container"></div>
     </div>
 
-    <div class="footer" id="footer">Worker counter admin 0507 06</div>
+    <div class="footer" id="footer">Worker counter admin 0507 07</div>
   </div>
 
   <!-- TOAST -->
@@ -821,26 +824,32 @@
 
     // ============ LOAD ALL ============
     async function loadAll() {
-      try {
-        const [subs, workers, master, warehouses, notices, leaves] = await Promise.all([
-          sbGet('submissions?order=created_at.desc&limit=2000'),
-          sbGet('workers?order=created_at.asc'),
-          sbGet('parts_master?order=part_number.asc'),
-          sbGet('warehouses?order=code.asc'),
-          sbGet('notices?order=created_at.desc&limit=200'),
-          sbGet('leave_requests?order=requested_at.desc&limit=500'),
-        ]);
-        state.submissions = subs;
-        state.workers = workers;
-        state.master = master;
-        state.warehouses = warehouses;
-        state.notices = notices;
-        state.leaves = leaves;
-        renderAll();
-      } catch (e) {
-        showToast('error', '데이터 로드 실패: ' + e.message);
-        console.error(e);
+      const results = await Promise.allSettled([
+        sbGet('submissions?order=created_at.desc&limit=2000'),
+        sbGet('workers?order=created_at.asc'),
+        sbGet('parts_master?order=part_number.asc'),
+        sbGet('warehouses?order=code.asc'),
+        sbGet('notices?order=created_at.desc&limit=200'),
+        sbGet('leave_requests?order=requested_at.desc&limit=500'),
+      ]);
+      const names = ['submissions', 'workers', 'parts_master', 'warehouses', 'notices', 'leave_requests'];
+      const values = results.map((r, i) => {
+        if (r.status === 'fulfilled') return r.value;
+        console.warn(`[${names[i]}] 로드 실패:`, r.reason?.message || r.reason);
+        return [];
+      });
+      state.submissions = values[0];
+      state.workers = values[1];
+      state.master = values[2];
+      state.warehouses = values[3];
+      state.notices = values[4];
+      state.leaves = values[5];
+
+      const failed = results.map((r, i) => r.status === 'rejected' ? names[i] : null).filter(Boolean);
+      if (failed.length > 0) {
+        showToast('error', `로드 실패: ${failed.join(', ')} (테이블 생성 필요)`);
       }
+      renderAll();
     }
 
     function renderAll() {
