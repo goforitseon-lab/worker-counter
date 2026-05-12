@@ -7,7 +7,12 @@
   ============================================================
   REVISION
   ============================================================
-  0507 05 · 라이트 테마 (흰 배경 + 검은 글자)
+  0507 07 · 공정/창고 선택 추가
+            - warehouses 테이블 동기화
+            - 입력 화면에 공정 드롭다운 (부품 마스터 기본값 + 변경 가능)
+            - submissions.warehouse에 선택한 공정 코드 저장
+            - ERP 업로드/불량 CSV에 자동 반영
+  0507 06 · 팝업 라이트 테마 마무리
   0507 04 · iOS Safari 카메라 지원 (ZXing-js fallback)
             - BarcodeDetector 미지원 브라우저(iOS Safari 등) 자동 fallback
             - 가이드 박스 영역만 캔버스로 잘라 분석 (다중 바코드 자동 제외)
@@ -42,7 +47,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <meta name="version" content="worker-counter-0507-05">
+  <meta name="version" content="worker-counter-0507-07">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>작업량 입력</title>
@@ -90,11 +95,11 @@
     .setup-tag { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.3em; color: rgba(255,214,10,0.7); }
     .setup-title { font-size: 28px; font-weight: 900; margin-top: 8px; margin-bottom: 4px; }
     .setup-sub { font-size: 14px; color: var(--text-dim); margin-bottom: 32px; text-align: center; }
-    .input-field { width: 100%; padding: 16px 20px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 12px; font-size: 17px; font-weight: 600; color: var(--text); margin-bottom: 16px; }
+    .input-field { width: 100%; padding: 16px 20px; background: #f5f5f5; border: 1px solid var(--border); border-radius: 12px; font-size: 17px; font-weight: 600; color: var(--text); margin-bottom: 16px; }
     .input-field:focus { border-color: rgba(255,214,10,0.6); }
     .input-field::placeholder { color: var(--text-muted); font-weight: 400; }
     .btn-primary { width: 100%; padding: 16px; border-radius: 12px; font-size: 17px; font-weight: 700; background: var(--amber); color: #0f0f10; display: flex; align-items: center; justify-content: center; gap: 6px; }
-    .btn-primary:disabled { opacity: 0.3; background: rgba(255,255,255,0.05); color: var(--text-muted); }
+    .btn-primary:disabled { opacity: 0.3; background: #efefef; color: var(--text-muted); }
     .btn-primary:active:not(:disabled) { transform: scale(0.98); }
 
     /* HEADER */
@@ -129,17 +134,17 @@
     /* PART INPUT */
     .part-section { padding: 0 20px; margin-bottom: 16px; }
     .part-input-wrap { position: relative; }
-    .part-input { width: 100%; padding: 16px 20px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 12px; font-size: 18px; font-weight: 600; }
+    .part-input { width: 100%; padding: 16px 20px; background: #f5f5f5; border: 1px solid var(--border); border-radius: 12px; font-size: 18px; font-weight: 600; }
     .part-input:focus { border-color: rgba(255,214,10,0.6); }
     .part-input::placeholder { color: var(--text-muted); font-weight: 400; }
-    .part-clear { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); width: 32px; height: 32px; border-radius: 50%; background: rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; }
+    .part-clear { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); width: 32px; height: 32px; border-radius: 50%; background: #e8e8e8; display: flex; align-items: center; justify-content: center; }
 
     /* INFO CARD */
-    .info-card { margin: 0 20px 20px; padding: 16px; border-radius: 12px; border: 1px solid var(--border); background: rgba(255,255,255,0.02); }
+    .info-card { margin: 0 20px 20px; padding: 16px; border-radius: 12px; border: 1px solid var(--border); background: #fafafa; }
     .info-card.matched { border-color: rgba(0,217,126,0.3); background: rgba(0,217,126,0.04); }
     .info-card.unmatched { border-color: rgba(255,61,110,0.3); background: rgba(255,61,110,0.04); }
     .info-row { display: flex; padding: 6px 0; font-size: 14px; }
-    .info-row + .info-row { border-top: 1px solid rgba(255,255,255,0.04); }
+    .info-row + .info-row { border-top: 1px solid rgba(0,0,0,0.06); }
     .info-key { width: 70px; flex-shrink: 0; color: var(--text-dim); font-size: 13px; }
     .info-val { flex: 1; font-weight: 600; }
     .info-status { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; margin-bottom: 8px; }
@@ -149,9 +154,9 @@
 
     /* QTY */
     .qty-section { padding: 0 20px; margin-bottom: 24px; }
-    .qty-stepper { padding: 16px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .qty-stepper { padding: 16px; background: #f5f5f5; border: 1px solid var(--border); border-radius: 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
     .qty-btn { width: 64px; height: 64px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-    .qty-btn-minus { background: rgba(255,255,255,0.08); }
+    .qty-btn-minus { background: #e8e8e8; }
     .qty-btn-plus { background: var(--amber); }
     .qty-btn:active { transform: scale(0.95); }
     .qty-btn:disabled { opacity: 0.3; }
@@ -160,12 +165,12 @@
     .qty-num:focus { border-color: rgba(255,214,10,0.4); }
     .qty-unit { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.2em; color: var(--text-muted); margin-top: 4px; }
     .qty-quick { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 8px; }
-    .qty-quick-btn { padding: 10px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid var(--border); font-family: 'JetBrains Mono', monospace; font-size: 14px; color: var(--text-dim); }
+    .qty-quick-btn { padding: 10px; border-radius: 8px; background: #f8f8f8; border: 1px solid var(--border); font-family: 'JetBrains Mono', monospace; font-size: 14px; color: var(--text-dim); }
     .qty-quick-btn:active { background: var(--surface); }
 
     .submit-section { padding: 0 20px; }
     .submit-btn { width: 100%; padding: 20px; border-radius: 16px; font-size: 18px; font-weight: 700; background: linear-gradient(135deg, var(--amber), #ffaa00); color: #0f0f10; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 8px 24px rgba(255,214,10,0.25); }
-    .submit-btn:disabled { opacity: 0.3; background: rgba(255,255,255,0.05); color: var(--text-muted); box-shadow: none; }
+    .submit-btn:disabled { opacity: 0.3; background: #efefef; color: var(--text-muted); box-shadow: none; }
     .submit-btn:active:not(:disabled) { transform: scale(0.98); }
 
     /* PENDING / SENT 공통 */
@@ -189,7 +194,7 @@
 
     /* 리스트 항목 */
     .item-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
-    .item-row { padding: 12px; background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 10px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .item-row { padding: 12px; background: #fafafa; border: 1px solid var(--border); border-radius: 10px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
     .item-info { min-width: 0; flex: 1; }
     .item-part { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700; }
     .item-name { font-size: 12px; color: var(--text-dim); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -204,27 +209,27 @@
 
     /* 품번별 통계 */
     .part-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
-    .part-stat { padding: 12px; background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 12px; }
+    .part-stat { padding: 12px; background: #f8f8f8; border: 1px solid var(--border); border-radius: 12px; }
     .part-stat-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
     .part-stat-name { font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 700; }
     .part-stat-qty { font-family: 'Bebas Neue', sans-serif; font-size: 24px; color: var(--amber); font-variant-numeric: tabular-nums; }
     .part-stat-detail { font-size: 12px; color: var(--text-dim); margin-bottom: 8px; }
-    .part-stat-bar { height: 4px; border-radius: 2px; background: rgba(255,255,255,0.05); overflow: hidden; }
+    .part-stat-bar { height: 4px; border-radius: 2px; background: #efefef; overflow: hidden; }
     .part-stat-fill { height: 100%; border-radius: 2px; background: var(--amber); transition: width 0.4s; }
 
     .empty { text-align: center; padding: 48px 24px; color: var(--text-muted); font-size: 14px; }
-    .empty-icon { width: 56px; height: 56px; border-radius: 16px; background: rgba(255,255,255,0.03); display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; }
+    .empty-icon { width: 56px; height: 56px; border-radius: 16px; background: #f8f8f8; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; }
 
     /* 최종 전송 버튼 */
     .send-section { position: sticky; bottom: 16px; padding: 0; margin-top: 16px; }
     .send-btn { width: 100%; padding: 18px; border-radius: 16px; font-size: 18px; font-weight: 700; background: linear-gradient(135deg, var(--emerald), #00b86a); color: white; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 8px 24px rgba(0,217,126,0.3); }
-    .send-btn:disabled { opacity: 0.4; background: rgba(255,255,255,0.05); color: var(--text-muted); box-shadow: none; }
+    .send-btn:disabled { opacity: 0.4; background: #efefef; color: var(--text-muted); box-shadow: none; }
     .send-btn:active:not(:disabled) { transform: scale(0.98); }
     .send-btn .spin { animation: spin 1s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
     .actions-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 16px; }
-    .action-btn { padding: 14px; border-radius: 12px; border: 1px solid var(--border); background: rgba(255,255,255,0.03); font-size: 14px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px; }
+    .action-btn { padding: 14px; border-radius: 12px; border: 1px solid var(--border); background: #f8f8f8; font-size: 14px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px; }
     .action-btn:active { background: var(--surface); }
     .action-btn.danger { border-color: rgba(255,61,110,0.3); color: var(--red); }
 
@@ -243,15 +248,15 @@
     .toast-card.info .toast-sub { color: rgba(15,15,16,0.7); }
 
     /* MODAL */
-    .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); z-index: 90; display: none; align-items: flex-end; }
+    .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(4px); z-index: 90; display: none; align-items: flex-end; }
     .modal-bg.active { display: flex; }
-    .modal { width: 100%; max-width: 480px; margin: 0 auto; background: #18181a; border-radius: 24px 24px 0 0; padding: 24px 20px 32px; max-height: 85vh; overflow-y: auto; }
-    .modal-handle { width: 36px; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.2); margin: 0 auto 16px; }
+    .modal { width: 100%; max-width: 480px; margin: 0 auto; background: #ffffff; border: 1px solid var(--border); border-top-left-radius: 24px; border-top-right-radius: 24px; padding: 24px 20px 32px; max-height: 85vh; overflow-y: auto; box-shadow: 0 -8px 32px rgba(0,0,0,0.15); }
+    .modal-handle { width: 36px; height: 4px; border-radius: 2px; background: rgba(0,0,0,0.15); margin: 0 auto 16px; }
     .modal-title { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
     .modal-sub { font-size: 13px; color: var(--text-dim); margin-bottom: 20px; }
     .modal-btns { display: flex; flex-direction: column; gap: 8px; }
-    .modal-btn { width: 100%; padding: 16px; border-radius: 12px; font-size: 15px; font-weight: 600; background: rgba(255,255,255,0.06); color: var(--text); display: flex; align-items: center; justify-content: center; gap: 8px; }
-    .modal-btn:active { background: rgba(255,255,255,0.1); }
+    .modal-btn { width: 100%; padding: 16px; border-radius: 12px; font-size: 15px; font-weight: 600; background: #f0f0f0; color: var(--text); display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .modal-btn:active { background: #e0e0e0; }
     .modal-btn.ghost { background: transparent; color: var(--text-dim); }
     .modal-btn.danger { background: rgba(255,61,110,0.1); color: var(--red); }
     .csv-area { width: 100%; min-height: 120px; padding: 12px; background: #f8f8f8; border: 1px solid var(--border); border-radius: 12px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text); resize: vertical; }
@@ -318,7 +323,7 @@
     .leave-date-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 
     .leave-list { display: flex; flex-direction: column; gap: 8px; }
-    .leave-item { padding: 14px; background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 12px; }
+    .leave-item { padding: 14px; background: #f8f8f8; border: 1px solid var(--border); border-radius: 12px; }
     .leave-item-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 6px; }
     .leave-item-dates { font-size: 14px; font-weight: 700; }
     .leave-item-status { padding: 3px 10px; border-radius: 999px; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; flex-shrink: 0; }
@@ -354,7 +359,7 @@
 
     .qty-stepper-mini { display: flex; align-items: center; gap: 8px; padding: 8px; background: #f8f8f8; border: 1px solid var(--border); border-radius: 10px; }
     .qty-mini-btn { width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-    .qty-mini-btn-minus { background: rgba(255,255,255,0.06); }
+    .qty-mini-btn-minus { background: #efefef; }
     .qty-mini-btn-plus { background: rgba(255,61,110,0.2); }
     .qty-mini-btn:active { transform: scale(0.95); }
     .qty-mini-btn:disabled { opacity: 0.3; }
@@ -362,8 +367,8 @@
     .qty-mini-input:focus { border-color: rgba(255,61,110,0.4); }
     .qty-mini-unit { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted); padding: 0 4px; flex-shrink: 0; }
 
-    .defect-cancel-btn { width: 100%; margin-top: 4px; padding: 10px; border-radius: 10px; background: rgba(255,255,255,0.05); color: var(--text-dim); font-size: 13px; font-weight: 500; display: flex; align-items: center; justify-content: center; gap: 6px; }
-    .defect-cancel-btn:active { background: rgba(255,255,255,0.08); }
+    .defect-cancel-btn { width: 100%; margin-top: 4px; padding: 10px; border-radius: 10px; background: #efefef; color: var(--text-dim); font-size: 13px; font-weight: 500; display: flex; align-items: center; justify-content: center; gap: 6px; }
+    .defect-cancel-btn:active { background: #e8e8e8; }
 
     /* 다중 불량 카드 */
     .defect-card { padding: 12px; background: #fafafa; border: 1px solid rgba(255,61,110,0.15); border-radius: 10px; margin-bottom: 8px; }
@@ -371,16 +376,16 @@
     .defect-card-tag { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.15em; color: var(--red); font-weight: 700; }
     .defect-remove-btn { width: 26px; height: 26px; border-radius: 50%; background: rgba(255,61,110,0.18); display: flex; align-items: center; justify-content: center; }
     .defect-remove-btn:active { background: rgba(255,61,110,0.32); }
-    .add-more-defect-btn { width: 100%; padding: 10px; border-radius: 10px; background: rgba(255,255,255,0.04); border: 1px dashed rgba(255,255,255,0.15); color: var(--text-dim); font-size: 13px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 10px; }
-    .add-more-defect-btn:active { background: rgba(255,255,255,0.08); }
+    .add-more-defect-btn { width: 100%; padding: 10px; border-radius: 10px; background: #f5f5f5; border: 1px dashed rgba(0,0,0,0.15); color: var(--text-dim); font-size: 13px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 10px; }
+    .add-more-defect-btn:active { background: #e8e8e8; }
     .defect-total { padding: 10px 12px; background: #f8f8f8; border-radius: 8px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-dim); margin-bottom: 8px; text-align: center; }
     .defect-total strong { color: var(--red); font-weight: 700; }
     .defect-total.warn { color: var(--red); background: rgba(255,61,110,0.1); }
 
     /* DEFECT MODAL */
     .defect-list { max-height: 50vh; overflow-y: auto; margin: 8px -4px 12px; padding: 0 4px; }
-    .defect-item { width: 100%; padding: 12px 14px; border-radius: 10px; background: rgba(255,255,255,0.02); border: 1px solid var(--border); display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
-    .defect-item:active { background: rgba(255,255,255,0.06); }
+    .defect-item { width: 100%; padding: 12px 14px; border-radius: 10px; background: #fafafa; border: 1px solid var(--border); display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+    .defect-item:active { background: #efefef; }
     .defect-item-code { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; color: var(--amber); flex-shrink: 0; min-width: 56px; }
     .defect-item-name { font-size: 14px; color: var(--text); flex: 1; text-align: left; }
     .defect-empty { text-align: center; padding: 32px 12px; color: var(--text-muted); font-size: 13px; }
@@ -484,6 +489,13 @@
             <div class="info-row"><div class="info-key">규격</div><div class="info-val" id="info-spec">-</div></div>
             <div class="info-row"><div class="info-key">창고</div><div class="info-val" id="info-warehouse">-</div></div>
           </div>
+        </div>
+
+        <div style="margin: 0 20px 20px;">
+          <div class="label">공정 선택 (실제 작업 공정)</div>
+          <select id="warehouse-select" class="input-field" style="padding: 14px 16px; font-size: 15px; appearance: auto;">
+            <option value="">공정 선택...</option>
+          </select>
         </div>
 
         <div class="qty-section">
@@ -766,6 +778,7 @@
       worker: null, tab: 'input', partNumber: '', quantity: 1,
       isDefect: false, defects: [], editingDefectIndex: -1,
       pending: [], sent: [], partsMaster: {},
+      warehouses: [], currentWarehouse: '',
       notices: [], myLeaves: [],
       stream: null, detector: null, lastScanned: null,
       isSending: false,
@@ -832,6 +845,8 @@
         SAMPLE_PARTS.forEach(p => { state.partsMaster[p.partNumber] = { name: p.name, spec: p.spec, warehouse: p.warehouse }; });
         storage.set('parts:master', state.partsMaster);
       }
+      state.warehouses = storage.get('warehouses') || [];
+      state.currentWarehouse = storage.get('current:warehouse') || '';
       updateFooter();
       updateConnStatus();
 
@@ -850,7 +865,29 @@
     }
 
     async function syncFromServer() {
-      await Promise.all([syncPartsMaster(), fetchNotices(), fetchMyLeaves()]);
+      await Promise.all([syncPartsMaster(), syncWarehouses(), fetchNotices(), fetchMyLeaves()]);
+    }
+
+    async function syncWarehouses() {
+      const cfg = state.serverConfig;
+      if (!cfg.url || !cfg.key) return;
+      try {
+        const url = `${cfg.url.replace(/\/$/,'')}/rest/v1/warehouses?active=eq.true&order=code.asc`;
+        const res = await fetch(url, { headers: { 'apikey': cfg.key, 'Authorization': 'Bearer ' + cfg.key } });
+        if (!res.ok) return;
+        state.warehouses = await res.json();
+        storage.set('warehouses', state.warehouses);
+        renderWarehouseSelect();
+      } catch (e) { console.warn('Warehouses sync failed:', e); }
+    }
+
+    function renderWarehouseSelect() {
+      const sel = document.getElementById('warehouse-select');
+      if (!sel) return;
+      const current = state.currentWarehouse || sel.value || '';
+      sel.innerHTML = '<option value="">공정 선택...</option>' +
+        state.warehouses.map(w => `<option value="${escapeHtml(w.code)}">${escapeHtml(w.code)} - ${escapeHtml(w.name)}</option>`).join('');
+      sel.value = current;
     }
 
     async function syncPartsMaster() {
@@ -1002,7 +1039,7 @@
 
     function updateFooter() {
       const cnt = Object.keys(state.partsMaster).length;
-      document.getElementById('footer').textContent = `Worker counter 0507 05 · 마스터 ${cnt}건`;
+      document.getElementById('footer').textContent = `Worker counter 0507 07 · 마스터 ${cnt}건`;
     }
 
     function updateConnStatus() {
@@ -1147,6 +1184,7 @@
                      (!state.isDefect || (state.defects.length > 0 && allHaveCode && allHaveQty && totalDefect <= state.quantity));
       document.getElementById('btn-add').disabled = !canAdd;
 
+      renderWarehouseSelect();
       renderInfoCard();
     }
 
@@ -1258,6 +1296,17 @@
         document.getElementById('info-spec').textContent = info.spec || '-';
         document.getElementById('info-warehouse').textContent = info.warehouse || '-';
         rows.style.display = 'block';
+
+        // 공정 기본값: 부품 마스터의 warehouse → 없으면 현재 선택 유지
+        const sel = document.getElementById('warehouse-select');
+        if (sel && info.warehouse && !sel.value) {
+          // 마스터의 창고가 warehouses 목록에 있는지 확인
+          if (state.warehouses.find(w => w.code === info.warehouse)) {
+            sel.value = info.warehouse;
+            state.currentWarehouse = info.warehouse;
+            storage.set('current:warehouse', info.warehouse);
+          }
+        }
       } else {
         card.classList.add('unmatched');
         status.className = 'info-status unmatched';
@@ -1513,11 +1562,16 @@
         defectsToSave = state.defects.map(d => ({ code: d.code, name: d.name, quantity: d.quantity }));
       }
       const info = state.partsMaster[part] || { name: '', spec: '', warehouse: '' };
+      // 공정 선택: 드롭다운 값 우선, 없으면 부품 마스터의 창고
+      const selectedWarehouse = (document.getElementById('warehouse-select')?.value || '').trim() || info.warehouse || '';
+      if (!selectedWarehouse) {
+        showToast('error', '공정을 선택해주세요'); return;
+      }
       const entry = {
         localId: Date.now() + Math.random(),
         worker: state.worker.name, workerId: state.worker.id,
         partNumber: part,
-        partName: info.name || '', spec: info.spec || '', warehouse: info.warehouse || '',
+        partName: info.name || '', spec: info.spec || '', warehouse: selectedWarehouse,
         quantity: state.quantity,
         defectQuantity: totalDefect,
         defects: defectsToSave,
@@ -1951,6 +2005,14 @@
       document.querySelectorAll('.qty-quick-btn').forEach(b => b.addEventListener('click', () => setQuantity(parseInt(b.dataset.qty))));
 
       document.getElementById('btn-add').addEventListener('click', addToPending);
+
+      const whSel = document.getElementById('warehouse-select');
+      if (whSel) {
+        whSel.addEventListener('change', () => {
+          state.currentWarehouse = whSel.value;
+          storage.set('current:warehouse', whSel.value);
+        });
+      }
       document.getElementById('btn-send-all').addEventListener('click', sendAllToServer);
       document.getElementById('btn-clear-sent').addEventListener('click', clearSent);
 

@@ -7,11 +7,14 @@
   ============================================================
   REVISION
   ============================================================
+  admin 0507 06 · 창고/공정 관리 (마스터 탭 → 부품/창고 서브탭)
+                  - warehouses 테이블 CRUD
+                  - 작업자가 입력 시 공정 선택한 코드가 ERP/CSV에 반영됨
+  admin 0507 05 · 자체 ERP 백엔드 URL 지원 (Node.js 서버)
+                  - 서버 설정 모달에 ERP 백엔드 URL/API키 추가
+                  - 비어있으면 Supabase Edge Function 사용
+                  - 입력 시 자체 서버(예: 158.247.198.30:3000)로 호출
   admin 0507 04 · 라이트 테마 + 불량 CSV 다운로드
-                  - 흰색 배경, 검은 글자 (대비 강화)
-                  - 제출 내역: 불량만 모은 CSV 다운로드 (이카운트 양식)
-                  - ecount-sync v3 호환 (GoodsReceipt API)
-  admin 0507 03 · 이카운트 ERP 실제 등록 (Edge Function 호출)
   ============================================================
 -->
 <html lang="ko">
@@ -22,7 +25,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <meta name="version" content="admin-0507-04">
+  <meta name="version" content="admin-0507-06">
   <title>관리자 · Worker Counter</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -236,6 +239,20 @@
     @keyframes slidedown { from { transform: translate(-50%, -20px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
 
     .footer { text-align: center; padding: 24px; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); letter-spacing: 0.15em; }
+
+    /* Master sub-tabs (부품/창고) */
+    .master-subtabs { display: flex; gap: 4px; padding: 4px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 16px; max-width: 360px; }
+    .master-subtab { flex: 1; padding: 8px 12px; border-radius: 6px; font-size: 13px; font-weight: 600; color: var(--text-dim); }
+    .master-subtab.active { background: var(--amber); color: #0f0f10; }
+
+    .warehouse-row { display: grid; grid-template-columns: 130px 1fr 80px 90px; gap: 8px; padding: 12px 14px; border-bottom: 1px solid var(--border); font-size: 13px; align-items: center; }
+    .warehouse-table-header { display: grid; grid-template-columns: 130px 1fr 80px 90px; gap: 8px; padding: 10px 14px; background: rgba(0,0,0,0.04); border-bottom: 1px solid var(--border); font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.15em; color: var(--text-muted); font-weight: 700; }
+    .warehouse-row:last-child { border-bottom: none; }
+    @media (max-width: 760px) {
+      .warehouse-table-header { display: none; }
+      .warehouse-row { display: block; padding: 14px; }
+      .warehouse-row > div { display: flex; justify-content: space-between; padding: 3px 0; }
+    }
 
     /* LOADING */
     .loading { text-align: center; padding: 48px; color: var(--text-muted); }
@@ -472,21 +489,46 @@
 
     <!-- ============ MASTER ============ -->
     <div class="tab-content" id="tab-master">
-      <div class="crud-bar">
-        <input type="text" id="master-search" class="crud-search" placeholder="품번 또는 품명 검색">
-        <button class="crud-btn primary" id="btn-add-master">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          품번 추가
-        </button>
-        <button class="crud-btn secondary" id="btn-import-master">CSV 가져오기</button>
-        <button class="crud-btn secondary" id="btn-export-master">CSV 내보내기</button>
+      <div class="master-subtabs">
+        <button class="master-subtab active" data-msub="parts">부품 마스터</button>
+        <button class="master-subtab" data-msub="warehouses">창고/공정</button>
       </div>
-      <div id="master-loading" class="loading" style="display:none;"><div class="loading-spinner"></div></div>
-      <div class="table-wrap">
-        <div class="master-table-header">
-          <div>품번</div><div>품명</div><div>규격</div><div>창고</div><div>작업</div>
+
+      <!-- 부품 마스터 -->
+      <div id="msub-parts">
+        <div class="crud-bar">
+          <input type="text" id="master-search" class="crud-search" placeholder="품번 또는 품명 검색">
+          <button class="crud-btn primary" id="btn-add-master">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            품번 추가
+          </button>
+          <button class="crud-btn secondary" id="btn-import-master">CSV 가져오기</button>
+          <button class="crud-btn secondary" id="btn-export-master">CSV 내보내기</button>
         </div>
-        <div id="master-list"></div>
+        <div id="master-loading" class="loading" style="display:none;"><div class="loading-spinner"></div></div>
+        <div class="table-wrap">
+          <div class="master-table-header">
+            <div>품번</div><div>품명</div><div>규격</div><div>창고</div><div>작업</div>
+          </div>
+          <div id="master-list"></div>
+        </div>
+      </div>
+
+      <!-- 창고/공정 -->
+      <div id="msub-warehouses" style="display:none;">
+        <div class="crud-bar">
+          <input type="text" id="warehouse-search" class="crud-search" placeholder="창고코드 또는 이름 검색">
+          <button class="crud-btn primary" id="btn-add-warehouse">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            창고 추가
+          </button>
+        </div>
+        <div class="table-wrap">
+          <div class="warehouse-table-header">
+            <div>창고코드</div><div>창고명</div><div>상태</div><div>작업</div>
+          </div>
+          <div id="warehouse-list"></div>
+        </div>
       </div>
     </div>
 
@@ -513,7 +555,7 @@
       <div id="leave-list-container"></div>
     </div>
 
-    <div class="footer" id="footer">Worker counter admin 0507 04</div>
+    <div class="footer" id="footer">Worker counter admin 0507 06</div>
   </div>
 
   <!-- TOAST -->
@@ -608,6 +650,26 @@
     </div>
   </div>
 
+  <!-- WAREHOUSE MODAL -->
+  <div class="modal-bg" id="modal-warehouse">
+    <div class="modal">
+      <div class="modal-title" id="warehouse-modal-title">창고 추가</div>
+      <div class="modal-sub">이카운트의 창고코드와 일치하게 입력</div>
+      <div class="modal-label">창고코드</div>
+      <input type="text" id="warehouse-modal-code" class="modal-input" placeholder="예: FA01">
+      <div class="modal-label">창고명</div>
+      <input type="text" id="warehouse-modal-name" class="modal-input" placeholder="예: A01-2층 라벨제작공정">
+      <label class="toggle-wrap" style="margin-top:12px;">
+        <span class="toggle on" id="warehouse-modal-active-toggle"></span>
+        <span class="toggle-label on" id="warehouse-modal-active-label">활성 (작업자에게 표시)</span>
+      </label>
+      <div class="modal-row">
+        <button class="modal-btn ghost" id="warehouse-modal-cancel">취소</button>
+        <button class="modal-btn primary" id="warehouse-modal-save">저장</button>
+      </div>
+    </div>
+  </div>
+
   <!-- SERVER CONFIG MODAL -->
   <div class="modal-bg" id="modal-server">
     <div class="modal">
@@ -617,6 +679,13 @@
       <input type="text" id="cfg-url" class="modal-input" placeholder="https://xxxxxxx.supabase.co">
       <div class="modal-label">ANON PUBLIC KEY</div>
       <textarea id="cfg-key" class="csv-area" placeholder="sb_publishable_..." style="min-height:80px;"></textarea>
+      <div style="margin: 16px 0 8px; padding-top:16px; border-top: 1px solid var(--border);">
+        <div class="modal-label" style="margin-top:0;">ERP 백엔드 URL (선택)</div>
+        <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 6px;">비워두면 Supabase Edge Function 사용. 자체 서버 사용 시 입력</div>
+      </div>
+      <input type="text" id="cfg-erp-url" class="modal-input" placeholder="https://your-domain.com/ecount-sync">
+      <div class="modal-label">ERP 백엔드 API 키 (선택)</div>
+      <input type="text" id="cfg-erp-key" class="modal-input" placeholder="x-api-key 헤더로 전송">
       <div class="modal-status" id="cfg-status"></div>
       <div class="modal-row">
         <button class="modal-btn ghost" id="cfg-test">연결 테스트</button>
@@ -640,11 +709,16 @@
       key: 'sb_publishable_DIJzW9_tjUytnnV643KROQ_OIDk5n-w'
     };
 
+    // ERP 백엔드 URL (Node.js 서버) - 비어있으면 Supabase Edge Function 사용
+    // 예시: 'https://your-domain.com/ecount-sync' 또는 'http://158.247.198.30:3000/ecount-sync'
+    const DEFAULT_ERP_ENDPOINT = '';
+    const DEFAULT_ERP_API_KEY = '';
+
     const state = {
       tab: 'dashboard',
       worker: null,
       serverConfig: { url: '', key: '' },
-      submissions: [], workers: [], master: [],
+      submissions: [], workers: [], master: [], warehouses: [],
       notices: [], leaves: [],
       // 필터
       filterDateFrom: '', filterDateTo: '', filterWorker: '', filterPart: '', filterDefect: '',
@@ -652,9 +726,11 @@
       filteredSubmissions: [],
       // 모달 편집 상태
       editingWorker: null, editingMaster: null, workerModalAdminOn: false,
+      editingWarehouse: null, warehouseModalActive: true,
       editingNotice: null, noticeModalActive: true,
       editingLeave: null,
       leaveTab: 'pending',
+      masterSubtab: 'parts',
     };
 
     // ============ INIT ============
@@ -746,16 +822,18 @@
     // ============ LOAD ALL ============
     async function loadAll() {
       try {
-        const [subs, workers, master, notices, leaves] = await Promise.all([
+        const [subs, workers, master, warehouses, notices, leaves] = await Promise.all([
           sbGet('submissions?order=created_at.desc&limit=2000'),
           sbGet('workers?order=created_at.asc'),
           sbGet('parts_master?order=part_number.asc'),
+          sbGet('warehouses?order=code.asc'),
           sbGet('notices?order=created_at.desc&limit=200'),
           sbGet('leave_requests?order=requested_at.desc&limit=500'),
         ]);
         state.submissions = subs;
         state.workers = workers;
         state.master = master;
+        state.warehouses = warehouses;
         state.notices = notices;
         state.leaves = leaves;
         renderAll();
@@ -770,6 +848,7 @@
       renderSubmissions();
       renderWorkers();
       renderMaster();
+      renderWarehouses();
       renderNotices();
       renderLeaves();
       populateWorkerFilter();
@@ -1070,13 +1149,26 @@
 
       try {
         const cfg = state.serverConfig;
-        const res = await fetch(`${cfg.url.replace(/\/$/,'')}/functions/v1/ecount-sync`, {
-          method: 'POST',
-          headers: {
+        const erpEndpoint = storage.get('config:erp_endpoint') || DEFAULT_ERP_ENDPOINT;
+        const erpApiKey = storage.get('config:erp_api_key') || DEFAULT_ERP_API_KEY;
+        let url, headers;
+        if (erpEndpoint) {
+          // 자체 백엔드 (Node.js 서버 등)
+          url = erpEndpoint;
+          headers = { 'Content-Type': 'application/json' };
+          if (erpApiKey) headers['x-api-key'] = erpApiKey;
+        } else {
+          // Supabase Edge Function
+          url = `${cfg.url.replace(/\/$/,'')}/functions/v1/ecount-sync`;
+          headers = {
             'Authorization': 'Bearer ' + cfg.key,
             'apikey': cfg.key,
             'Content-Type': 'application/json'
-          },
+          };
+        }
+        const res = await fetch(url, {
+          method: 'POST',
+          headers,
           body: JSON.stringify({ submission_ids: ids })
         });
         const result = await res.json();
@@ -1344,6 +1436,93 @@
       } catch (e) { showToast('error', '실패: ' + e.message); }
     }
 
+    // ============ WAREHOUSES ============
+    function setMasterSubtab(sub) {
+      state.masterSubtab = sub;
+      document.querySelectorAll('.master-subtab').forEach(t => t.classList.toggle('active', t.dataset.msub === sub));
+      document.getElementById('msub-parts').style.display = sub === 'parts' ? 'block' : 'none';
+      document.getElementById('msub-warehouses').style.display = sub === 'warehouses' ? 'block' : 'none';
+    }
+
+    function renderWarehouses() {
+      const search = document.getElementById('warehouse-search').value.trim().toLowerCase();
+      const filtered = state.warehouses.filter(w => !search ||
+        (w.code || '').toLowerCase().includes(search) ||
+        (w.name || '').toLowerCase().includes(search));
+      const el = document.getElementById('warehouse-list');
+      if (filtered.length === 0) { el.innerHTML = '<div class="empty">등록된 창고가 없습니다</div>'; return; }
+      el.innerHTML = filtered.map(w => `<div class="warehouse-row">
+        <div data-label="창고코드"><span class="master-part">${escapeHtml(w.code)}</span></div>
+        <div data-label="창고명">${escapeHtml(w.name)}</div>
+        <div data-label="상태">
+          <span class="notice-status-pill ${w.active ? 'active' : 'inactive'}">${w.active ? '● 활성' : '○ 비활성'}</span>
+        </div>
+        <div data-label="작업">
+          <button class="row-icon-btn" data-edit-wh="${escapeHtml(w.code)}" title="수정">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a8a29e" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+          <button class="row-icon-btn danger" data-del-wh="${escapeHtml(w.code)}" title="삭제">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ff8caa" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+          </button>
+        </div>
+      </div>`).join('');
+      el.querySelectorAll('[data-edit-wh]').forEach(b => b.addEventListener('click', () => {
+        const w = state.warehouses.find(x => x.code === b.dataset.editWh);
+        if (w) openWarehouseModal(w);
+      }));
+      el.querySelectorAll('[data-del-wh]').forEach(b => b.addEventListener('click', () => deleteWarehouse(b.dataset.delWh)));
+    }
+
+    function openWarehouseModal(w) {
+      state.editingWarehouse = w;
+      document.getElementById('warehouse-modal-title').textContent = w ? '창고 수정' : '창고 추가';
+      document.getElementById('warehouse-modal-code').value = w ? w.code : '';
+      document.getElementById('warehouse-modal-code').disabled = !!w;
+      document.getElementById('warehouse-modal-name').value = w ? w.name : '';
+      state.warehouseModalActive = w ? !!w.active : true;
+      updateWarehouseToggle();
+      document.getElementById('modal-warehouse').classList.add('active');
+    }
+
+    function updateWarehouseToggle() {
+      const t = document.getElementById('warehouse-modal-active-toggle');
+      const l = document.getElementById('warehouse-modal-active-label');
+      t.className = 'toggle' + (state.warehouseModalActive ? ' on' : '');
+      l.className = 'toggle-label ' + (state.warehouseModalActive ? 'on' : 'off');
+      l.textContent = state.warehouseModalActive ? '활성 (작업자에게 표시)' : '비활성 (숨김)';
+    }
+
+    async function saveWarehouseModal() {
+      const code = document.getElementById('warehouse-modal-code').value.trim();
+      const name = document.getElementById('warehouse-modal-name').value.trim();
+      const active = state.warehouseModalActive;
+      if (!code || !name) { showToast('error', '창고코드/창고명 필수'); return; }
+      try {
+        if (state.editingWarehouse) {
+          await sbPatch(`warehouses?code=eq.${encodeURIComponent(code)}`, { name, active });
+          const w = state.warehouses.find(x => x.code === code);
+          if (w) { w.name = name; w.active = active; }
+          showToast('success', '수정됨');
+        } else {
+          const inserted = await sbPost('warehouses', { code, name, active });
+          state.warehouses.push(inserted[0] || { code, name, active, created_at: new Date().toISOString() });
+          showToast('success', '추가됨');
+        }
+        document.getElementById('modal-warehouse').classList.remove('active');
+        renderWarehouses();
+      } catch (e) { showToast('error', '실패: ' + e.message); }
+    }
+
+    async function deleteWarehouse(code) {
+      if (!confirm(`창고 "${code}" 를 삭제하시겠습니까?`)) return;
+      try {
+        await sbDelete(`warehouses?code=eq.${encodeURIComponent(code)}`);
+        state.warehouses = state.warehouses.filter(x => x.code !== code);
+        renderWarehouses();
+        showToast('success', '삭제됨');
+      } catch (e) { showToast('error', '실패: ' + e.message); }
+    }
+
     // ============ NOTICES ============
     function renderNotices() {
       const search = document.getElementById('notice-search').value.trim().toLowerCase();
@@ -1559,6 +1738,8 @@
     function openServerCfg() {
       document.getElementById('cfg-url').value = state.serverConfig.url || '';
       document.getElementById('cfg-key').value = state.serverConfig.key || '';
+      document.getElementById('cfg-erp-url').value = storage.get('config:erp_endpoint') || '';
+      document.getElementById('cfg-erp-key').value = storage.get('config:erp_api_key') || '';
       document.getElementById('cfg-status').className = 'modal-status';
       document.getElementById('modal-server').classList.add('active');
     }
@@ -1566,20 +1747,44 @@
     async function testCfg() {
       const url = document.getElementById('cfg-url').value.trim().replace(/\/$/, '');
       const key = document.getElementById('cfg-key').value.trim();
+      const erpUrl = document.getElementById('cfg-erp-url').value.trim();
       const s = document.getElementById('cfg-status');
       s.className = 'modal-status'; s.textContent = '확인 중...'; s.style.display = 'block';
+
+      // Supabase 테스트
       try {
         const res = await fetch(url + '/rest/v1/submissions?limit=1', { headers: { 'apikey': key, 'Authorization': 'Bearer ' + key } });
-        if (res.ok) { s.className = 'modal-status success'; s.textContent = '✓ 연결 성공'; }
-        else { const t = await res.text(); s.className = 'modal-status error'; s.textContent = `✗ HTTP ${res.status}: ${t.slice(0,100)}`; }
-      } catch (e) { s.className = 'modal-status error'; s.textContent = '✗ ' + e.message; }
+        if (!res.ok) { const t = await res.text(); s.className = 'modal-status error'; s.textContent = `✗ Supabase HTTP ${res.status}: ${t.slice(0,100)}`; return; }
+      } catch (e) { s.className = 'modal-status error'; s.textContent = '✗ Supabase: ' + e.message; return; }
+
+      // ERP 백엔드 테스트 (URL 입력 시)
+      if (erpUrl) {
+        try {
+          const healthUrl = erpUrl.replace(/\/ecount-sync\/?$/, '/health');
+          const erpRes = await fetch(healthUrl);
+          if (!erpRes.ok) { s.className = 'modal-status error'; s.textContent = `✗ ERP 백엔드 HTTP ${erpRes.status}`; return; }
+          const erpData = await erpRes.json();
+          s.className = 'modal-status success';
+          s.textContent = `✓ Supabase + ERP 백엔드 모두 연결됨 (모드: ${erpData.env?.ECOUNT_IS_TEST ? 'TEST' : 'PROD'})`;
+        } catch (e) {
+          s.className = 'modal-status error';
+          s.textContent = '✗ ERP 백엔드: ' + e.message + ' (HTTPS 인증서/CORS/방화벽 확인)';
+        }
+      } else {
+        s.className = 'modal-status success';
+        s.textContent = '✓ Supabase 연결 성공 (ERP 백엔드 미설정)';
+      }
     }
 
     function saveCfg() {
       const url = document.getElementById('cfg-url').value.trim().replace(/\/$/, '');
       const key = document.getElementById('cfg-key').value.trim();
+      const erpUrl = document.getElementById('cfg-erp-url').value.trim();
+      const erpKey = document.getElementById('cfg-erp-key').value.trim();
       state.serverConfig = { url, key };
       storage.set('config:server', state.serverConfig);
+      storage.set('config:erp_endpoint', erpUrl);
+      storage.set('config:erp_api_key', erpKey);
       updateConnStatus();
       document.getElementById('modal-server').classList.remove('active');
       showToast('success', '저장됨');
@@ -1651,9 +1856,20 @@
       document.getElementById('cfg-save').addEventListener('click', saveCfg);
 
       // 모달 배경 클릭으로 닫기
-      ['modal-worker', 'modal-master', 'modal-import', 'modal-server', 'modal-notice', 'modal-leave-review'].forEach(id => {
+      ['modal-worker', 'modal-master', 'modal-import', 'modal-server', 'modal-notice', 'modal-leave-review', 'modal-warehouse'].forEach(id => {
         document.getElementById(id).addEventListener('click', e => { if (e.target.id === id) document.getElementById(id).classList.remove('active'); });
       });
+
+      // 마스터 서브탭
+      document.querySelectorAll('.master-subtab').forEach(t => t.addEventListener('click', () => setMasterSubtab(t.dataset.msub)));
+
+      // 창고
+      document.getElementById('warehouse-search').addEventListener('input', renderWarehouses);
+      document.getElementById('btn-add-warehouse').addEventListener('click', () => openWarehouseModal(null));
+      document.getElementById('warehouse-modal-cancel').addEventListener('click', () => document.getElementById('modal-warehouse').classList.remove('active'));
+      document.getElementById('warehouse-modal-save').addEventListener('click', saveWarehouseModal);
+      document.getElementById('warehouse-modal-active-toggle').addEventListener('click', () => { state.warehouseModalActive = !state.warehouseModalActive; updateWarehouseToggle(); });
+      document.getElementById('warehouse-modal-active-label').addEventListener('click', () => { state.warehouseModalActive = !state.warehouseModalActive; updateWarehouseToggle(); });
 
       // ERP 등록
       document.getElementById('btn-erp-register').addEventListener('click', registerErp);
