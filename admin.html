@@ -7,10 +7,12 @@
   ============================================================
   REVISION
   ============================================================
-  admin 0507 07 · 데이터 로드 안정성 강화 (Promise.allSettled)
-                  - 한 테이블 없어도 나머지 화면은 정상 동작
-                  - 실패한 테이블명을 토스트로 표시
-  admin 0507 06 · 창고/공정 관리 (마스터 탭 → 부품/창고 서브탭)
+  admin 0507 08 · 제출내역 체크박스 + ERP 등록여부 필터
+                  - 각 행에 체크박스 (미등록만 활성)
+                  - 헤더 전체 선택 체크박스
+                  - 필터: ERP 전체 / 미등록만 / 등록완료만
+                  - "선택만 ERP 등록" 버튼 (선택 시 표시)
+  admin 0507 07 · 데이터 로드 안정성 강화
                   - warehouses 테이블 CRUD
                   - 작업자가 입력 시 공정 선택한 코드가 ERP/CSV에 반영됨
   admin 0507 05 · 자체 ERP 백엔드 URL 지원 (Node.js 서버)
@@ -28,7 +30,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <meta name="version" content="admin-0507-07">
+  <meta name="version" content="admin-0507-08">
   <title>관리자 · Worker Counter</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -316,13 +318,20 @@
     .erp-bar-btn:hover:not(:disabled) { filter: brightness(1.1); }
 
     /* sub-table needs new column */
-    .table-header.with-erp { grid-template-columns: 110px 90px 100px 1fr 60px 60px 90px 70px; }
-    .table-row.with-erp { grid-template-columns: 110px 90px 100px 1fr 60px 60px 90px 70px; }
+    .table-header.with-erp { grid-template-columns: 36px 110px 90px 100px 1fr 60px 60px 90px 70px; }
+    .table-row.with-erp { grid-template-columns: 36px 110px 90px 100px 1fr 60px 60px 90px 70px; }
     @media (max-width: 760px) {
       .table-row.with-erp { display: block; }
       .table-row.with-erp > div { display: flex; justify-content: space-between; padding: 3px 0; }
       .table-row.with-erp > div::before { content: attr(data-label); font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); margin-right: 8px; }
     }
+
+    /* 체크박스 */
+    .sub-check { width: 18px; height: 18px; cursor: pointer; accent-color: var(--amber); }
+    .sub-check:disabled { cursor: not-allowed; opacity: 0.3; }
+    .check-all-wrap { display: flex; align-items: center; gap: 6px; font-size: 11px; }
+    .erp-bar-selected { padding: 8px 12px; background: rgba(245,184,0,0.12); border: 1px solid rgba(245,184,0,0.4); border-radius: 8px; font-size: 13px; font-weight: 600; color: #a07a00; display: none; align-items: center; gap: 8px; margin-left: 8px; }
+    .erp-bar-selected.show { display: inline-flex; }
   </style>
 </head>
 <body>
@@ -436,9 +445,14 @@
         <select id="filter-worker" class="filter-select"><option value="">전체 작업자</option></select>
         <input type="text" id="filter-part" class="filter-input" placeholder="품번 (선택)">
         <select id="filter-defect" class="filter-select">
-          <option value="">전체</option>
+          <option value="">불량 전체</option>
           <option value="ok">양품만</option>
           <option value="ng">불량 포함</option>
+        </select>
+        <select id="filter-erp" class="filter-select">
+          <option value="">ERP 전체</option>
+          <option value="pending">ERP 미등록만</option>
+          <option value="registered">ERP 등록완료만</option>
         </select>
         <button class="filter-btn" id="btn-apply-filter">적용</button>
         <button class="filter-btn ghost" id="btn-clear-filter">초기화</button>
@@ -447,16 +461,21 @@
 
       <div id="erp-bar" class="erp-bar" style="display:none;">
         <div class="erp-bar-info">
-          <strong id="erp-pending-count">0건</strong>이 ERP 미등록 상태입니다 (현재 필터 기준)
+          <strong id="erp-pending-count">0건</strong>이 ERP 미등록 (현재 필터 기준)
+          <span class="erp-bar-selected" id="erp-bar-selected">✓ <strong id="erp-selected-count">0</strong>건 선택됨</span>
         </div>
         <div style="display:flex; gap:8px; flex-wrap:wrap;">
           <button class="erp-bar-btn" id="btn-export-defects" style="background:var(--red);">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            불량 CSV 다운로드
+            불량 CSV
+          </button>
+          <button class="erp-bar-btn" id="btn-erp-register-selected" style="background:var(--emerald); display:none;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+            선택만 ERP 등록 (<span id="btn-erp-selected-num">0</span>)
           </button>
           <button class="erp-bar-btn" id="btn-erp-register">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-            전체 ERP 등록 처리
+            전체 ERP 등록
           </button>
         </div>
       </div>
@@ -464,6 +483,7 @@
       <div id="sub-loading" class="loading" style="display:none;"><div class="loading-spinner"></div></div>
       <div class="table-wrap" id="sub-table-wrap">
         <div class="table-header with-erp">
+          <div><input type="checkbox" id="check-all" class="sub-check" title="현재 페이지 미등록 항목 전체 선택"></div>
           <div>일시</div><div>작업자</div><div>품번</div><div>품명</div>
           <div style="text-align:right;">생산</div><div style="text-align:right;">불량</div><div>불량유형</div><div>ERP</div>
         </div>
@@ -558,7 +578,7 @@
       <div id="leave-list-container"></div>
     </div>
 
-    <div class="footer" id="footer">Worker counter admin 0507 07</div>
+    <div class="footer" id="footer">Worker counter admin 0507 08</div>
   </div>
 
   <!-- TOAST -->
@@ -724,9 +744,10 @@
       submissions: [], workers: [], master: [], warehouses: [],
       notices: [], leaves: [],
       // 필터
-      filterDateFrom: '', filterDateTo: '', filterWorker: '', filterPart: '', filterDefect: '',
+      filterDateFrom: '', filterDateTo: '', filterWorker: '', filterPart: '', filterDefect: '', filterErp: '',
       page: 1, pageSize: 50,
       filteredSubmissions: [],
+      selectedIds: new Set(),
       // 모달 편집 상태
       editingWorker: null, editingMaster: null, workerModalAdminOn: false,
       editingWarehouse: null, warehouseModalActive: true,
@@ -1034,6 +1055,7 @@
       const part = state.filterPart.trim().toLowerCase();
       const wid = state.filterWorker;
       const def = state.filterDefect;
+      const erp = state.filterErp;
 
       state.filteredSubmissions = state.submissions.filter(s => {
         const t = new Date(s.created_at).getTime();
@@ -1042,14 +1064,17 @@
         if (part && !(s.part_number || '').toLowerCase().includes(part)) return false;
         if (def === 'ok' && (s.defect_quantity || 0) > 0) return false;
         if (def === 'ng' && (s.defect_quantity || 0) === 0) return false;
+        if (erp === 'pending' && s.erp_registered) return false;
+        if (erp === 'registered' && !s.erp_registered) return false;
         return true;
       });
       state.page = 1;
+      state.selectedIds.clear();  // 필터 바뀌면 선택 초기화
       renderSubmissions();
     }
 
     function renderSubmissions() {
-      const list = state.filteredSubmissions.length > 0 || state.filterDateFrom ? state.filteredSubmissions : state.submissions;
+      const list = state.filteredSubmissions.length > 0 || state.filterDateFrom || state.filterErp || state.filterDefect || state.filterWorker || state.filterPart ? state.filteredSubmissions : state.submissions;
       const totalPages = Math.max(1, Math.ceil(list.length / state.pageSize));
       if (state.page > totalPages) state.page = totalPages;
       const start = (state.page - 1) * state.pageSize;
@@ -1066,7 +1091,7 @@
         erpBtn.disabled = pendingErp === 0;
         erpBtn.innerHTML = pendingErp === 0
           ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>전체 등록 완료'
-          : `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>${pendingErp}건 ERP 등록 처리`;
+          : `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>전체 ERP 등록 (${pendingErp})`;
       }
 
       const el = document.getElementById('sub-list');
@@ -1081,7 +1106,12 @@
           const erpPill = s.erp_registered
             ? `<span class="erp-pill registered">✓ 등록</span>`
             : `<span class="erp-pill pending">미등록</span>`;
+          const isChecked = state.selectedIds.has(s.id);
+          const checkboxHtml = s.erp_registered
+            ? `<input type="checkbox" class="sub-check" disabled title="이미 등록됨">`
+            : `<input type="checkbox" class="sub-check" data-sub-id="${s.id}" ${isChecked ? 'checked' : ''}>`;
           return `<div class="table-row with-erp">
+            <div data-label="선택">${checkboxHtml}</div>
             <div class="table-cell-time" data-label="일시">${time}</div>
             <div class="table-cell-worker" data-label="작업자">${escapeHtml(s.worker_name || '-')}</div>
             <div class="table-cell-part" data-label="품번">${escapeHtml(s.part_number || '')}</div>
@@ -1092,7 +1122,18 @@
             <div data-label="ERP">${erpPill}</div>
           </div>`;
         }).join('');
+        // 체크박스 이벤트
+        el.querySelectorAll('[data-sub-id]').forEach(cb => {
+          cb.addEventListener('change', () => {
+            const id = parseInt(cb.dataset.subId);
+            if (cb.checked) state.selectedIds.add(id);
+            else state.selectedIds.delete(id);
+            updateSelectedUI();
+          });
+        });
       }
+
+      updateSelectedUI();
 
       // 페이지네이션
       const pg = document.getElementById('sub-pagination');
@@ -1106,6 +1147,34 @@
       buttons.push(`<span class="page-info">${state.page}/${totalPages} · 전체 ${list.length}건</span>`);
       pg.innerHTML = buttons.join('');
       pg.querySelectorAll('[data-page]').forEach(b => b.addEventListener('click', () => { state.page = parseInt(b.dataset.page); renderSubmissions(); }));
+    }
+
+    function updateSelectedUI() {
+      const count = state.selectedIds.size;
+      const sel = document.getElementById('erp-bar-selected');
+      const btnSel = document.getElementById('btn-erp-register-selected');
+      const numSpan = document.getElementById('btn-erp-selected-num');
+      const cntSpan = document.getElementById('erp-selected-count');
+      if (count > 0) {
+        sel.classList.add('show');
+        btnSel.style.display = 'inline-flex';
+        numSpan.textContent = count;
+        cntSpan.textContent = count;
+      } else {
+        sel.classList.remove('show');
+        btnSel.style.display = 'none';
+      }
+      // 전체 선택 체크박스 상태 갱신
+      const checkAll = document.getElementById('check-all');
+      if (checkAll) {
+        const visibleCheckable = document.querySelectorAll('[data-sub-id]');
+        if (visibleCheckable.length === 0) { checkAll.checked = false; checkAll.indeterminate = false; }
+        else {
+          const checkedCount = Array.from(visibleCheckable).filter(c => c.checked).length;
+          checkAll.checked = checkedCount === visibleCheckable.length && checkedCount > 0;
+          checkAll.indeterminate = checkedCount > 0 && checkedCount < visibleCheckable.length;
+        }
+      }
     }
 
     function exportDefectsCSV() {
@@ -1144,12 +1213,22 @@
       showToast('success', `${rows.length}건 다운로드 (이카운트 양식)`);
     }
 
-    async function registerErp() {
-      const list = state.filteredSubmissions.length > 0 || state.filterDateFrom ? state.filteredSubmissions : state.submissions;
+    async function registerErpAll() {
+      const list = state.filteredSubmissions.length > 0 || state.filterDateFrom || state.filterErp || state.filterDefect || state.filterWorker || state.filterPart ? state.filteredSubmissions : state.submissions;
       const ids = list.filter(s => !s.erp_registered).map(s => s.id);
       if (ids.length === 0) { showToast('info', '등록 대상 없음'); return; }
-      if (!confirm(`${ids.length}건을 이카운트 ERP에 생산입고로 등록합니다.\n계속하시겠습니까?`)) return;
+      if (!confirm(`현재 필터의 미등록 ${ids.length}건을 이카운트 ERP에 등록합니다.\n계속하시겠습니까?`)) return;
+      await registerErp(ids);
+    }
 
+    async function registerErpSelected() {
+      const ids = Array.from(state.selectedIds);
+      if (ids.length === 0) { showToast('info', '선택된 항목 없음'); return; }
+      if (!confirm(`선택한 ${ids.length}건을 이카운트 ERP에 등록합니다.\n계속하시겠습니까?`)) return;
+      await registerErp(ids);
+    }
+
+    async function registerErp(ids) {
       const btn = document.getElementById('btn-erp-register');
       const originalHtml = btn.innerHTML;
       btn.disabled = true;
@@ -1205,6 +1284,7 @@
         }
 
         // 로컬 상태 갱신
+        state.selectedIds.clear();
         await loadAll();
       } catch (e) {
         showToast('error', 'ERP 호출 실패: ' + e.message);
@@ -1819,6 +1899,7 @@
         state.filterWorker = document.getElementById('filter-worker').value;
         state.filterPart = document.getElementById('filter-part').value;
         state.filterDefect = document.getElementById('filter-defect').value;
+        state.filterErp = document.getElementById('filter-erp').value;
         applyFilter();
       });
       document.getElementById('btn-clear-filter').addEventListener('click', () => {
@@ -1827,8 +1908,10 @@
         document.getElementById('filter-worker').value = '';
         document.getElementById('filter-part').value = '';
         document.getElementById('filter-defect').value = '';
-        state.filterDateFrom = ''; state.filterDateTo = ''; state.filterWorker = ''; state.filterPart = ''; state.filterDefect = '';
+        document.getElementById('filter-erp').value = '';
+        state.filterDateFrom = ''; state.filterDateTo = ''; state.filterWorker = ''; state.filterPart = ''; state.filterDefect = ''; state.filterErp = '';
         state.filteredSubmissions = [];
+        state.selectedIds.clear();
         state.page = 1;
         renderSubmissions();
       });
@@ -1881,8 +1964,21 @@
       document.getElementById('warehouse-modal-active-label').addEventListener('click', () => { state.warehouseModalActive = !state.warehouseModalActive; updateWarehouseToggle(); });
 
       // ERP 등록
-      document.getElementById('btn-erp-register').addEventListener('click', registerErp);
+      document.getElementById('btn-erp-register').addEventListener('click', registerErpAll);
+      document.getElementById('btn-erp-register-selected').addEventListener('click', registerErpSelected);
       document.getElementById('btn-export-defects').addEventListener('click', exportDefectsCSV);
+
+      // 전체 선택 체크박스
+      document.getElementById('check-all').addEventListener('change', e => {
+        const checkboxes = document.querySelectorAll('[data-sub-id]');
+        checkboxes.forEach(cb => {
+          cb.checked = e.target.checked;
+          const id = parseInt(cb.dataset.subId);
+          if (e.target.checked) state.selectedIds.add(id);
+          else state.selectedIds.delete(id);
+        });
+        updateSelectedUI();
+      });
 
       // 공지사항
       document.getElementById('notice-search').addEventListener('input', renderNotices);
