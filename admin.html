@@ -7,12 +7,11 @@
   ============================================================
   REVISION
   ============================================================
+  admin 0507 09 · 작업자 CSV import/export + 부품 마스터 창고 드롭다운
+                  - 작업자 탭에 CSV 가져오기/내보내기 (이름,ID,관리자)
+                  - 부품 마스터 모달의 창고를 등록된 warehouses 드롭다운으로
+                  - 임포트 모달 master+workers 공용화
   admin 0507 08 · 제출내역 체크박스 + ERP 등록여부 필터
-                  - 각 행에 체크박스 (미등록만 활성)
-                  - 헤더 전체 선택 체크박스
-                  - 필터: ERP 전체 / 미등록만 / 등록완료만
-                  - "선택만 ERP 등록" 버튼 (선택 시 표시)
-  admin 0507 07 · 데이터 로드 안정성 강화
                   - warehouses 테이블 CRUD
                   - 작업자가 입력 시 공정 선택한 코드가 ERP/CSV에 반영됨
   admin 0507 05 · 자체 ERP 백엔드 URL 지원 (Node.js 서버)
@@ -30,7 +29,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <meta name="version" content="admin-0507-08">
+  <meta name="version" content="admin-0507-09">
   <title>관리자 · Worker Counter</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -500,6 +499,8 @@
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           작업자/관리자 추가
         </button>
+        <button class="crud-btn secondary" id="btn-import-workers">CSV 가져오기</button>
+        <button class="crud-btn secondary" id="btn-export-workers">CSV 내보내기</button>
       </div>
       <div id="worker-loading" class="loading" style="display:none;"><div class="loading-spinner"></div></div>
       <div class="table-wrap">
@@ -578,7 +579,7 @@
       <div id="leave-list-container"></div>
     </div>
 
-    <div class="footer" id="footer">Worker counter admin 0507 08</div>
+    <div class="footer" id="footer">Worker counter admin 0507 09</div>
   </div>
 
   <!-- TOAST -->
@@ -649,8 +650,13 @@
       <input type="text" id="master-modal-name" class="modal-input" placeholder="예: 헥사 볼트">
       <div class="modal-label">규격</div>
       <input type="text" id="master-modal-spec" class="modal-input" placeholder="예: M8 x 25mm SUS304">
-      <div class="modal-label">창고명</div>
-      <input type="text" id="master-modal-warehouse" class="modal-input" placeholder="예: 1번 창고">
+      <div class="modal-label">기본 공정/창고 (드롭다운에서 선택)</div>
+      <select id="master-modal-warehouse" class="modal-input">
+        <option value="">선택 안 함 (작업자가 매번 선택)</option>
+      </select>
+      <div style="font-size:11px; color:var(--text-muted); margin-top:-8px; margin-bottom:8px;">
+        선택하면 작업자가 이 품번 입력 시 자동으로 그 공정으로 설정됨
+      </div>
       <div class="modal-row">
         <button class="modal-btn ghost" id="master-modal-cancel">취소</button>
         <button class="modal-btn primary" id="master-modal-save">저장</button>
@@ -658,11 +664,11 @@
     </div>
   </div>
 
-  <!-- IMPORT MASTER MODAL -->
+  <!-- IMPORT MODAL (master + workers 공용) -->
   <div class="modal-bg" id="modal-import">
     <div class="modal">
-      <div class="modal-title">품번 마스터 CSV 가져오기</div>
-      <div class="modal-sub">형식: 품번,품명,규격,창고명 (헤더 포함). 같은 품번은 덮어쓰기.</div>
+      <div class="modal-title" id="import-modal-title">CSV 가져오기</div>
+      <div class="modal-sub" id="import-modal-sub">형식: 품번,품명,규격,창고명 (헤더 포함). 같은 품번은 덮어쓰기.</div>
       <textarea id="csv-input" class="csv-area" placeholder="품번,품명,규격,창고명&#10;BOLT-M8-25,헥사 볼트,M8 x 25mm SUS304,1번 창고"></textarea>
       <div class="modal-row" style="margin-top:8px;">
         <button class="modal-btn ghost" id="import-load-file">파일에서</button>
@@ -755,6 +761,7 @@
       editingLeave: null,
       leaveTab: 'pending',
       masterSubtab: 'parts',
+      importTarget: 'master',
     };
 
     // ============ INIT ============
@@ -1374,6 +1381,61 @@
       } catch (e) { showToast('error', '실패: ' + e.message); }
     }
 
+    function exportWorkers() {
+      if (state.workers.length === 0) { showToast('error', '내보낼 데이터 없음'); return; }
+      const header = '\uFEFF이름,ID,관리자\n';
+      const rows = state.workers.map(w =>
+        [w.name, w.id, w.is_admin ? 'true' : 'false'].map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')
+      ).join('\n');
+      downloadCSV(header + rows, `작업자_${new Date().toISOString().slice(0,10)}.csv`);
+    }
+
+    function openImportWorkers() {
+      state.importTarget = 'workers';
+      document.getElementById('import-modal-title').textContent = '작업자 CSV 가져오기';
+      document.getElementById('import-modal-sub').textContent = '형식: 이름,ID,관리자 (헤더 포함). ID 비우면 자동 생성. 같은 ID는 업데이트.';
+      document.getElementById('csv-input').placeholder = '이름,ID,관리자\n김철수,W-001,false\n이영희,ADMIN-001,true';
+      document.getElementById('csv-input').value = '';
+      document.getElementById('modal-import').classList.add('active');
+    }
+
+    function openImportMaster() {
+      state.importTarget = 'master';
+      document.getElementById('import-modal-title').textContent = '품번 마스터 CSV 가져오기';
+      document.getElementById('import-modal-sub').textContent = '형식: 품번,품명,규격,창고명 (헤더 포함). 같은 품번은 덮어쓰기.';
+      document.getElementById('csv-input').placeholder = '품번,품명,규격,창고명\nBOLT-M8-25,헥사 볼트,M8 x 25mm,FA-02';
+      document.getElementById('csv-input').value = '';
+      document.getElementById('modal-import').classList.add('active');
+    }
+
+    async function importWorkersCSV(text) {
+      const cleaned = text.replace(/^\uFEFF/, '').trim();
+      if (!cleaned) { showToast('error', '내용 비어있음'); return; }
+      const lines = cleaned.split(/\r?\n/);
+      const first = parseCSVLine(lines[0]);
+      const startIdx = first[0] && (first[0].includes('이름') || first[0].toLowerCase().includes('name')) ? 1 : 0;
+      const items = [];
+      for (let i = startIdx; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        const [name, id, adminFlag] = parseCSVLine(line);
+        if (!name) continue;
+        const finalId = (id || '').trim() || ('W-' + Date.now().toString(36).toUpperCase().slice(-5) + '-' + i);
+        const isAdmin = ['true', '1', 'y', 'yes', '관리자', 'admin'].includes((adminFlag || '').trim().toLowerCase());
+        items.push({ id: finalId, name: name.trim(), is_admin: isAdmin });
+      }
+      if (items.length === 0) { showToast('error', '가져올 작업자 없음'); return; }
+      if (!confirm(`${items.length}명을 업로드합니다. 같은 ID는 업데이트됩니다. 계속?`)) return;
+      try {
+        await sbUpsert('workers', items);
+        showToast('success', `${items.length}명 업로드 완료`);
+        document.getElementById('modal-import').classList.remove('active');
+        document.getElementById('csv-input').value = '';
+        state.workers = await sbGet('workers?order=created_at.asc');
+        renderWorkers(); populateWorkerFilter();
+      } catch (e) { showToast('error', '실패: ' + e.message); }
+    }
+
     function openWorkerModal(worker) {
       state.editingWorker = worker;
       document.getElementById('worker-modal-title').textContent = worker ? '작업자 수정' : '작업자 추가';
@@ -1452,7 +1514,21 @@
       document.getElementById('master-modal-part').disabled = !!m;
       document.getElementById('master-modal-name').value = m ? (m.name || '') : '';
       document.getElementById('master-modal-spec').value = m ? (m.spec || '') : '';
-      document.getElementById('master-modal-warehouse').value = m ? (m.warehouse || '') : '';
+      // 창고 드롭다운 채우기
+      const whSel = document.getElementById('master-modal-warehouse');
+      const currentWh = m ? (m.warehouse || '') : '';
+      whSel.innerHTML = '<option value="">선택 안 함 (작업자가 매번 선택)</option>' +
+        state.warehouses.filter(w => w.active).map(w =>
+          `<option value="${escapeHtml(w.code)}">${escapeHtml(w.code)} - ${escapeHtml(w.name)}</option>`
+        ).join('');
+      // 만약 마스터의 창고가 warehouses에 없으면 (옛 데이터) 임시 옵션으로 보존
+      if (currentWh && !state.warehouses.find(w => w.code === currentWh)) {
+        const opt = document.createElement('option');
+        opt.value = currentWh;
+        opt.textContent = `${currentWh} (등록 안 된 창고 - 유지)`;
+        whSel.appendChild(opt);
+      }
+      whSel.value = currentWh;
       document.getElementById('modal-master').classList.add('active');
     }
 
@@ -1929,18 +2005,28 @@
       document.getElementById('master-search').addEventListener('input', renderMaster);
       document.getElementById('btn-add-master').addEventListener('click', () => openMasterModal(null));
       document.getElementById('btn-export-master').addEventListener('click', exportMaster);
-      document.getElementById('btn-import-master').addEventListener('click', () => document.getElementById('modal-import').classList.add('active'));
+      document.getElementById('btn-import-master').addEventListener('click', openImportMaster);
       document.getElementById('master-modal-cancel').addEventListener('click', () => document.getElementById('modal-master').classList.remove('active'));
       document.getElementById('master-modal-save').addEventListener('click', saveMasterModal);
 
-      // 임포트 모달
+      // 임포트 모달 (master + workers 공용)
       document.getElementById('import-cancel').addEventListener('click', () => document.getElementById('modal-import').classList.remove('active'));
-      document.getElementById('import-do').addEventListener('click', () => importMasterCSV(document.getElementById('csv-input').value));
+      document.getElementById('import-do').addEventListener('click', () => {
+        const text = document.getElementById('csv-input').value;
+        if (state.importTarget === 'workers') importWorkersCSV(text);
+        else importMasterCSV(text);
+      });
       document.getElementById('import-load-file').addEventListener('click', () => document.getElementById('import-file-input').click());
       document.getElementById('import-file-input').addEventListener('change', e => {
         const f = e.target.files[0]; if (!f) return;
         const r = new FileReader(); r.onload = ev => { document.getElementById('csv-input').value = ev.target.result; }; r.readAsText(f, 'utf-8');
       });
+
+      // 작업자 CSV
+      document.getElementById('btn-import-workers').addEventListener('click', openImportWorkers);
+      document.getElementById('btn-export-workers').addEventListener('click', exportWorkers);
+
+      // 마스터 CSV (기존 btn-import-master 갱신)
 
       // 서버 설정 모달
       document.getElementById('cfg-cancel').addEventListener('click', () => document.getElementById('modal-server').classList.remove('active'));
