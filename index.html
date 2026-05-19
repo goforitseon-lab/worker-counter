@@ -7,11 +7,12 @@
   ============================================================
   REVISION
   ============================================================
-  0507 11 · 식단표 주간 그리드 (한 눈에 보기)
-            - 메인 화면에 이번 주 7일 미니 카드 그리드
-            - 오늘 강조, 지난 날 흐릿, 토/일 색상 구분
-            - 카드 또는 "전체 보기" 클릭 시 주간 상세 모달
-  0507 10 · 식단표 표시 (메인 상단)
+  0507 12 · 작업타임 + 원단M + 수량버튼 가산
+            - 작업타임 5개 세그먼트 (1~4타임/잔업) 필수 선택
+            - 원단M 입력란 (workers.track_fabric_m=true일 때만)
+            - 수량 빠른버튼 +1/+5/+10/+50/+100 가산 모드
+            - submissions에 work_time, fabric_m 저장
+  0507 11 · 식단표 주간 그리드
   0507 04 · iOS Safari 카메라 지원 (ZXing-js fallback)
             - BarcodeDetector 미지원 브라우저(iOS Safari 등) 자동 fallback
             - 가이드 박스 영역만 캔버스로 잘라 분석 (다중 바코드 자동 제외)
@@ -46,7 +47,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <meta name="version" content="worker-counter-0507-11">
+  <meta name="version" content="worker-counter-0507-12">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>작업량 입력</title>
@@ -163,9 +164,15 @@
     .qty-num { font-family: 'Bebas Neue', sans-serif; font-size: 64px; line-height: 1; color: var(--amber); font-variant-numeric: tabular-nums; text-align: center; width: 100%; padding: 0; background: transparent; border: 1px dashed transparent; border-radius: 8px; transition: border-color 0.2s; }
     .qty-num:focus { border-color: rgba(255,214,10,0.4); }
     .qty-unit { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.2em; color: var(--text-muted); margin-top: 4px; }
-    .qty-quick { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 8px; }
-    .qty-quick-btn { padding: 10px; border-radius: 8px; background: #f8f8f8; border: 1px solid var(--border); font-family: 'JetBrains Mono', monospace; font-size: 14px; color: var(--text-dim); }
-    .qty-quick-btn:active { background: var(--surface); }
+    .qty-quick { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-top: 8px; }
+    .qty-quick-btn { padding: 12px 6px; border-radius: 8px; background: #f8f8f8; border: 1px solid var(--border); font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 700; color: var(--text-dim); }
+    .qty-quick-btn:active { background: var(--amber); color: #0f0f10; transform: scale(0.95); }
+    .qty-quick-label { font-size: 10px; color: var(--text-muted); margin-top: 4px; text-align: center; }
+
+    /* 작업 타임 세그먼트 */
+    .time-segment { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; background: #f0f0ee; padding: 4px; border-radius: 10px; }
+    .time-btn { padding: 11px 4px; border-radius: 6px; font-size: 12px; font-weight: 700; color: var(--text-dim); }
+    .time-btn.active { background: var(--amber); color: #0f0f10; box-shadow: 0 2px 4px rgba(245,184,0,0.3); }
 
     .submit-section { padding: 0 20px; }
     .submit-btn { width: 100%; padding: 20px; border-radius: 16px; font-size: 18px; font-weight: 700; background: linear-gradient(135deg, var(--amber), #ffaa00); color: #0f0f10; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 8px 24px rgba(255,214,10,0.25); }
@@ -545,6 +552,22 @@
           </select>
         </div>
 
+        <div style="margin: 0 20px 20px;">
+          <div class="label">작업 타임</div>
+          <div class="time-segment">
+            <button class="time-btn" data-time="1타임">1타임</button>
+            <button class="time-btn" data-time="2타임">2타임</button>
+            <button class="time-btn" data-time="3타임">3타임</button>
+            <button class="time-btn" data-time="4타임">4타임</button>
+            <button class="time-btn" data-time="잔업">잔업</button>
+          </div>
+        </div>
+
+        <div id="fabric-m-section" style="display:none; margin: 0 20px 20px;">
+          <div class="label">원단 사용량 (M)</div>
+          <input type="number" id="fabric-m-input" class="input-field" step="0.1" placeholder="예: 12.5" inputmode="decimal" style="padding: 14px 16px; font-size: 15px;">
+        </div>
+
         <div class="qty-section">
           <div class="label">STEP 2 · 수량 (직접 입력 가능)</div>
           <div class="qty-stepper">
@@ -560,11 +583,13 @@
             </button>
           </div>
           <div class="qty-quick">
-            <button class="qty-quick-btn" data-qty="5">5</button>
-            <button class="qty-quick-btn" data-qty="10">10</button>
-            <button class="qty-quick-btn" data-qty="20">20</button>
-            <button class="qty-quick-btn" data-qty="50">50</button>
+            <button class="qty-quick-btn" data-add-qty="1">+1</button>
+            <button class="qty-quick-btn" data-add-qty="5">+5</button>
+            <button class="qty-quick-btn" data-add-qty="10">+10</button>
+            <button class="qty-quick-btn" data-add-qty="50">+50</button>
+            <button class="qty-quick-btn" data-add-qty="100">+100</button>
           </div>
+          <div class="qty-quick-label">버튼을 누를 때마다 수량이 가산됩니다</div>
         </div>
 
         <div class="qc-section">
@@ -835,6 +860,7 @@
       isDefect: false, defects: [], editingDefectIndex: -1,
       pending: [], sent: [], partsMaster: {},
       warehouses: [], currentWarehouse: '',
+      currentWorkTime: '',
       notices: [], myLeaves: [], meals: [],
       stream: null, detector: null, lastScanned: null,
       isSending: false,
@@ -903,6 +929,7 @@
       }
       state.warehouses = storage.get('warehouses') || [];
       state.currentWarehouse = storage.get('current:warehouse') || '';
+      state.currentWorkTime = storage.get('current:worktime') || '';
       updateFooter();
       updateConnStatus();
 
@@ -1046,8 +1073,10 @@
         if (data[0]) {
           const wasAdmin = state.worker.isAdmin;
           state.worker.isAdmin = !!data[0].is_admin;
+          state.worker.trackFabricM = !!data[0].track_fabric_m;
           storage.set('worker:me', state.worker);
           updateAdminButton();
+          updateFabricMSection();
           if (state.worker.isAdmin && !wasAdmin) {
             showToast('success', '관리자 권한 부여됨', '⭐ 버튼 클릭으로 관리자 페이지 이동');
           }
@@ -1058,6 +1087,17 @@
     function updateAdminButton() {
       const btn = document.getElementById('btn-go-admin');
       if (btn) btn.style.display = state.worker?.isAdmin ? 'flex' : 'none';
+    }
+
+    function updateFabricMSection() {
+      const sec = document.getElementById('fabric-m-section');
+      if (sec) sec.style.display = state.worker?.trackFabricM ? 'block' : 'none';
+    }
+
+    function renderTimeButtons() {
+      document.querySelectorAll('[data-time]').forEach(b => {
+        b.classList.toggle('active', b.dataset.time === state.currentWorkTime);
+      });
     }
 
     async function syncWarehouses() {
@@ -1231,7 +1271,7 @@
 
     function updateFooter() {
       const cnt = Object.keys(state.partsMaster).length;
-      document.getElementById('footer').textContent = `Worker counter 0507 11 · 마스터 ${cnt}건`;
+      document.getElementById('footer').textContent = `Worker counter 0507 12 · 마스터 ${cnt}건`;
     }
 
     function updateConnStatus() {
@@ -1277,7 +1317,7 @@
         const existing = await fetchWorkerByName(name);
 
         if (existing) {
-          state.worker = { name: existing.name, id: existing.id, isAdmin: !!existing.is_admin };
+          state.worker = { name: existing.name, id: existing.id, isAdmin: !!existing.is_admin, trackFabricM: !!existing.track_fabric_m };
           storage.set('worker:me', state.worker);
           if (state.worker.isAdmin) {
             // 관리자 → admin.html로 자동 이동
@@ -1288,7 +1328,7 @@
           // 새 작업자 등록 (workers 테이블에 INSERT)
           const worker = { name, id: 'W-' + Date.now().toString(36).toUpperCase().slice(-5) };
           await registerWorker(worker);
-          state.worker = { ...worker, isAdmin: false };
+          state.worker = { ...worker, isAdmin: false, trackFabricM: false };
           storage.set('worker:me', state.worker);
         }
       } catch (e) {
@@ -1377,6 +1417,8 @@
       document.getElementById('btn-add').disabled = !canAdd;
 
       renderWarehouseSelect();
+      renderTimeButtons();
+      updateFabricMSection();
       renderInfoCard();
     }
 
@@ -1759,11 +1801,19 @@
       if (!selectedWarehouse) {
         showToast('error', '공정을 선택해주세요'); return;
       }
+      if (!state.currentWorkTime) {
+        showToast('error', '작업 타임을 선택해주세요'); return;
+      }
+      const fabricM = state.worker?.trackFabricM
+        ? parseFloat(document.getElementById('fabric-m-input')?.value || '0') || 0
+        : null;
       const entry = {
         localId: Date.now() + Math.random(),
         worker: state.worker.name, workerId: state.worker.id,
         partNumber: part,
         partName: info.name || '', spec: info.spec || '', warehouse: selectedWarehouse,
+        workTime: state.currentWorkTime,
+        fabricM: fabricM,
         quantity: state.quantity,
         defectQuantity: totalDefect,
         defects: defectsToSave,
@@ -1828,9 +1878,12 @@
         const subline = dq > 0
           ? `${defectLines} · 양품 ${okQty}`
           : (p.partName ? escapeHtml(p.partName) + (p.spec ? ' · ' + escapeHtml(p.spec) : '') : '');
+        const timeTag = p.workTime ? `<span style="font-size:10px; padding:1px 6px; background:rgba(245,184,0,0.15); color:#a07a00; border-radius:999px; margin-right:4px; font-weight:700;">${escapeHtml(p.workTime)}</span>` : '';
+        const fabricTag = (typeof p.fabricM === 'number' && p.fabricM > 0) ? `<span style="font-size:10px; padding:1px 6px; background:rgba(0,168,101,0.15); color:#006d42; border-radius:999px; margin-right:4px; font-weight:700;">원단 ${p.fabricM}M</span>` : '';
         return `<div class="item-row">
           <div class="item-info">
             <div class="item-part">${escapeHtml(p.partNumber)}</div>
+            <div style="margin-top:3px;">${timeTag}${fabricTag}</div>
             <div class="item-name">${badge}</div>
             ${subline ? `<div class="item-name" style="margin-top:2px; white-space:normal;">${subline}</div>` : ''}
             <div class="item-meta">${new Date(p.timestamp).toLocaleString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</div>
@@ -1879,6 +1932,8 @@
           part_name: p.partName,
           spec: p.spec,
           warehouse: p.warehouse,
+          work_time: p.workTime || null,
+          fabric_m: (typeof p.fabricM === 'number' && p.fabricM > 0) ? p.fabricM : null,
           quantity: p.quantity,
           defect_quantity: dq,
           defect_code: first ? (first.code || null) : null,
@@ -2194,7 +2249,10 @@
 
       document.getElementById('qty-minus').addEventListener('click', () => setQuantity(state.quantity - 1));
       document.getElementById('qty-plus').addEventListener('click', () => setQuantity(state.quantity + 1));
-      document.querySelectorAll('.qty-quick-btn').forEach(b => b.addEventListener('click', () => setQuantity(parseInt(b.dataset.qty))));
+      document.querySelectorAll('[data-add-qty]').forEach(b => b.addEventListener('click', () => {
+        const add = parseInt(b.dataset.addQty);
+        setQuantity((state.quantity || 0) + add);
+      }));
 
       document.getElementById('btn-add').addEventListener('click', addToPending);
 
@@ -2205,6 +2263,13 @@
           storage.set('current:warehouse', whSel.value);
         });
       }
+
+      // 작업 타임 버튼
+      document.querySelectorAll('[data-time]').forEach(b => b.addEventListener('click', () => {
+        state.currentWorkTime = b.dataset.time;
+        storage.set('current:worktime', state.currentWorkTime);
+        renderTimeButtons();
+      }));
       document.getElementById('btn-send-all').addEventListener('click', sendAllToServer);
       document.getElementById('btn-clear-sent').addEventListener('click', clearSent);
 

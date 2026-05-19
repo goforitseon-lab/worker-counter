@@ -7,11 +7,11 @@
   ============================================================
   REVISION
   ============================================================
-  admin 0507 11 · 식단 주간 그리드 (7일 한 눈에 보기)
-                  - 이전/다음/오늘 주 네비게이션
-                  - 토/일 색 구분, 오늘 강조
-                  - 빈 카드 클릭 시 그 날짜로 추가 모달 자동 오픈
-  admin 0507 10 · 식단표 관리 (공지사항 탭 → 공지/식단 서브탭)
+  admin 0507 12 · 작업타임/원단M 컬럼 표시 + 작업자 모달 원단M 추적 토글
+                  - 제출내역에 작업타임/원단M 뱃지 표시
+                  - 작업자 수정 시 "원단M 입력란 표시" 토글 (권정미용)
+                  - 작업자 CSV에 원단M추적 컬럼 추가
+  admin 0507 11 · 식단 주간 그리드
                   - warehouses 테이블 CRUD
                   - 작업자가 입력 시 공정 선택한 코드가 ERP/CSV에 반영됨
   admin 0507 05 · 자체 ERP 백엔드 URL 지원 (Node.js 서버)
@@ -29,7 +29,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <meta name="version" content="admin-0507-11">
+  <meta name="version" content="admin-0507-12">
   <title>관리자 · Worker Counter</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -630,7 +630,7 @@
       <div id="leave-list-container"></div>
     </div>
 
-    <div class="footer" id="footer">Worker counter admin 0507 11</div>
+    <div class="footer" id="footer">Worker counter admin 0507 12</div>
   </div>
 
   <!-- TOAST -->
@@ -683,6 +683,10 @@
       <label class="toggle-wrap" style="margin-top:12px;">
         <span class="toggle" id="worker-modal-admin-toggle"></span>
         <span class="toggle-label off" id="worker-modal-admin-label">관리자 권한 OFF</span>
+      </label>
+      <label class="toggle-wrap" style="margin-top:8px;">
+        <span class="toggle" id="worker-modal-fabric-toggle"></span>
+        <span class="toggle-label off" id="worker-modal-fabric-label">원단M 입력란 표시 OFF</span>
       </label>
       <div class="modal-row">
         <button class="modal-btn ghost" id="worker-modal-cancel">취소</button>
@@ -824,7 +828,7 @@
       filteredSubmissions: [],
       selectedIds: new Set(),
       // 모달 편집 상태
-      editingWorker: null, editingMaster: null, workerModalAdminOn: false,
+      editingWorker: null, editingMaster: null, workerModalAdminOn: false, workerModalFabricOn: false,
       editingWarehouse: null, warehouseModalActive: true,
       editingNotice: null, noticeModalActive: true,
       editingMeal: null,
@@ -1196,7 +1200,7 @@
             <div data-label="선택">${checkboxHtml}</div>
             <div class="table-cell-time" data-label="일시">${time}</div>
             <div class="table-cell-worker" data-label="작업자">${escapeHtml(s.worker_name || '-')}</div>
-            <div class="table-cell-part" data-label="품번">${escapeHtml(s.part_number || '')}</div>
+            <div class="table-cell-part" data-label="품번">${escapeHtml(s.part_number || '')}${s.work_time ? ` <span style="font-size:9px; padding:1px 5px; background:rgba(245,184,0,0.15); color:#a07a00; border-radius:999px; margin-left:3px; font-weight:700;">${escapeHtml(s.work_time)}</span>` : ''}${(typeof s.fabric_m === 'number' && s.fabric_m > 0) ? ` <span style="font-size:9px; padding:1px 5px; background:rgba(0,168,101,0.15); color:#006d42; border-radius:999px; margin-left:3px; font-weight:700;">원단 ${s.fabric_m}M</span>` : ''}</div>
             <div class="table-cell-name" data-label="품명">${escapeHtml(s.part_name || '')}${s.spec ? ' · ' + escapeHtml(s.spec) : ''}</div>
             <div class="table-cell-qty" data-label="생산">${s.quantity || 0}</div>
             <div class="table-cell-defect ${dq===0?'zero':''}" data-label="불량">${dq}</div>
@@ -1458,9 +1462,9 @@
 
     function exportWorkers() {
       if (state.workers.length === 0) { showToast('error', '내보낼 데이터 없음'); return; }
-      const header = '\uFEFF이름,ID,관리자\n';
+      const header = '\uFEFF이름,ID,관리자,원단M추적\n';
       const rows = state.workers.map(w =>
-        [w.name, w.id, w.is_admin ? 'true' : 'false'].map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')
+        [w.name, w.id, w.is_admin ? 'true' : 'false', w.track_fabric_m ? 'true' : 'false'].map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')
       ).join('\n');
       downloadCSV(header + rows, `작업자_${new Date().toISOString().slice(0,10)}.csv`);
     }
@@ -1518,6 +1522,7 @@
       document.getElementById('worker-modal-id').value = worker ? worker.id : '';
       document.getElementById('worker-modal-id').disabled = !!worker;
       state.workerModalAdminOn = worker ? !!worker.is_admin : false;
+      state.workerModalFabricOn = worker ? !!worker.track_fabric_m : false;
       updateWorkerToggle();
       document.getElementById('modal-worker').classList.add('active');
     }
@@ -1528,6 +1533,11 @@
       t.className = 'toggle' + (state.workerModalAdminOn ? ' on' : '');
       l.className = 'toggle-label ' + (state.workerModalAdminOn ? 'on' : 'off');
       l.textContent = '관리자 권한 ' + (state.workerModalAdminOn ? 'ON' : 'OFF');
+      const ft = document.getElementById('worker-modal-fabric-toggle');
+      const fl = document.getElementById('worker-modal-fabric-label');
+      ft.className = 'toggle' + (state.workerModalFabricOn ? ' on' : '');
+      fl.className = 'toggle-label ' + (state.workerModalFabricOn ? 'on' : 'off');
+      fl.textContent = '원단M 입력란 표시 ' + (state.workerModalFabricOn ? 'ON' : 'OFF');
     }
 
     async function saveWorkerModal() {
@@ -1536,15 +1546,16 @@
       if (!name) { showToast('error', '이름 필수'); return; }
       if (!id) id = 'W-' + Date.now().toString(36).toUpperCase().slice(-5);
       const isAdmin = state.workerModalAdminOn;
+      const trackFabricM = state.workerModalFabricOn;
       try {
         if (state.editingWorker) {
-          await sbPatch(`workers?id=eq.${encodeURIComponent(id)}`, { name, is_admin: isAdmin });
+          await sbPatch(`workers?id=eq.${encodeURIComponent(id)}`, { name, is_admin: isAdmin, track_fabric_m: trackFabricM });
           const w = state.workers.find(x => x.id === id);
-          if (w) { w.name = name; w.is_admin = isAdmin; }
+          if (w) { w.name = name; w.is_admin = isAdmin; w.track_fabric_m = trackFabricM; }
           showToast('success', '수정됨');
         } else {
-          const inserted = await sbPost('workers', { id, name, is_admin: isAdmin });
-          state.workers.push(inserted[0] || { id, name, is_admin: isAdmin, created_at: new Date().toISOString() });
+          const inserted = await sbPost('workers', { id, name, is_admin: isAdmin, track_fabric_m: trackFabricM });
+          state.workers.push(inserted[0] || { id, name, is_admin: isAdmin, track_fabric_m: trackFabricM, created_at: new Date().toISOString() });
           showToast('success', '추가됨');
         }
         document.getElementById('modal-worker').classList.remove('active');
@@ -2229,6 +2240,8 @@
       document.getElementById('worker-modal-save').addEventListener('click', saveWorkerModal);
       document.getElementById('worker-modal-admin-toggle').addEventListener('click', () => { state.workerModalAdminOn = !state.workerModalAdminOn; updateWorkerToggle(); });
       document.getElementById('worker-modal-admin-label').addEventListener('click', () => { state.workerModalAdminOn = !state.workerModalAdminOn; updateWorkerToggle(); });
+      document.getElementById('worker-modal-fabric-toggle').addEventListener('click', () => { state.workerModalFabricOn = !state.workerModalFabricOn; updateWorkerToggle(); });
+      document.getElementById('worker-modal-fabric-label').addEventListener('click', () => { state.workerModalFabricOn = !state.workerModalFabricOn; updateWorkerToggle(); });
 
       // 마스터
       document.getElementById('master-search').addEventListener('input', renderMaster);
