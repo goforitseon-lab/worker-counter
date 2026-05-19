@@ -7,11 +7,11 @@
   ============================================================
   REVISION
   ============================================================
-  admin 0507 09 · 작업자 CSV import/export + 부품 마스터 창고 드롭다운
-                  - 작업자 탭에 CSV 가져오기/내보내기 (이름,ID,관리자)
-                  - 부품 마스터 모달의 창고를 등록된 warehouses 드롭다운으로
-                  - 임포트 모달 master+workers 공용화
-  admin 0507 08 · 제출내역 체크박스 + ERP 등록여부 필터
+  admin 0507 10 · 식단표 관리 (공지사항 탭 → 공지/식단 서브탭)
+                  - meals 테이블 CRUD (날짜별)
+                  - "이번 주 일괄" 버튼으로 빈 날짜 빠른 등록
+                  - 작업자 메인에 오늘 식단 자동 표시
+  admin 0507 09 · 작업자 CSV import/export
                   - warehouses 테이블 CRUD
                   - 작업자가 입력 시 공정 선택한 코드가 ERP/CSV에 반영됨
   admin 0507 05 · 자체 ERP 백엔드 URL 지원 (Node.js 서버)
@@ -29,7 +29,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <meta name="version" content="admin-0507-09">
+  <meta name="version" content="admin-0507-10">
   <title>관리자 · Worker Counter</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -558,14 +558,35 @@
 
     <!-- ============ NOTICES ============ -->
     <div class="tab-content" id="tab-notices">
-      <div class="crud-bar">
-        <input type="text" id="notice-search" class="crud-search" placeholder="공지 제목/내용 검색">
-        <button class="crud-btn primary" id="btn-add-notice">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          공지 추가
-        </button>
+      <div class="master-subtabs">
+        <button class="master-subtab active" data-nsub="notices">📢 공지사항</button>
+        <button class="master-subtab" data-nsub="meals">🍱 식단표</button>
       </div>
-      <div id="notice-list-container"></div>
+
+      <!-- 공지사항 -->
+      <div id="nsub-notices">
+        <div class="crud-bar">
+          <input type="text" id="notice-search" class="crud-search" placeholder="공지 제목/내용 검색">
+          <button class="crud-btn primary" id="btn-add-notice">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            공지 추가
+          </button>
+        </div>
+        <div id="notice-list-container"></div>
+      </div>
+
+      <!-- 식단표 -->
+      <div id="nsub-meals" style="display:none;">
+        <div class="crud-bar">
+          <input type="date" id="meal-search-date" class="crud-search" style="max-width:180px;">
+          <button class="crud-btn primary" id="btn-add-meal">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            식단 추가
+          </button>
+          <button class="crud-btn secondary" id="btn-fill-week">이번 주 일괄</button>
+        </div>
+        <div id="meal-list-container"></div>
+      </div>
     </div>
 
     <!-- ============ LEAVES ============ -->
@@ -579,7 +600,7 @@
       <div id="leave-list-container"></div>
     </div>
 
-    <div class="footer" id="footer">Worker counter admin 0507 09</div>
+    <div class="footer" id="footer">Worker counter admin 0507 10</div>
   </div>
 
   <!-- TOAST -->
@@ -699,6 +720,24 @@
     </div>
   </div>
 
+  <!-- MEAL MODAL -->
+  <div class="modal-bg" id="modal-meal">
+    <div class="modal">
+      <div class="modal-title" id="meal-modal-title">식단 추가</div>
+      <div class="modal-sub">날짜별 점심 메뉴 (또는 전체 메뉴)</div>
+      <div class="modal-label">날짜</div>
+      <input type="date" id="meal-modal-date" class="modal-input">
+      <div class="modal-label">메뉴 (여러 줄 가능)</div>
+      <textarea id="meal-modal-menu" class="csv-area" placeholder="예: 김치찌개&#10;쌀밥&#10;계란말이&#10;김치&#10;단무지" style="min-height:140px;"></textarea>
+      <div class="modal-label">비고 (선택)</div>
+      <input type="text" id="meal-modal-notes" class="modal-input" placeholder="예: 알레르기 정보, 행사 메뉴 등">
+      <div class="modal-row">
+        <button class="modal-btn ghost" id="meal-modal-cancel">취소</button>
+        <button class="modal-btn primary" id="meal-modal-save">저장</button>
+      </div>
+    </div>
+  </div>
+
   <!-- SERVER CONFIG MODAL -->
   <div class="modal-bg" id="modal-server">
     <div class="modal">
@@ -748,7 +787,7 @@
       worker: null,
       serverConfig: { url: '', key: '' },
       submissions: [], workers: [], master: [], warehouses: [],
-      notices: [], leaves: [],
+      notices: [], leaves: [], meals: [],
       // 필터
       filterDateFrom: '', filterDateTo: '', filterWorker: '', filterPart: '', filterDefect: '', filterErp: '',
       page: 1, pageSize: 50,
@@ -758,6 +797,8 @@
       editingWorker: null, editingMaster: null, workerModalAdminOn: false,
       editingWarehouse: null, warehouseModalActive: true,
       editingNotice: null, noticeModalActive: true,
+      editingMeal: null,
+      noticeSubtab: 'notices',
       editingLeave: null,
       leaveTab: 'pending',
       masterSubtab: 'parts',
@@ -859,8 +900,9 @@
         sbGet('warehouses?order=code.asc'),
         sbGet('notices?order=created_at.desc&limit=200'),
         sbGet('leave_requests?order=requested_at.desc&limit=500'),
+        sbGet('meals?order=meal_date.desc&limit=200'),
       ]);
-      const names = ['submissions', 'workers', 'parts_master', 'warehouses', 'notices', 'leave_requests'];
+      const names = ['submissions', 'workers', 'parts_master', 'warehouses', 'notices', 'leave_requests', 'meals'];
       const values = results.map((r, i) => {
         if (r.status === 'fulfilled') return r.value;
         console.warn(`[${names[i]}] 로드 실패:`, r.reason?.message || r.reason);
@@ -872,6 +914,7 @@
       state.warehouses = values[3];
       state.notices = values[4];
       state.leaves = values[5];
+      state.meals = values[6];
 
       const failed = results.map((r, i) => r.status === 'rejected' ? names[i] : null).filter(Boolean);
       if (failed.length > 0) {
@@ -887,6 +930,7 @@
       renderMaster();
       renderWarehouses();
       renderNotices();
+      renderMeals();
       renderLeaves();
       populateWorkerFilter();
       updateBadges();
@@ -1604,7 +1648,7 @@
     // ============ WAREHOUSES ============
     function setMasterSubtab(sub) {
       state.masterSubtab = sub;
-      document.querySelectorAll('.master-subtab').forEach(t => t.classList.toggle('active', t.dataset.msub === sub));
+      document.querySelectorAll('[data-msub]').forEach(t => t.classList.toggle('active', t.dataset.msub === sub));
       document.getElementById('msub-parts').style.display = sub === 'parts' ? 'block' : 'none';
       document.getElementById('msub-warehouses').style.display = sub === 'warehouses' ? 'block' : 'none';
     }
@@ -1778,6 +1822,112 @@
         renderNotices(); updateBadges();
         showToast('success', '삭제됨');
       } catch (e) { showToast('error', '실패: ' + e.message); }
+    }
+
+    // ============ MEALS (식단) ============
+    function setNoticeSubtab(sub) {
+      state.noticeSubtab = sub;
+      document.querySelectorAll('[data-nsub]').forEach(t => t.classList.toggle('active', t.dataset.nsub === sub));
+      document.getElementById('nsub-notices').style.display = sub === 'notices' ? 'block' : 'none';
+      document.getElementById('nsub-meals').style.display = sub === 'meals' ? 'block' : 'none';
+    }
+
+    function renderMeals() {
+      const searchDate = document.getElementById('meal-search-date').value;
+      let list = state.meals;
+      if (searchDate) list = list.filter(m => m.meal_date === searchDate);
+      const el = document.getElementById('meal-list-container');
+      if (list.length === 0) { el.innerHTML = '<div class="empty">등록된 식단이 없습니다</div>'; return; }
+      const dayNames = ['일','월','화','수','목','금','토'];
+      el.innerHTML = list.slice(0, 60).map(m => {
+        const d = new Date(m.meal_date);
+        const day = dayNames[d.getDay()];
+        const isToday = m.meal_date === new Date().toISOString().slice(0,10);
+        return `<div class="notice-row${isToday ? '' : ''}" style="${isToday ? 'border-color: rgba(245,184,0,0.5); background: rgba(245,184,0,0.05);' : ''}">
+          <div class="notice-row-header">
+            <span class="notice-status-pill ${isToday ? 'active' : 'inactive'}" style="${isToday ? '' : 'background:#f0f0ee;'}">${m.meal_date} (${day}) ${isToday ? '· 오늘' : ''}</span>
+            ${m.notes ? `<span class="notice-row-meta">${escapeHtml(m.notes)}</span>` : ''}
+          </div>
+          <div class="notice-row-content">${escapeHtml(m.menu)}</div>
+          <div class="notice-row-actions">
+            <button class="crud-btn secondary" data-edit-meal="${m.meal_date}">수정</button>
+            <button class="crud-btn secondary" data-del-meal="${m.meal_date}" style="color:var(--red);">삭제</button>
+          </div>
+        </div>`;
+      }).join('');
+      el.querySelectorAll('[data-edit-meal]').forEach(b => b.addEventListener('click', () => {
+        const m = state.meals.find(x => x.meal_date === b.dataset.editMeal);
+        if (m) openMealModal(m);
+      }));
+      el.querySelectorAll('[data-del-meal]').forEach(b => b.addEventListener('click', () => deleteMeal(b.dataset.delMeal)));
+    }
+
+    function openMealModal(m) {
+      state.editingMeal = m;
+      document.getElementById('meal-modal-title').textContent = m ? '식단 수정' : '식단 추가';
+      document.getElementById('meal-modal-date').value = m ? m.meal_date : new Date().toISOString().slice(0,10);
+      document.getElementById('meal-modal-date').disabled = !!m;
+      document.getElementById('meal-modal-menu').value = m ? (m.menu || '') : '';
+      document.getElementById('meal-modal-notes').value = m ? (m.notes || '') : '';
+      document.getElementById('modal-meal').classList.add('active');
+    }
+
+    async function saveMealModal() {
+      const date = document.getElementById('meal-modal-date').value;
+      const menu = document.getElementById('meal-modal-menu').value.trim();
+      const notes = document.getElementById('meal-modal-notes').value.trim();
+      if (!date || !menu) { showToast('error', '날짜/메뉴 필수'); return; }
+      try {
+        if (state.editingMeal) {
+          await sbPatch(`meals?meal_date=eq.${date}`, { menu, notes, updated_at: new Date().toISOString() });
+          const m = state.meals.find(x => x.meal_date === date);
+          if (m) { m.menu = menu; m.notes = notes; }
+          showToast('success', '수정됨');
+        } else {
+          const inserted = await sbUpsert('meals', [{ meal_date: date, menu, notes }]);
+          const existed = state.meals.findIndex(x => x.meal_date === date);
+          if (existed >= 0) state.meals[existed] = inserted[0];
+          else state.meals.unshift(inserted[0] || { meal_date: date, menu, notes });
+          // 날짜 내림차순 정렬
+          state.meals.sort((a, b) => b.meal_date.localeCompare(a.meal_date));
+          showToast('success', '저장됨');
+        }
+        document.getElementById('modal-meal').classList.remove('active');
+        renderMeals();
+      } catch (e) { showToast('error', '실패: ' + e.message); }
+    }
+
+    async function deleteMeal(date) {
+      if (!confirm(`${date} 식단을 삭제하시겠습니까?`)) return;
+      try {
+        await sbDelete(`meals?meal_date=eq.${date}`);
+        state.meals = state.meals.filter(x => x.meal_date !== date);
+        renderMeals();
+        showToast('success', '삭제됨');
+      } catch (e) { showToast('error', '실패: ' + e.message); }
+    }
+
+    function fillWeekMeals() {
+      const today = new Date();
+      const dow = today.getDay();
+      const monday = new Date(today);
+      monday.setDate(today.getDate() - (dow === 0 ? 6 : dow - 1));
+      const dates = [];
+      for (let i = 0; i < 5; i++) {
+        const d = new Date(monday);
+        d.setDate(monday.getDate() + i);
+        dates.push(d.toISOString().slice(0,10));
+      }
+      const missingDates = dates.filter(d => !state.meals.find(m => m.meal_date === d));
+      if (missingDates.length === 0) { showToast('info', '이번 주(월~금) 식단 이미 모두 등록됨'); return; }
+      // 첫 빈 날짜를 모달로 열기
+      const dayNames = ['일','월','화','수','목','금','토'];
+      const firstMissing = missingDates[0];
+      const d = new Date(firstMissing);
+      if (confirm(`이번 주 ${missingDates.length}일 식단 미등록.\n${firstMissing} (${dayNames[d.getDay()]})부터 차례로 등록할까요?`)) {
+        openMealModal(null);
+        document.getElementById('meal-modal-date').value = firstMissing;
+      }
     }
 
     // ============ LEAVES ============
@@ -2034,12 +2184,21 @@
       document.getElementById('cfg-save').addEventListener('click', saveCfg);
 
       // 모달 배경 클릭으로 닫기
-      ['modal-worker', 'modal-master', 'modal-import', 'modal-server', 'modal-notice', 'modal-leave-review', 'modal-warehouse'].forEach(id => {
+      ['modal-worker', 'modal-master', 'modal-import', 'modal-server', 'modal-notice', 'modal-leave-review', 'modal-warehouse', 'modal-meal'].forEach(id => {
         document.getElementById(id).addEventListener('click', e => { if (e.target.id === id) document.getElementById(id).classList.remove('active'); });
       });
 
       // 마스터 서브탭
-      document.querySelectorAll('.master-subtab').forEach(t => t.addEventListener('click', () => setMasterSubtab(t.dataset.msub)));
+      document.querySelectorAll('[data-msub]').forEach(t => t.addEventListener('click', () => setMasterSubtab(t.dataset.msub)));
+      // 공지 서브탭 (공지/식단)
+      document.querySelectorAll('[data-nsub]').forEach(t => t.addEventListener('click', () => setNoticeSubtab(t.dataset.nsub)));
+
+      // 식단
+      document.getElementById('meal-search-date').addEventListener('change', renderMeals);
+      document.getElementById('btn-add-meal').addEventListener('click', () => openMealModal(null));
+      document.getElementById('btn-fill-week').addEventListener('click', fillWeekMeals);
+      document.getElementById('meal-modal-cancel').addEventListener('click', () => document.getElementById('modal-meal').classList.remove('active'));
+      document.getElementById('meal-modal-save').addEventListener('click', saveMealModal);
 
       // 창고
       document.getElementById('warehouse-search').addEventListener('input', renderWarehouses);

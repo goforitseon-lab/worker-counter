@@ -7,10 +7,10 @@
   ============================================================
   REVISION
   ============================================================
-  0507 09 · 카메라 가이드 박스 외 영역 강하게 가림 (88% 검정)
-            - 빨간 정렬 라인 (바코드 라인 정렬용)
-            - 박스 위/아래 안내 텍스트
-  0507 08 · 작업자 페이지에 관리자 모드 이동 버튼
+  0507 10 · 식단표 표시 (메인 상단)
+            - 오늘 식단 카드 (있을 때만)
+            - 클릭하면 본문 펼침 + 다음 6일 식단 보임
+  0507 09 · 카메라 가이드 박스 외 영역 강하게 가림
   0507 04 · iOS Safari 카메라 지원 (ZXing-js fallback)
             - BarcodeDetector 미지원 브라우저(iOS Safari 등) 자동 fallback
             - 가이드 박스 영역만 캔버스로 잘라 분석 (다중 바코드 자동 제외)
@@ -45,7 +45,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <meta name="version" content="worker-counter-0507-09">
+  <meta name="version" content="worker-counter-0507-10">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>작업량 입력</title>
@@ -315,6 +315,24 @@
     .notice-card.expanded .notice-content { max-height: 600px; margin-top: 8px; }
     .notice-card.expanded { background: linear-gradient(135deg, rgba(90,200,250,0.12), rgba(90,200,250,0.04)); }
 
+    /* 식단 카드 */
+    .meal-card { padding: 14px 16px; border-radius: 12px; background: linear-gradient(135deg, rgba(0,168,101,0.08), rgba(0,168,101,0.02)); border: 1px solid rgba(0,168,101,0.3); margin-bottom: 8px; cursor: pointer; }
+    .meal-card:active { transform: scale(0.99); }
+    .meal-today { background: linear-gradient(135deg, rgba(245,184,0,0.12), rgba(245,184,0,0.03)); border-color: rgba(245,184,0,0.45); }
+    .meal-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .meal-pin { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.15em; color: var(--emerald); font-weight: 700; }
+    .meal-today .meal-pin { color: #a07a00; }
+    .meal-date { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted); margin-left: auto; }
+    .meal-summary { font-size: 14px; color: var(--text); font-weight: 600; }
+    .meal-full { font-size: 13px; color: var(--text); line-height: 1.6; white-space: pre-wrap; }
+    .meal-notes { font-size: 12px; color: var(--text-dim); margin-top: 6px; padding: 6px 8px; background: rgba(0,0,0,0.04); border-radius: 6px; }
+    .meal-week { margin-top: 8px; padding: 12px; background: rgba(0,0,0,0.02); border: 1px solid rgba(0,0,0,0.06); border-radius: 10px; }
+    .meal-week-title { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.15em; color: var(--text-muted); margin-bottom: 8px; font-weight: 700; }
+    .meal-week-item { padding: 8px 0; border-bottom: 1px dashed rgba(0,0,0,0.06); }
+    .meal-week-item:last-child { border-bottom: none; }
+    .meal-week-date { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+    .meal-week-menu { font-size: 12px; color: var(--text-dim); white-space: pre-wrap; line-height: 1.5; }
+
     /* 연차 */
     .leave-form { padding: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; margin-bottom: 20px; }
     .leave-form-row { margin-bottom: 12px; }
@@ -441,6 +459,12 @@
       <div class="notice-section" id="notice-section" style="display:none;">
         <div class="label">📢 공지사항</div>
         <div id="notice-list"></div>
+      </div>
+
+      <!-- 식단표 (있을 때만 표시) -->
+      <div class="notice-section" id="meal-section" style="display:none;">
+        <div class="label">🍱 식단표</div>
+        <div id="meal-list"></div>
       </div>
 
       <div class="tabs">
@@ -789,7 +813,7 @@
       isDefect: false, defects: [], editingDefectIndex: -1,
       pending: [], sent: [], partsMaster: {},
       warehouses: [], currentWarehouse: '',
-      notices: [], myLeaves: [],
+      notices: [], myLeaves: [], meals: [],
       stream: null, detector: null, lastScanned: null,
       isSending: false,
       serverConfig: { url: '', key: '' },
@@ -870,12 +894,98 @@
       // 백그라운드 서버 동기화
       if (state.worker) {
         syncFromServer();
-        setInterval(() => { fetchNotices(); fetchMyLeaves(); }, 60000);
+        setInterval(() => { fetchNotices(); fetchMyLeaves(); fetchMeals(); }, 60000);
       }
     }
 
     async function syncFromServer() {
-      await Promise.all([syncPartsMaster(), syncWarehouses(), fetchNotices(), fetchMyLeaves(), refreshMyInfo()]);
+      await Promise.all([syncPartsMaster(), syncWarehouses(), fetchNotices(), fetchMyLeaves(), fetchMeals(), refreshMyInfo()]);
+    }
+
+    async function fetchMeals() {
+      const cfg = state.serverConfig;
+      if (!cfg.url || !cfg.key) return;
+      try {
+        // 오늘부터 +7일 까지
+        const today = new Date().toISOString().slice(0,10);
+        const future = new Date(); future.setDate(future.getDate() + 14);
+        const futureStr = future.toISOString().slice(0,10);
+        const url = `${cfg.url.replace(/\/$/,'')}/rest/v1/meals?meal_date=gte.${today}&meal_date=lte.${futureStr}&order=meal_date.asc&limit=14`;
+        const res = await fetch(url, { headers: { 'apikey': cfg.key, 'Authorization': 'Bearer ' + cfg.key } });
+        if (!res.ok) return;
+        state.meals = await res.json();
+        renderMeals();
+      } catch (e) { console.warn('Meals fetch failed:', e); }
+    }
+
+    function renderMeals() {
+      const section = document.getElementById('meal-section');
+      const list = document.getElementById('meal-list');
+      if (!section || !list) return;
+      if (!state.meals || state.meals.length === 0) { section.style.display = 'none'; return; }
+
+      const today = new Date().toISOString().slice(0,10);
+      const todayMeal = state.meals.find(m => m.meal_date === today);
+      const dayNames = ['일','월','화','수','목','금','토'];
+
+      section.style.display = 'block';
+      // 오늘 식단 카드 (있으면) + 클릭 시 주간 펼침
+      let html = '';
+      if (todayMeal) {
+        const firstLine = (todayMeal.menu || '').split('\n')[0];
+        html += `<div class="meal-card meal-today" id="meal-today-card">
+          <div class="meal-header">
+            <span class="meal-pin">🍱 오늘의 식단</span>
+            <span class="meal-date">${today.slice(5)} (${dayNames[new Date().getDay()]})</span>
+          </div>
+          <div class="meal-summary">${escapeHtml(firstLine)}${todayMeal.menu.split('\n').length > 1 ? ' 외 ' + (todayMeal.menu.split('\n').length - 1) + '개' : ''}</div>
+          <div class="meal-full" style="display:none;">${escapeHtml(todayMeal.menu)}${todayMeal.notes ? '<div class="meal-notes">📝 ' + escapeHtml(todayMeal.notes) + '</div>' : ''}</div>
+        </div>`;
+      } else {
+        html += `<div class="meal-card" style="opacity:0.6;">
+          <div class="meal-header">
+            <span class="meal-pin">🍱 오늘 식단</span>
+            <span class="meal-date">${today.slice(5)} (${dayNames[new Date().getDay()]})</span>
+          </div>
+          <div class="meal-summary" style="color:var(--text-muted);">등록된 식단이 없습니다</div>
+        </div>`;
+      }
+      // 주간 펼침 영역 (오늘 + 이후 6일)
+      const futureMeals = state.meals.filter(m => m.meal_date > today).slice(0, 6);
+      if (futureMeals.length > 0) {
+        html += `<div class="meal-week" id="meal-week" style="display:none;">
+          <div class="meal-week-title">📅 다음 식단</div>
+          ${futureMeals.map(m => {
+            const d = new Date(m.meal_date);
+            return `<div class="meal-week-item">
+              <div class="meal-week-date">${m.meal_date.slice(5)} (${dayNames[d.getDay()]})</div>
+              <div class="meal-week-menu">${escapeHtml(m.menu)}</div>
+              ${m.notes ? `<div class="meal-notes">📝 ${escapeHtml(m.notes)}</div>` : ''}
+            </div>`;
+          }).join('')}
+        </div>`;
+      }
+
+      list.innerHTML = html;
+      // 클릭 시 펼침
+      const card = document.getElementById('meal-today-card');
+      if (card) {
+        card.addEventListener('click', () => {
+          const full = card.querySelector('.meal-full');
+          const week = document.getElementById('meal-week');
+          const summary = card.querySelector('.meal-summary');
+          const isOpen = full.style.display !== 'none';
+          if (isOpen) {
+            full.style.display = 'none';
+            if (week) week.style.display = 'none';
+            summary.style.display = 'block';
+          } else {
+            full.style.display = 'block';
+            if (week) week.style.display = 'block';
+            summary.style.display = 'none';
+          }
+        });
+      }
     }
 
     async function refreshMyInfo() {
@@ -1075,7 +1185,7 @@
 
     function updateFooter() {
       const cnt = Object.keys(state.partsMaster).length;
-      document.getElementById('footer').textContent = `Worker counter 0507 09 · 마스터 ${cnt}건`;
+      document.getElementById('footer').textContent = `Worker counter 0507 10 · 마스터 ${cnt}건`;
     }
 
     function updateConnStatus() {
