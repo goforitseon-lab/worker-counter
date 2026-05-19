@@ -7,13 +7,13 @@
   ============================================================
   REVISION
   ============================================================
-  0507 13 · 바코드 인식 강화 (인식률 크게 향상)
-            - 연속 자동 스캔 (350ms 간격, 셔터 없이 자동 인식)
-            - 다중 영역 시도: 가이드 박스 → 확장 → 전체
-            - BarcodeDetector + ZXing 둘 다 시도 (둘 다 실패해야 fail)
-            - ZXing TRY_HARDER hint + 9개 포맷 지정
-            - 카메라 해상도 2560x1440 + 연속 자동 포커스
-  0507 12 · 작업타임 + 원단M + 수량버튼 가산
+  0507 14 · 구형 폰 바코드 인식 강화
+            - 이미지 전처리: 업스케일 2배 + 흑백 + 명암 대비 강화
+            - 각 영역마다 원본/전처리본 둘 다 시도 (인식률 ↑)
+            - 카메라 해상도 단계 폴백 (2560→1920→1280→자동)
+            - 자동 스캔 인터벌 350ms→500ms (CPU 여유)
+            - 수동 셔터: 모든 영역+모든 처리 (정밀 시도)
+  0507 13 · 바코드 인식 강화 (연속 자동 스캔)
   0507 04 · iOS Safari 카메라 지원 (ZXing-js fallback)
             - BarcodeDetector 미지원 브라우저(iOS Safari 등) 자동 fallback
             - 가이드 박스 영역만 캔버스로 잘라 분석 (다중 바코드 자동 제외)
@@ -48,7 +48,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <meta name="version" content="worker-counter-0507-13">
+  <meta name="version" content="worker-counter-0507-14">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>작업량 입력</title>
@@ -826,7 +826,7 @@
       <div class="cam-frame">
         <div class="cam-frame-line"></div>
       </div>
-      <div class="cam-hint-bottom">박스 안에 1~3초 정지하면 자동 인식됩니다</div>
+      <div class="cam-hint-bottom">구형폰: 셔터 누르면 더 정밀하게 시도</div>
       <div class="cam-hint">노란 박스 안에 바코드를 넣고<br>아래 셔터 버튼을 누르세요</div>
     </div>
     <div class="cam-result" id="cam-result">
@@ -1276,7 +1276,7 @@
 
     function updateFooter() {
       const cnt = Object.keys(state.partsMaster).length;
-      document.getElementById('footer').textContent = `Worker counter 0507 13 · 마스터 ${cnt}건`;
+      document.getElementById('footer').textContent = `Worker counter 0507 14 · 마스터 ${cnt}건`;
     }
 
     function updateConnStatus() {
@@ -1644,6 +1644,71 @@
     }
 
     // ============ CAMERA ============
+    // 카메라 해상도 단계적 폴백 (신형/구형 폰 모두 지원)
+    async function startStreamWithFallback() {
+      const candidates = [
+        { width: 2560, height: 1440 },
+        { width: 1920, height: 1080 },
+        { width: 1280, height: 720 },
+      ];
+      let lastErr = null;
+      for (const size of candidates) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              facingMode: { ideal: 'environment' },
+              width: { ideal: size.width },
+              height: { ideal: size.height },
+              focusMode: { ideal: 'continuous' },
+            }
+          });
+          return stream;
+        } catch (e) { lastErr = e; }
+      }
+      // 최종 폴백: 제약 없이 후면 카메라만
+      try {
+        return await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      } catch (e) {
+        // 그것도 안 되면 카메라 종류 무관
+        return await navigator.mediaDevices.getUserMedia({ video: true });
+      }
+    }
+
+    // 이미지 전처리: 업스케일 2배 + 흑백 + 명암 강화 (구형 폰 인식률 향상)
+    function preprocessCanvas(srcCanvas) {
+      const w = srcCanvas.width, h = srcCanvas.height;
+      const scale = 2;
+      const dst = document.createElement('canvas');
+      dst.width = w * scale; dst.height = h * scale;
+      const ctx = dst.getContext('2d');
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(srcCanvas, 0, 0, w * scale, h * scale);
+
+      // 흑백 + 명암 강화 (Otsu 단순화 버전)
+      try {
+        const imgData = ctx.getImageData(0, 0, w * scale, h * scale);
+        const d = imgData.data;
+        // 1차: 흑백 + 평균 밝기 계산
+        let sum = 0;
+        const gray = new Uint8ClampedArray(d.length / 4);
+        for (let i = 0, g = 0; i < d.length; i += 4, g++) {
+          const v = (d[i] * 0.299 + d[i+1] * 0.587 + d[i+2] * 0.114);
+          gray[g] = v; sum += v;
+        }
+        const avg = sum / gray.length;
+        // 2차: 평균 기준으로 양쪽으로 강하게 밀기
+        for (let i = 0, g = 0; i < d.length; i += 4, g++) {
+          let v = gray[g];
+          if (v < avg) v = Math.max(0, v * 0.5);  // 어두운 쪽 더 어둡게
+          else v = Math.min(255, 128 + (v - avg) * 1.8);  // 밝은 쪽 더 밝게
+          d[i] = d[i+1] = d[i+2] = v;
+        }
+        ctx.putImageData(imgData, 0, 0);
+      } catch (e) { /* ignore */ }
+      return dst;
+    }
+
     async function openCamera() {
       const modal = document.getElementById('cam-modal');
       document.getElementById('cam-error-msg').classList.remove('active');
@@ -1657,20 +1722,12 @@
         showCamError('바코드 라이브러리가 로드되지 않았습니다.\n인터넷 연결 확인 후 새로고침하세요.'); return;
       }
       try {
-        // 최대 해상도 + 후면 카메라 + 연속 자동 포커스
-        state.stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: { ideal: 'environment' },
-            width: { ideal: 2560 },
-            height: { ideal: 1440 },
-            focusMode: { ideal: 'continuous' },
-          }
-        });
+        state.stream = await startStreamWithFallback();
         const video = document.getElementById('cam-video');
         video.srcObject = state.stream;
         await video.play().catch(() => {});
 
-        // 자동 포커스 강제 적용 (지원하는 단말기만)
+        // 자동 포커스 강제 적용 (지원 단말기만)
         const track = state.stream.getVideoTracks()[0];
         if (track.applyConstraints) {
           try { await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }); } catch (e) {}
@@ -1678,14 +1735,16 @@
         const caps = track.getCapabilities ? track.getCapabilities() : {};
         if (caps.torch) document.getElementById('cam-torch').style.visibility = 'visible';
 
-        // BarcodeDetector 준비
+        // 실제 해상도 로그
+        const settings = track.getSettings ? track.getSettings() : {};
+        console.log(`카메라 해상도: ${settings.width}x${settings.height}`);
+
         if (hasNative) {
           state.detector = new window.BarcodeDetector({ formats: ['code_128', 'ean_13', 'ean_8', 'qr_code', 'code_39', 'upc_a', 'upc_e', 'codabar', 'itf'] });
         } else {
           state.detector = null;
         }
 
-        // 연속 자동 스캔 시작
         startContinuousScan();
       } catch (e) { showCamError('카메라 접근 실패: ' + e.message + '\n\niOS는 Safari로 접속해야 합니다.'); }
     }
@@ -1701,13 +1760,10 @@
 
     function startContinuousScan() {
       if (state.scanLoop) clearInterval(state.scanLoop);
-      let consecutiveFailures = 0;
       state.scanLoop = setInterval(async () => {
         if (!state.stream || state.lastScanned) return;
-        const found = await tryDecode(false);
-        if (found) consecutiveFailures = 0;
-        else consecutiveFailures++;
-      }, 350);
+        await tryDecode(false);
+      }, 500);  // 구형 폰 CPU 여유 확보
     }
 
     function showCamError(msg) {
@@ -1722,7 +1778,6 @@
       setTimeout(() => f.classList.remove('flashing'), 150);
     }
 
-    // 이미지 캔버스 디코드 - native + ZXing 둘 다 시도
     async function tryDecodeCanvas(canvas) {
       if (state.detector) {
         try {
@@ -1730,7 +1785,6 @@
           if (codes && codes.length > 0) return codes[0].rawValue;
         } catch (e) {}
       }
-      // BarcodeDetector 실패 시 ZXing도 시도 (있으면)
       if (typeof ZXing !== 'undefined') {
         const code = await decodeWithZXing(canvas);
         if (code) return code;
@@ -1738,7 +1792,7 @@
       return null;
     }
 
-    // 핵심: 다중 영역 디코드 (가이드 박스 → 확장 영역 → 전체)
+    // 다중 영역 × 원본/전처리 디코드 (자동 vs 수동 강도 다름)
     async function tryDecode(showErrorOnFail) {
       if (!state.stream) return false;
       const video = document.getElementById('cam-video');
@@ -1746,11 +1800,13 @@
         const vw = video.videoWidth, vh = video.videoHeight;
         if (!vw || !vh) return false;
 
-        // 1차: 가이드 박스 영역 (정확한 위치)
-        const regions = [
-          { x: 0.10, y: 0.38, w: 0.80, h: 0.24 },  // 가이드 박스
-          { x: 0.05, y: 0.30, w: 0.90, h: 0.40 },  // 확장 영역
-          { x: 0.00, y: 0.00, w: 1.00, h: 1.00 },  // 전체 (fallback)
+        // 자동 스캔: 가이드 박스만 (가벼움), 수동: 3영역 전체
+        const regions = showErrorOnFail ? [
+          { x: 0.10, y: 0.38, w: 0.80, h: 0.24 },
+          { x: 0.05, y: 0.30, w: 0.90, h: 0.40 },
+          { x: 0.00, y: 0.00, w: 1.00, h: 1.00 },
+        ] : [
+          { x: 0.10, y: 0.38, w: 0.80, h: 0.24 },  // 자동 스캔은 박스만
         ];
 
         for (const r of regions) {
@@ -1759,18 +1815,23 @@
           const canvas = document.createElement('canvas');
           canvas.width = gw; canvas.height = gh;
           canvas.getContext('2d').drawImage(video, gx, gy, gw, gh, 0, 0, gw, gh);
-          const code = await tryDecodeCanvas(canvas);
+
+          // 1차: 원본
+          let code = await tryDecodeCanvas(canvas);
           if (code) {
-            // 인식 성공 - 스캔 루프 중지 + 결과
-            if (state.scanLoop) { clearInterval(state.scanLoop); state.scanLoop = null; }
-            flashEffect();
-            if (navigator.vibrate) navigator.vibrate([60, 40, 60]);
-            showScanResult(code);
-            return true;
+            return await onScanSuccess(code);
+          }
+
+          // 2차: 전처리(업스케일+명암) — 구형 폰에서 효과 큼
+          const processed = preprocessCanvas(canvas);
+          code = await tryDecodeCanvas(processed);
+          if (code) {
+            return await onScanSuccess(code);
           }
         }
+
         if (showErrorOnFail) {
-          showCamError('바코드 인식 실패\n· 노란 박스 안에 평평하게\n· 거리 10~25cm, 조명 충분히\n· 한 번 더 시도하거나 직접 입력');
+          showCamError('바코드 인식 실패\n· 박스 안에 평평하게, 거리 10~25cm\n· 조명 켜기, 손 떨림 최소화\n· 안되면 직접 입력');
         }
         return false;
       } catch (e) {
@@ -1779,7 +1840,14 @@
       }
     }
 
-    // 수동 셔터 (즉시 시도) - 보조 기능
+    async function onScanSuccess(code) {
+      if (state.scanLoop) { clearInterval(state.scanLoop); state.scanLoop = null; }
+      flashEffect();
+      if (navigator.vibrate) navigator.vibrate([60, 40, 60]);
+      showScanResult(code);
+      return true;
+    }
+
     async function captureScan() {
       if (!state.stream) return;
       flashEffect();
@@ -1791,7 +1859,6 @@
     function decodeWithZXing(canvas) {
       return new Promise((resolve) => {
         try {
-          // hints (TRY_HARDER) 적용으로 인식률 향상
           let reader;
           if (ZXing.DecodeHintType && ZXing.BarcodeFormat) {
             const hints = new Map();
