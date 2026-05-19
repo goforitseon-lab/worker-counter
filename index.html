@@ -7,12 +7,13 @@
   ============================================================
   REVISION
   ============================================================
+  0507 13 · 바코드 인식 강화 (인식률 크게 향상)
+            - 연속 자동 스캔 (350ms 간격, 셔터 없이 자동 인식)
+            - 다중 영역 시도: 가이드 박스 → 확장 → 전체
+            - BarcodeDetector + ZXing 둘 다 시도 (둘 다 실패해야 fail)
+            - ZXing TRY_HARDER hint + 9개 포맷 지정
+            - 카메라 해상도 2560x1440 + 연속 자동 포커스
   0507 12 · 작업타임 + 원단M + 수량버튼 가산
-            - 작업타임 5개 세그먼트 (1~4타임/잔업) 필수 선택
-            - 원단M 입력란 (workers.track_fabric_m=true일 때만)
-            - 수량 빠른버튼 +1/+5/+10/+50/+100 가산 모드
-            - submissions에 work_time, fabric_m 저장
-  0507 11 · 식단표 주간 그리드
   0507 04 · iOS Safari 카메라 지원 (ZXing-js fallback)
             - BarcodeDetector 미지원 브라우저(iOS Safari 등) 자동 fallback
             - 가이드 박스 영역만 캔버스로 잘라 분석 (다중 바코드 자동 제외)
@@ -47,7 +48,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <meta name="version" content="worker-counter-0507-12">
+  <meta name="version" content="worker-counter-0507-13">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>작업량 입력</title>
@@ -284,8 +285,12 @@
     /* 가운데 빨간 정렬 라인 (바코드 라인을 이 선에 맞추도록) */
     .cam-frame-line { position: absolute; left: 8%; right: 8%; top: 50%; height: 2px; background: rgba(255,61,110,0.7); transform: translateY(-50%); pointer-events: none; box-shadow: 0 0 4px rgba(255,61,110,0.5); }
     /* 박스 위/아래 안내 텍스트 */
-    .cam-hint-top { position: absolute; left: 0; right: 0; top: 30%; text-align: center; color: var(--amber); font-size: 13px; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.8); pointer-events: none; }
+    .cam-hint-top { position: absolute; left: 0; right: 0; top: 30%; text-align: center; color: var(--amber); font-size: 13px; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.8); pointer-events: none; animation: scanPulse 1.6s ease-in-out infinite; }
     .cam-hint-bottom { position: absolute; left: 0; right: 0; top: 64%; text-align: center; color: rgba(255,255,255,0.7); font-size: 11px; text-shadow: 0 2px 4px rgba(0,0,0,0.8); pointer-events: none; }
+    @keyframes scanPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    /* 빨간 정렬 라인도 살짝 스캔 애니메이션 */
+    .cam-frame-line { animation: linePulse 1.2s ease-in-out infinite; }
+    @keyframes linePulse { 0%, 100% { opacity: 0.7; box-shadow: 0 0 4px rgba(255,61,110,0.5); } 50% { opacity: 1; box-shadow: 0 0 12px rgba(255,61,110,0.8); } }
     .cam-hint { position: absolute; left: 0; right: 0; top: calc(38% - 50px); text-align: center; color: var(--amber); font-size: 13px; font-weight: 600; text-shadow: 0 1px 4px rgba(0,0,0,0.8); pointer-events: none; padding: 0 16px; }
     .cam-result { position: absolute; left: 16px; right: 16px; bottom: 180px; padding: 16px; background: rgba(0,0,0,0.9); backdrop-filter: blur(8px); border-radius: 16px; border: 1px solid var(--amber); display: none; }
     .cam-result.active { display: block; animation: pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
@@ -817,11 +822,11 @@
     <video id="cam-video" class="cam-video" playsinline muted></video>
     <div class="cam-flash" id="cam-flash"></div>
     <div class="cam-overlay">
-      <div class="cam-hint-top">바코드를 노란 박스 안에 맞추세요</div>
+      <div class="cam-hint-top">🔍 자동 스캔 중 · 바코드를 박스에 맞추세요</div>
       <div class="cam-frame">
         <div class="cam-frame-line"></div>
       </div>
-      <div class="cam-hint-bottom">바코드 라인을 빨간 선에 정렬</div>
+      <div class="cam-hint-bottom">박스 안에 1~3초 정지하면 자동 인식됩니다</div>
       <div class="cam-hint">노란 박스 안에 바코드를 넣고<br>아래 셔터 버튼을 누르세요</div>
     </div>
     <div class="cam-result" id="cam-result">
@@ -862,7 +867,7 @@
       warehouses: [], currentWarehouse: '',
       currentWorkTime: '',
       notices: [], myLeaves: [], meals: [],
-      stream: null, detector: null, lastScanned: null,
+      stream: null, detector: null, lastScanned: null, scanLoop: null,
       isSending: false,
       serverConfig: { url: '', key: '' },
     };
@@ -1271,7 +1276,7 @@
 
     function updateFooter() {
       const cnt = Object.keys(state.partsMaster).length;
-      document.getElementById('footer').textContent = `Worker counter 0507 12 · 마스터 ${cnt}건`;
+      document.getElementById('footer').textContent = `Worker counter 0507 13 · 마스터 ${cnt}건`;
     }
 
     function updateConnStatus() {
@@ -1652,27 +1657,57 @@
         showCamError('바코드 라이브러리가 로드되지 않았습니다.\n인터넷 연결 확인 후 새로고침하세요.'); return;
       }
       try {
-        state.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } } });
+        // 최대 해상도 + 후면 카메라 + 연속 자동 포커스
+        state.stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 2560 },
+            height: { ideal: 1440 },
+            focusMode: { ideal: 'continuous' },
+          }
+        });
         const video = document.getElementById('cam-video');
         video.srcObject = state.stream;
         await video.play().catch(() => {});
+
+        // 자동 포커스 강제 적용 (지원하는 단말기만)
+        const track = state.stream.getVideoTracks()[0];
+        if (track.applyConstraints) {
+          try { await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }); } catch (e) {}
+        }
+        const caps = track.getCapabilities ? track.getCapabilities() : {};
+        if (caps.torch) document.getElementById('cam-torch').style.visibility = 'visible';
+
+        // BarcodeDetector 준비
         if (hasNative) {
           state.detector = new window.BarcodeDetector({ formats: ['code_128', 'ean_13', 'ean_8', 'qr_code', 'code_39', 'upc_a', 'upc_e', 'codabar', 'itf'] });
         } else {
-          state.detector = null; // iOS Safari: ZXing 사용
+          state.detector = null;
         }
-        const track = state.stream.getVideoTracks()[0];
-        const caps = track.getCapabilities ? track.getCapabilities() : {};
-        if (caps.torch) document.getElementById('cam-torch').style.visibility = 'visible';
+
+        // 연속 자동 스캔 시작
+        startContinuousScan();
       } catch (e) { showCamError('카메라 접근 실패: ' + e.message + '\n\niOS는 Safari로 접속해야 합니다.'); }
     }
 
     function closeCamera() {
+      if (state.scanLoop) { clearInterval(state.scanLoop); state.scanLoop = null; }
       document.getElementById('cam-modal').classList.remove('active');
       if (state.stream) { state.stream.getTracks().forEach(t => t.stop()); state.stream = null; }
       document.getElementById('cam-result').classList.remove('active');
       document.getElementById('cam-error-msg').classList.remove('active');
       document.getElementById('cam-torch').style.visibility = 'hidden';
+    }
+
+    function startContinuousScan() {
+      if (state.scanLoop) clearInterval(state.scanLoop);
+      let consecutiveFailures = 0;
+      state.scanLoop = setInterval(async () => {
+        if (!state.stream || state.lastScanned) return;
+        const found = await tryDecode(false);
+        if (found) consecutiveFailures = 0;
+        else consecutiveFailures++;
+      }, 350);
     }
 
     function showCamError(msg) {
@@ -1687,50 +1722,95 @@
       setTimeout(() => f.classList.remove('flashing'), 150);
     }
 
-    async function captureScan() {
-      if (!state.stream) return;
+    // 이미지 캔버스 디코드 - native + ZXing 둘 다 시도
+    async function tryDecodeCanvas(canvas) {
+      if (state.detector) {
+        try {
+          const codes = await state.detector.detect(canvas);
+          if (codes && codes.length > 0) return codes[0].rawValue;
+        } catch (e) {}
+      }
+      // BarcodeDetector 실패 시 ZXing도 시도 (있으면)
+      if (typeof ZXing !== 'undefined') {
+        const code = await decodeWithZXing(canvas);
+        if (code) return code;
+      }
+      return null;
+    }
+
+    // 핵심: 다중 영역 디코드 (가이드 박스 → 확장 영역 → 전체)
+    async function tryDecode(showErrorOnFail) {
+      if (!state.stream) return false;
       const video = document.getElementById('cam-video');
-      const shutter = document.getElementById('cam-shutter');
-      shutter.disabled = true;
-      flashEffect();
-      if (navigator.vibrate) navigator.vibrate(50);
       try {
         const vw = video.videoWidth, vh = video.videoHeight;
-        if (!vw || !vh) {
-          showCamError('카메라 준비 중. 잠시 후 다시 시도하세요.');
-          shutter.disabled = false; return;
-        }
-        // 가이드 박스 영역만 캔버스로 잘라냄 (다중 바코드 자동 제외)
-        const gx = vw * 0.10, gy = vh * 0.38;
-        const gw = vw * 0.80, gh = vh * 0.24;
-        const canvas = document.createElement('canvas');
-        canvas.width = gw; canvas.height = gh;
-        canvas.getContext('2d').drawImage(video, gx, gy, gw, gh, 0, 0, gw, gh);
+        if (!vw || !vh) return false;
 
-        // 디코딩 - BarcodeDetector 우선, 없으면 ZXing
-        let code = null;
-        if (state.detector) {
-          // Android Chrome: native API
-          const codes = await state.detector.detect(canvas);
-          if (codes && codes.length > 0) code = codes[0].rawValue;
-        } else if (typeof ZXing !== 'undefined') {
-          // iOS Safari: ZXing-js fallback
-          code = await decodeWithZXing(canvas);
-        }
+        // 1차: 가이드 박스 영역 (정확한 위치)
+        const regions = [
+          { x: 0.10, y: 0.38, w: 0.80, h: 0.24 },  // 가이드 박스
+          { x: 0.05, y: 0.30, w: 0.90, h: 0.40 },  // 확장 영역
+          { x: 0.00, y: 0.00, w: 1.00, h: 1.00 },  // 전체 (fallback)
+        ];
 
-        if (!code) {
-          showCamError('바코드를 인식하지 못했습니다.\n노란 박스 안에 정확히 넣고 다시 시도하세요.\n(거리/조명/각도 조정)');
-          shutter.disabled = false; return;
+        for (const r of regions) {
+          const gx = vw * r.x, gy = vh * r.y;
+          const gw = vw * r.w, gh = vh * r.h;
+          const canvas = document.createElement('canvas');
+          canvas.width = gw; canvas.height = gh;
+          canvas.getContext('2d').drawImage(video, gx, gy, gw, gh, 0, 0, gw, gh);
+          const code = await tryDecodeCanvas(canvas);
+          if (code) {
+            // 인식 성공 - 스캔 루프 중지 + 결과
+            if (state.scanLoop) { clearInterval(state.scanLoop); state.scanLoop = null; }
+            flashEffect();
+            if (navigator.vibrate) navigator.vibrate([60, 40, 60]);
+            showScanResult(code);
+            return true;
+          }
         }
-        if (navigator.vibrate) navigator.vibrate([60, 40, 60]);
-        showScanResult(code);
-      } catch (e) { showCamError('스캔 오류: ' + e.message); shutter.disabled = false; }
+        if (showErrorOnFail) {
+          showCamError('바코드 인식 실패\n· 노란 박스 안에 평평하게\n· 거리 10~25cm, 조명 충분히\n· 한 번 더 시도하거나 직접 입력');
+        }
+        return false;
+      } catch (e) {
+        if (showErrorOnFail) showCamError('스캔 오류: ' + e.message);
+        return false;
+      }
+    }
+
+    // 수동 셔터 (즉시 시도) - 보조 기능
+    async function captureScan() {
+      if (!state.stream) return;
+      flashEffect();
+      if (navigator.vibrate) navigator.vibrate(50);
+      state.lastScanned = null;
+      await tryDecode(true);
     }
 
     function decodeWithZXing(canvas) {
       return new Promise((resolve) => {
         try {
-          const reader = new ZXing.BrowserMultiFormatReader();
+          // hints (TRY_HARDER) 적용으로 인식률 향상
+          let reader;
+          if (ZXing.DecodeHintType && ZXing.BarcodeFormat) {
+            const hints = new Map();
+            hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+            hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+              ZXing.BarcodeFormat.CODE_128,
+              ZXing.BarcodeFormat.EAN_13,
+              ZXing.BarcodeFormat.EAN_8,
+              ZXing.BarcodeFormat.CODE_39,
+              ZXing.BarcodeFormat.UPC_A,
+              ZXing.BarcodeFormat.UPC_E,
+              ZXing.BarcodeFormat.CODABAR,
+              ZXing.BarcodeFormat.ITF,
+              ZXing.BarcodeFormat.QR_CODE,
+            ]);
+            reader = new ZXing.BrowserMultiFormatReader(hints);
+          } else {
+            reader = new ZXing.BrowserMultiFormatReader();
+          }
           const img = new Image();
           img.onload = () => {
             reader.decodeFromImage(img)
