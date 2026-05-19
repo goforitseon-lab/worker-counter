@@ -7,10 +7,11 @@
   ============================================================
   REVISION
   ============================================================
+  0507 11 · 식단표 주간 그리드 (한 눈에 보기)
+            - 메인 화면에 이번 주 7일 미니 카드 그리드
+            - 오늘 강조, 지난 날 흐릿, 토/일 색상 구분
+            - 카드 또는 "전체 보기" 클릭 시 주간 상세 모달
   0507 10 · 식단표 표시 (메인 상단)
-            - 오늘 식단 카드 (있을 때만)
-            - 클릭하면 본문 펼침 + 다음 6일 식단 보임
-  0507 09 · 카메라 가이드 박스 외 영역 강하게 가림
   0507 04 · iOS Safari 카메라 지원 (ZXing-js fallback)
             - BarcodeDetector 미지원 브라우저(iOS Safari 등) 자동 fallback
             - 가이드 박스 영역만 캔버스로 잘라 분석 (다중 바코드 자동 제외)
@@ -45,7 +46,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <meta name="version" content="worker-counter-0507-10">
+  <meta name="version" content="worker-counter-0507-11">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>작업량 입력</title>
@@ -315,23 +316,39 @@
     .notice-card.expanded .notice-content { max-height: 600px; margin-top: 8px; }
     .notice-card.expanded { background: linear-gradient(135deg, rgba(90,200,250,0.12), rgba(90,200,250,0.04)); }
 
-    /* 식단 카드 */
-    .meal-card { padding: 14px 16px; border-radius: 12px; background: linear-gradient(135deg, rgba(0,168,101,0.08), rgba(0,168,101,0.02)); border: 1px solid rgba(0,168,101,0.3); margin-bottom: 8px; cursor: pointer; }
-    .meal-card:active { transform: scale(0.99); }
-    .meal-today { background: linear-gradient(135deg, rgba(245,184,0,0.12), rgba(245,184,0,0.03)); border-color: rgba(245,184,0,0.45); }
-    .meal-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-    .meal-pin { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.15em; color: var(--emerald); font-weight: 700; }
-    .meal-today .meal-pin { color: #a07a00; }
-    .meal-date { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted); margin-left: auto; }
-    .meal-summary { font-size: 14px; color: var(--text); font-weight: 600; }
-    .meal-full { font-size: 13px; color: var(--text); line-height: 1.6; white-space: pre-wrap; }
-    .meal-notes { font-size: 12px; color: var(--text-dim); margin-top: 6px; padding: 6px 8px; background: rgba(0,0,0,0.04); border-radius: 6px; }
-    .meal-week { margin-top: 8px; padding: 12px; background: rgba(0,0,0,0.02); border: 1px solid rgba(0,0,0,0.06); border-radius: 10px; }
-    .meal-week-title { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.15em; color: var(--text-muted); margin-bottom: 8px; font-weight: 700; }
-    .meal-week-item { padding: 8px 0; border-bottom: 1px dashed rgba(0,0,0,0.06); }
-    .meal-week-item:last-child { border-bottom: none; }
-    .meal-week-date { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
-    .meal-week-menu { font-size: 12px; color: var(--text-dim); white-space: pre-wrap; line-height: 1.5; }
+    /* 식단 주간 미니 그리드 */
+    .meal-week-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+    .meal-week-bar-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.15em; color: var(--text-muted); font-weight: 700; }
+    .meal-week-bar-btn { padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; background: rgba(245,184,0,0.15); color: #a07a00; border: 1px solid rgba(245,184,0,0.3); }
+    .meal-week-grid-mini { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+    .meal-mini-card { padding: 8px 4px; border: 1px solid var(--border); border-radius: 8px; background: #ffffff; cursor: pointer; transition: all 0.15s; min-height: 70px; display: flex; flex-direction: column; }
+    .meal-mini-card:active { transform: scale(0.96); }
+    .meal-mini-card.today { background: linear-gradient(180deg, rgba(245,184,0,0.15), rgba(245,184,0,0.04)); border-color: var(--amber); border-width: 2px; }
+    .meal-mini-card.past { opacity: 0.5; }
+    .meal-mini-card.empty { background: #fafafa; }
+    .meal-mini-head { display: flex; align-items: center; gap: 3px; flex-wrap: wrap; font-family: 'JetBrains Mono', monospace; font-size: 9px; margin-bottom: 4px; }
+    .meal-mini-dow { font-weight: 700; color: var(--text); }
+    .meal-mini-dow.sun { color: var(--red); }
+    .meal-mini-dow.sat { color: var(--blue); }
+    .meal-mini-date { color: var(--text-muted); font-size: 8px; }
+    .meal-mini-today { font-size: 8px; padding: 1px 4px; background: var(--amber); color: #0f0f10; border-radius: 999px; font-weight: 700; }
+    .meal-mini-menu { font-size: 10px; color: var(--text); line-height: 1.3; flex: 1; overflow: hidden; word-break: keep-all; }
+    .meal-mini-more { font-size: 9px; color: var(--text-muted); margin-top: 2px; }
+    .meal-mini-empty { font-size: 11px; color: var(--text-muted); text-align: center; padding-top: 8px; }
+
+    /* 식단 상세 모달 */
+    .meal-modal-title { font-size: 18px; font-weight: 700; margin-bottom: 12px; text-align: center; }
+    .meal-modal-list { display: flex; flex-direction: column; gap: 8px; max-height: 60vh; overflow-y: auto; }
+    .meal-detail-item { padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: #ffffff; }
+    .meal-detail-item.today { border-color: var(--amber); background: rgba(245,184,0,0.05); }
+    .meal-detail-head { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+    .meal-detail-dow { font-size: 13px; font-weight: 700; color: var(--text); }
+    .meal-detail-dow.sun { color: var(--red); }
+    .meal-detail-dow.sat { color: var(--blue); }
+    .meal-detail-date { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-dim); }
+    .meal-detail-menu { font-size: 13px; color: var(--text); white-space: pre-wrap; line-height: 1.6; }
+    .meal-detail-notes { font-size: 11px; color: var(--text-dim); margin-top: 6px; padding: 6px 8px; background: rgba(0,0,0,0.04); border-radius: 6px; }
+    .meal-detail-empty { font-size: 12px; color: var(--text-muted); text-align: center; padding: 12px 0; }
 
     /* 연차 */
     .leave-form { padding: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; margin-bottom: 20px; }
@@ -765,6 +782,11 @@
     </div>
   </div>
 
+  <!-- MEAL DETAIL MODAL -->
+  <div class="modal-bg" id="modal-meal-detail">
+    <div class="modal" style="max-height:85vh; overflow-y:auto;"></div>
+  </div>
+
   <!-- CAMERA MODAL -->
   <div class="cam-modal" id="cam-modal">
     <video id="cam-video" class="cam-video" playsinline muted></video>
@@ -918,74 +940,98 @@
       } catch (e) { console.warn('Meals fetch failed:', e); }
     }
 
+    const DAY_NAMES_LONG = ['일','월','화','수','목','금','토'];
+
+    function getMondayOf(dateStr) {
+      const d = new Date(dateStr);
+      const day = d.getDay();
+      const diff = day === 0 ? -6 : 1 - day;
+      d.setDate(d.getDate() + diff);
+      return d.toISOString().slice(0, 10);
+    }
+
+    function addDays(dateStr, n) {
+      const d = new Date(dateStr);
+      d.setDate(d.getDate() + n);
+      return d.toISOString().slice(0, 10);
+    }
+
     function renderMeals() {
       const section = document.getElementById('meal-section');
       const list = document.getElementById('meal-list');
       if (!section || !list) return;
       if (!state.meals || state.meals.length === 0) { section.style.display = 'none'; return; }
+      section.style.display = 'block';
 
       const today = new Date().toISOString().slice(0,10);
-      const todayMeal = state.meals.find(m => m.meal_date === today);
-      const dayNames = ['일','월','화','수','목','금','토'];
+      const monday = getMondayOf(today);
 
-      section.style.display = 'block';
-      // 오늘 식단 카드 (있으면) + 클릭 시 주간 펼침
-      let html = '';
-      if (todayMeal) {
-        const firstLine = (todayMeal.menu || '').split('\n')[0];
-        html += `<div class="meal-card meal-today" id="meal-today-card">
-          <div class="meal-header">
-            <span class="meal-pin">🍱 오늘의 식단</span>
-            <span class="meal-date">${today.slice(5)} (${dayNames[new Date().getDay()]})</span>
+      // 7일 그리드 생성
+      let html = '<div class="meal-week-bar"><span class="meal-week-bar-label">📅 이번 주 식단</span><button class="meal-week-bar-btn" id="meal-show-all">전체 보기</button></div>';
+      html += '<div class="meal-week-grid-mini">';
+      for (let i = 0; i < 7; i++) {
+        const date = addDays(monday, i);
+        const d = new Date(date);
+        const dow = d.getDay();
+        const isToday = date === today;
+        const isPast = date < today;
+        const meal = state.meals.find(m => m.meal_date === date);
+        const dowClass = dow === 0 ? 'sun' : (dow === 6 ? 'sat' : '');
+        const cls = `meal-mini-card${isToday ? ' today' : ''}${isPast ? ' past' : ''}${!meal ? ' empty' : ''}`;
+        const firstLine = meal ? (meal.menu.split('\n')[0] || '') : '';
+        const lineCount = meal ? meal.menu.split('\n').filter(s => s.trim()).length : 0;
+        html += `<div class="${cls}" data-meal-date="${date}">
+          <div class="meal-mini-head">
+            <span class="meal-mini-dow ${dowClass}">${DAY_NAMES_LONG[dow]}</span>
+            <span class="meal-mini-date">${date.slice(5)}</span>
+            ${isToday ? '<span class="meal-mini-today">오늘</span>' : ''}
           </div>
-          <div class="meal-summary">${escapeHtml(firstLine)}${todayMeal.menu.split('\n').length > 1 ? ' 외 ' + (todayMeal.menu.split('\n').length - 1) + '개' : ''}</div>
-          <div class="meal-full" style="display:none;">${escapeHtml(todayMeal.menu)}${todayMeal.notes ? '<div class="meal-notes">📝 ' + escapeHtml(todayMeal.notes) + '</div>' : ''}</div>
-        </div>`;
-      } else {
-        html += `<div class="meal-card" style="opacity:0.6;">
-          <div class="meal-header">
-            <span class="meal-pin">🍱 오늘 식단</span>
-            <span class="meal-date">${today.slice(5)} (${dayNames[new Date().getDay()]})</span>
-          </div>
-          <div class="meal-summary" style="color:var(--text-muted);">등록된 식단이 없습니다</div>
+          ${meal
+            ? `<div class="meal-mini-menu">${escapeHtml(firstLine)}${lineCount > 1 ? `<div class="meal-mini-more">외 ${lineCount - 1}개</div>` : ''}</div>`
+            : '<div class="meal-mini-empty">-</div>'}
         </div>`;
       }
-      // 주간 펼침 영역 (오늘 + 이후 6일)
-      const futureMeals = state.meals.filter(m => m.meal_date > today).slice(0, 6);
-      if (futureMeals.length > 0) {
-        html += `<div class="meal-week" id="meal-week" style="display:none;">
-          <div class="meal-week-title">📅 다음 식단</div>
-          ${futureMeals.map(m => {
-            const d = new Date(m.meal_date);
-            return `<div class="meal-week-item">
-              <div class="meal-week-date">${m.meal_date.slice(5)} (${dayNames[d.getDay()]})</div>
-              <div class="meal-week-menu">${escapeHtml(m.menu)}</div>
-              ${m.notes ? `<div class="meal-notes">📝 ${escapeHtml(m.notes)}</div>` : ''}
-            </div>`;
-          }).join('')}
-        </div>`;
-      }
+      html += '</div>';
 
       list.innerHTML = html;
-      // 클릭 시 펼침
-      const card = document.getElementById('meal-today-card');
-      if (card) {
-        card.addEventListener('click', () => {
-          const full = card.querySelector('.meal-full');
-          const week = document.getElementById('meal-week');
-          const summary = card.querySelector('.meal-summary');
-          const isOpen = full.style.display !== 'none';
-          if (isOpen) {
-            full.style.display = 'none';
-            if (week) week.style.display = 'none';
-            summary.style.display = 'block';
-          } else {
-            full.style.display = 'block';
-            if (week) week.style.display = 'block';
-            summary.style.display = 'none';
-          }
-        });
+      // 각 카드 클릭 시 상세 모달
+      list.querySelectorAll('[data-meal-date]').forEach(card => {
+        card.addEventListener('click', () => showMealDetail(card.dataset.mealDate));
+      });
+      document.getElementById('meal-show-all')?.addEventListener('click', () => showMealDetail(today, true));
+    }
+
+    function showMealDetail(focusDate, showAll) {
+      const today = new Date().toISOString().slice(0,10);
+      const monday = getMondayOf(focusDate);
+      const meal = state.meals.find(m => m.meal_date === focusDate);
+
+      let html = '<div class="meal-modal-title">🍱 이번 주 식단</div>';
+      html += '<div class="meal-modal-list">';
+      for (let i = 0; i < 7; i++) {
+        const date = addDays(monday, i);
+        const d = new Date(date);
+        const dow = d.getDay();
+        const isToday = date === today;
+        const m = state.meals.find(x => x.meal_date === date);
+        const dowClass = dow === 0 ? 'sun' : (dow === 6 ? 'sat' : '');
+        html += `<div class="meal-detail-item${isToday ? ' today' : ''}">
+          <div class="meal-detail-head">
+            <span class="meal-detail-dow ${dowClass}">${DAY_NAMES_LONG[dow]}요일</span>
+            <span class="meal-detail-date">${date.slice(5)}</span>
+            ${isToday ? '<span class="meal-mini-today">오늘</span>' : ''}
+          </div>
+          ${m ? `<div class="meal-detail-menu">${escapeHtml(m.menu)}</div>${m.notes ? `<div class="meal-detail-notes">📝 ${escapeHtml(m.notes)}</div>` : ''}` : '<div class="meal-detail-empty">등록 안 됨</div>'}
+        </div>`;
       }
+      html += '</div>';
+      html += '<button class="modal-btn ghost" id="meal-detail-close" style="margin-top:12px;width:100%;">닫기</button>';
+
+      const modal = document.getElementById('modal-meal-detail');
+      modal.querySelector('.modal').innerHTML = html;
+      modal.classList.add('active');
+      document.getElementById('meal-detail-close').addEventListener('click', () => modal.classList.remove('active'));
+      modal.onclick = (e) => { if (e.target.id === 'modal-meal-detail') modal.classList.remove('active'); };
     }
 
     async function refreshMyInfo() {
@@ -1185,7 +1231,7 @@
 
     function updateFooter() {
       const cnt = Object.keys(state.partsMaster).length;
-      document.getElementById('footer').textContent = `Worker counter 0507 10 · 마스터 ${cnt}건`;
+      document.getElementById('footer').textContent = `Worker counter 0507 11 · 마스터 ${cnt}건`;
     }
 
     function updateConnStatus() {

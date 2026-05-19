@@ -7,11 +7,11 @@
   ============================================================
   REVISION
   ============================================================
+  admin 0507 11 · 식단 주간 그리드 (7일 한 눈에 보기)
+                  - 이전/다음/오늘 주 네비게이션
+                  - 토/일 색 구분, 오늘 강조
+                  - 빈 카드 클릭 시 그 날짜로 추가 모달 자동 오픈
   admin 0507 10 · 식단표 관리 (공지사항 탭 → 공지/식단 서브탭)
-                  - meals 테이블 CRUD (날짜별)
-                  - "이번 주 일괄" 버튼으로 빈 날짜 빠른 등록
-                  - 작업자 메인에 오늘 식단 자동 표시
-  admin 0507 09 · 작업자 CSV import/export
                   - warehouses 테이블 CRUD
                   - 작업자가 입력 시 공정 선택한 코드가 ERP/CSV에 반영됨
   admin 0507 05 · 자체 ERP 백엔드 URL 지원 (Node.js 서버)
@@ -29,7 +29,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <meta name="version" content="admin-0507-10">
+  <meta name="version" content="admin-0507-11">
   <title>관리자 · Worker Counter</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -257,6 +257,33 @@
       .warehouse-row { display: block; padding: 14px; }
       .warehouse-row > div { display: flex; justify-content: space-between; padding: 3px 0; }
     }
+
+    /* 식단 주간 그리드 */
+    .meal-week-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+    @media (max-width: 900px) {
+      .meal-week-grid { grid-template-columns: repeat(4, 1fr); }
+    }
+    @media (max-width: 600px) {
+      .meal-week-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    .meal-day-card { padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: #ffffff; min-height: 200px; display: flex; flex-direction: column; transition: all 0.15s; }
+    .meal-day-card.today { border-color: var(--amber); border-width: 2px; background: linear-gradient(180deg, rgba(245,184,0,0.08), rgba(245,184,0,0.02)); box-shadow: 0 2px 8px rgba(245,184,0,0.15); }
+    .meal-day-card.weekend { background: #f9f9f9; }
+    .meal-day-card.empty { opacity: 0.55; }
+    .meal-day-card.empty:hover { opacity: 0.85; cursor: pointer; background: #f5f5f5; }
+    .meal-day-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+    .meal-day-date { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; color: var(--text); }
+    .meal-day-today-pill { font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 999px; background: var(--amber); color: #0f0f10; }
+    .meal-day-dow { font-size: 11px; font-weight: 700; color: var(--text-dim); }
+    .meal-day-dow.sat { color: var(--blue); }
+    .meal-day-dow.sun { color: var(--red); }
+    .meal-day-menu { flex: 1; font-size: 12px; color: var(--text); white-space: pre-wrap; line-height: 1.5; overflow: hidden; word-break: keep-all; }
+    .meal-day-notes { font-size: 10px; color: var(--text-muted); margin-top: 6px; padding: 4px 6px; background: rgba(0,0,0,0.03); border-radius: 4px; }
+    .meal-day-empty-msg { font-size: 11px; color: var(--text-muted); text-align: center; padding: 24px 0; }
+    .meal-day-actions { display: flex; gap: 4px; margin-top: 8px; }
+    .meal-day-actions button { flex: 1; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; background: rgba(0,0,0,0.05); color: var(--text-dim); }
+    .meal-day-actions button:hover { background: rgba(0,0,0,0.1); color: var(--text); }
+    .meal-day-actions button.danger:hover { background: rgba(217,40,71,0.15); color: var(--red); }
 
     /* LOADING */
     .loading { text-align: center; padding: 48px; color: var(--text-muted); }
@@ -577,15 +604,18 @@
 
       <!-- 식단표 -->
       <div id="nsub-meals" style="display:none;">
-        <div class="crud-bar">
-          <input type="date" id="meal-search-date" class="crud-search" style="max-width:180px;">
+        <div style="display:flex; gap:8px; align-items:center; margin-bottom:16px; flex-wrap:wrap;">
+          <button class="crud-btn secondary" id="btn-meal-prev-week">◀</button>
+          <div id="meal-week-label" style="font-weight:700; font-size:15px; min-width:200px; text-align:center;">-</div>
+          <button class="crud-btn secondary" id="btn-meal-next-week">▶</button>
+          <button class="crud-btn secondary" id="btn-meal-today">오늘</button>
+          <div style="flex:1;"></div>
           <button class="crud-btn primary" id="btn-add-meal">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             식단 추가
           </button>
-          <button class="crud-btn secondary" id="btn-fill-week">이번 주 일괄</button>
         </div>
-        <div id="meal-list-container"></div>
+        <div id="meal-week-grid" class="meal-week-grid"></div>
       </div>
     </div>
 
@@ -600,7 +630,7 @@
       <div id="leave-list-container"></div>
     </div>
 
-    <div class="footer" id="footer">Worker counter admin 0507 10</div>
+    <div class="footer" id="footer">Worker counter admin 0507 11</div>
   </div>
 
   <!-- TOAST -->
@@ -798,6 +828,7 @@
       editingWarehouse: null, warehouseModalActive: true,
       editingNotice: null, noticeModalActive: true,
       editingMeal: null,
+      mealWeekStart: null,  // 보고 있는 주의 월요일 (YYYY-MM-DD)
       noticeSubtab: 'notices',
       editingLeave: null,
       leaveTab: 'pending',
@@ -1825,41 +1856,112 @@
     }
 
     // ============ MEALS (식단) ============
+    const DAY_NAMES_LONG = ['일','월','화','수','목','금','토'];
+
+    function getMondayOf(dateStr) {
+      const d = new Date(dateStr);
+      const day = d.getDay();
+      const diff = day === 0 ? -6 : 1 - day;
+      d.setDate(d.getDate() + diff);
+      return d.toISOString().slice(0, 10);
+    }
+
+    function addDays(dateStr, n) {
+      const d = new Date(dateStr);
+      d.setDate(d.getDate() + n);
+      return d.toISOString().slice(0, 10);
+    }
+
     function setNoticeSubtab(sub) {
       state.noticeSubtab = sub;
       document.querySelectorAll('[data-nsub]').forEach(t => t.classList.toggle('active', t.dataset.nsub === sub));
       document.getElementById('nsub-notices').style.display = sub === 'notices' ? 'block' : 'none';
       document.getElementById('nsub-meals').style.display = sub === 'meals' ? 'block' : 'none';
+      if (sub === 'meals' && !state.mealWeekStart) {
+        state.mealWeekStart = getMondayOf(new Date().toISOString().slice(0,10));
+        renderMeals();
+      }
     }
 
     function renderMeals() {
-      const searchDate = document.getElementById('meal-search-date').value;
-      let list = state.meals;
-      if (searchDate) list = list.filter(m => m.meal_date === searchDate);
-      const el = document.getElementById('meal-list-container');
-      if (list.length === 0) { el.innerHTML = '<div class="empty">등록된 식단이 없습니다</div>'; return; }
-      const dayNames = ['일','월','화','수','목','금','토'];
-      el.innerHTML = list.slice(0, 60).map(m => {
-        const d = new Date(m.meal_date);
-        const day = dayNames[d.getDay()];
-        const isToday = m.meal_date === new Date().toISOString().slice(0,10);
-        return `<div class="notice-row${isToday ? '' : ''}" style="${isToday ? 'border-color: rgba(245,184,0,0.5); background: rgba(245,184,0,0.05);' : ''}">
-          <div class="notice-row-header">
-            <span class="notice-status-pill ${isToday ? 'active' : 'inactive'}" style="${isToday ? '' : 'background:#f0f0ee;'}">${m.meal_date} (${day}) ${isToday ? '· 오늘' : ''}</span>
-            ${m.notes ? `<span class="notice-row-meta">${escapeHtml(m.notes)}</span>` : ''}
-          </div>
-          <div class="notice-row-content">${escapeHtml(m.menu)}</div>
-          <div class="notice-row-actions">
-            <button class="crud-btn secondary" data-edit-meal="${m.meal_date}">수정</button>
-            <button class="crud-btn secondary" data-del-meal="${m.meal_date}" style="color:var(--red);">삭제</button>
-          </div>
-        </div>`;
-      }).join('');
-      el.querySelectorAll('[data-edit-meal]').forEach(b => b.addEventListener('click', () => {
+      if (!state.mealWeekStart) state.mealWeekStart = getMondayOf(new Date().toISOString().slice(0,10));
+      const monday = state.mealWeekStart;
+      const sunday = addDays(monday, 6);
+      const today = new Date().toISOString().slice(0,10);
+
+      // 라벨
+      const label = document.getElementById('meal-week-label');
+      if (label) {
+        const m = new Date(monday), s = new Date(sunday);
+        label.textContent = `${monday.slice(5)} ~ ${sunday.slice(5)} (${m.getFullYear()}년)`;
+      }
+
+      const grid = document.getElementById('meal-week-grid');
+      if (!grid) return;
+
+      // 7일 카드
+      const cards = [];
+      for (let i = 0; i < 7; i++) {
+        const date = addDays(monday, i);
+        const d = new Date(date);
+        const dow = d.getDay(); // 0=일, 6=토
+        const isToday = date === today;
+        const isWeekend = dow === 0 || dow === 6;
+        const meal = state.meals.find(m => m.meal_date === date);
+
+        const dowClass = dow === 0 ? 'sun' : (dow === 6 ? 'sat' : '');
+        const cardClass = `meal-day-card${isToday ? ' today' : ''}${isWeekend ? ' weekend' : ''}${!meal ? ' empty' : ''}`;
+
+        if (meal) {
+          cards.push(`<div class="${cardClass}">
+            <div class="meal-day-header">
+              <div>
+                <div class="meal-day-dow ${dowClass}">${DAY_NAMES_LONG[dow]}요일</div>
+                <div class="meal-day-date">${date.slice(5)}</div>
+              </div>
+              ${isToday ? '<div class="meal-day-today-pill">오늘</div>' : ''}
+            </div>
+            <div class="meal-day-menu">${escapeHtml(meal.menu)}</div>
+            ${meal.notes ? `<div class="meal-day-notes">📝 ${escapeHtml(meal.notes)}</div>` : ''}
+            <div class="meal-day-actions">
+              <button data-edit-meal="${date}">수정</button>
+              <button class="danger" data-del-meal="${date}">삭제</button>
+            </div>
+          </div>`);
+        } else {
+          cards.push(`<div class="${cardClass}" data-add-meal="${date}">
+            <div class="meal-day-header">
+              <div>
+                <div class="meal-day-dow ${dowClass}">${DAY_NAMES_LONG[dow]}요일</div>
+                <div class="meal-day-date">${date.slice(5)}</div>
+              </div>
+              ${isToday ? '<div class="meal-day-today-pill">오늘</div>' : ''}
+            </div>
+            <div class="meal-day-empty-msg">+ 식단 추가</div>
+          </div>`);
+        }
+      }
+      grid.innerHTML = cards.join('');
+
+      grid.querySelectorAll('[data-edit-meal]').forEach(b => b.addEventListener('click', () => {
         const m = state.meals.find(x => x.meal_date === b.dataset.editMeal);
         if (m) openMealModal(m);
       }));
-      el.querySelectorAll('[data-del-meal]').forEach(b => b.addEventListener('click', () => deleteMeal(b.dataset.delMeal)));
+      grid.querySelectorAll('[data-del-meal]').forEach(b => b.addEventListener('click', () => deleteMeal(b.dataset.delMeal)));
+      grid.querySelectorAll('[data-add-meal]').forEach(card => card.addEventListener('click', () => {
+        openMealModal(null);
+        document.getElementById('meal-modal-date').value = card.dataset.addMeal;
+      }));
+    }
+
+    function navMealWeek(dir) {
+      state.mealWeekStart = addDays(state.mealWeekStart || getMondayOf(new Date().toISOString().slice(0,10)), dir * 7);
+      renderMeals();
+    }
+
+    function goToTodayMealWeek() {
+      state.mealWeekStart = getMondayOf(new Date().toISOString().slice(0,10));
+      renderMeals();
     }
 
     function openMealModal(m) {
@@ -1905,29 +2007,6 @@
         renderMeals();
         showToast('success', '삭제됨');
       } catch (e) { showToast('error', '실패: ' + e.message); }
-    }
-
-    function fillWeekMeals() {
-      const today = new Date();
-      const dow = today.getDay();
-      const monday = new Date(today);
-      monday.setDate(today.getDate() - (dow === 0 ? 6 : dow - 1));
-      const dates = [];
-      for (let i = 0; i < 5; i++) {
-        const d = new Date(monday);
-        d.setDate(monday.getDate() + i);
-        dates.push(d.toISOString().slice(0,10));
-      }
-      const missingDates = dates.filter(d => !state.meals.find(m => m.meal_date === d));
-      if (missingDates.length === 0) { showToast('info', '이번 주(월~금) 식단 이미 모두 등록됨'); return; }
-      // 첫 빈 날짜를 모달로 열기
-      const dayNames = ['일','월','화','수','목','금','토'];
-      const firstMissing = missingDates[0];
-      const d = new Date(firstMissing);
-      if (confirm(`이번 주 ${missingDates.length}일 식단 미등록.\n${firstMissing} (${dayNames[d.getDay()]})부터 차례로 등록할까요?`)) {
-        openMealModal(null);
-        document.getElementById('meal-modal-date').value = firstMissing;
-      }
     }
 
     // ============ LEAVES ============
@@ -2194,9 +2273,10 @@
       document.querySelectorAll('[data-nsub]').forEach(t => t.addEventListener('click', () => setNoticeSubtab(t.dataset.nsub)));
 
       // 식단
-      document.getElementById('meal-search-date').addEventListener('change', renderMeals);
       document.getElementById('btn-add-meal').addEventListener('click', () => openMealModal(null));
-      document.getElementById('btn-fill-week').addEventListener('click', fillWeekMeals);
+      document.getElementById('btn-meal-prev-week').addEventListener('click', () => navMealWeek(-1));
+      document.getElementById('btn-meal-next-week').addEventListener('click', () => navMealWeek(1));
+      document.getElementById('btn-meal-today').addEventListener('click', goToTodayMealWeek);
       document.getElementById('meal-modal-cancel').addEventListener('click', () => document.getElementById('modal-meal').classList.remove('active'));
       document.getElementById('meal-modal-save').addEventListener('click', saveMealModal);
 
