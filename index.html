@@ -7,12 +7,13 @@
   ============================================================
   REVISION
   ============================================================
+  0507 17 · 입력방식 완전 개편 - 분류 picker 방식
+            - 카메라/품번 입력 제거
+            - 차종 → 칼라 → 원단사양 → 라벨 → LH/RH 버튼식 선택
+            - 단계별 가능한 옵션만 자동 필터링
+            - 5개 선택 완료 시 품번 + 공정(창고) 자동 결정
+            - 영물 라벨 다공정 시 작업자 현재 공정 자동 사용
   0507 16 · 다국어 지원 (한국어 / English / Русский)
-            - 헤더에 언어 토글 (한/EN/RU)
-            - 탭, 입력 라벨, 작업타임, 식단, 카메라 등 핵심 번역
-            - localStorage에 언어 선택 저장 (wc:lang)
-            - 동적 렌더에서 t() 함수로 번역 적용
-  0507 15 · ERP 업로드 개선 (Edge Function v5)
   0507 04 · iOS Safari 카메라 지원 (ZXing-js fallback)
             - BarcodeDetector 미지원 브라우저(iOS Safari 등) 자동 fallback
             - 가이드 박스 영역만 캔버스로 잘라 분석 (다중 바코드 자동 제외)
@@ -47,7 +48,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <meta name="version" content="worker-counter-0507-16">
+  <meta name="version" content="worker-counter-0507-17">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>작업량 입력</title>
@@ -173,6 +174,22 @@
     .time-segment { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; background: #f0f0ee; padding: 4px; border-radius: 10px; }
     .time-btn { padding: 11px 4px; border-radius: 6px; font-size: 12px; font-weight: 700; color: var(--text-dim); }
     .time-btn.active { background: var(--amber); color: #0f0f10; box-shadow: 0 2px 4px rgba(245,184,0,0.3); }
+
+    /* 분류 선택 (picker) */
+    .picker-section { margin: 0 20px 20px; }
+    .picker-step { margin-bottom: 14px; }
+    .picker-step-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 13px; font-weight: 700; color: var(--text); }
+    .picker-step-num { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: var(--amber); color: #0f0f10; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 800; }
+    .picker-options { display: flex; flex-wrap: wrap; gap: 6px; }
+    .picker-btn { padding: 12px 16px; border-radius: 10px; border: 2px solid var(--border); background: white; font-size: 14px; font-weight: 700; color: var(--text); min-width: 70px; transition: all 0.15s; }
+    .picker-btn:active { transform: scale(0.96); }
+    .picker-btn.selected { background: var(--amber); border-color: var(--amber); color: #0f0f10; box-shadow: 0 2px 6px rgba(245,184,0,0.3); }
+    .picker-btn:hover:not(.selected) { border-color: var(--amber); background: rgba(245,184,0,0.05); }
+    .picker-btn.x-label { background: #f5f5f5; color: var(--text-dim); }
+    .picker-btn.x-label.selected { background: var(--text); color: white; border-color: var(--text); }
+    .picker-empty { font-size: 12px; color: var(--text-muted); padding: 10px; }
+    .picker-reset { width: 100%; margin-top: 4px; padding: 10px; border-radius: 8px; background: rgba(0,0,0,0.05); font-size: 12px; font-weight: 700; color: var(--text-dim); }
+    .picker-reset:hover { background: rgba(0,0,0,0.1); color: var(--text); }
 
     /* 언어 토글 */
     .lang-switch { display: inline-flex; gap: 2px; padding: 3px; background: rgba(0,0,0,0.05); border-radius: 8px; }
@@ -527,44 +544,42 @@
 
       <!-- ============ TAB: INPUT ============ -->
       <div id="tab-input">
-        <div class="scan-section">
-          <div class="label" data-i18n="input.part_step">STEP 1 · 품번 스캔</div>
-          <button class="scan-entry" id="btn-open-cam">
-            <div class="scan-icon-wrap">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ffd60a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-            </div>
-            <div class="scan-text" data-i18n="input.camera_btn">카메라 스캔</div>
-            <div class="scan-formats">갖다대고 셔터 누르기</div>
-          </button>
-        </div>
-
-        <div class="part-section">
-          <div class="label" data-i18n="input.field_name">품번</div>
-          <div class="part-input-wrap">
-            <input type="text" id="part-number" class="part-input" placeholder="품번 입력 또는 스캔" data-i18n-ph="input.part_placeholder" autocomplete="off">
-            <button class="part-clear" id="part-clear" style="display:none;">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a8a29e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
+        <!-- ============ 분류 선택 (차종 → 칼라 → 원단 → 라벨 → LH/RH) ============ -->
+        <div class="picker-section">
+          <div class="picker-step">
+            <div class="picker-step-head"><span class="picker-step-num">1</span><span data-i18n="picker.car">차종</span></div>
+            <div class="picker-options" id="pick-car"></div>
           </div>
+          <div class="picker-step" id="pick-step-color" style="display:none;">
+            <div class="picker-step-head"><span class="picker-step-num">2</span><span data-i18n="picker.color">칼라</span></div>
+            <div class="picker-options" id="pick-color"></div>
+          </div>
+          <div class="picker-step" id="pick-step-fabric" style="display:none;">
+            <div class="picker-step-head"><span class="picker-step-num">3</span><span data-i18n="picker.fabric">원단사양</span></div>
+            <div class="picker-options" id="pick-fabric"></div>
+          </div>
+          <div class="picker-step" id="pick-step-label" style="display:none;">
+            <div class="picker-step-head"><span class="picker-step-num">4</span><span data-i18n="picker.label">라벨</span></div>
+            <div class="picker-options" id="pick-label"></div>
+          </div>
+          <div class="picker-step" id="pick-step-side" style="display:none;">
+            <div class="picker-step-head"><span class="picker-step-num">5</span><span data-i18n="picker.side">LH/RH</span></div>
+            <div class="picker-options" id="pick-side"></div>
+          </div>
+          <button class="picker-reset" id="pick-reset" data-i18n="picker.reset">처음부터 다시</button>
         </div>
 
+        <!-- 자동 결정된 부품 정보 -->
         <div class="info-card empty" id="info-card">
           <div class="info-status empty" id="info-status">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-            <span>품번을 입력하면 정보가 표시됩니다</span>
+            <span data-i18n="picker.select_all">위 항목을 모두 선택하면 품번이 결정됩니다</span>
           </div>
           <div id="info-rows" style="display:none;">
-            <div class="info-row"><div class="info-key" data-i18n="input.field_name">품명</div><div class="info-val" id="info-name">-</div></div>
-            <div class="info-row"><div class="info-key" data-i18n="input.field_spec">규격</div><div class="info-val" id="info-spec">-</div></div>
-            <div class="info-row"><div class="info-key" data-i18n="input.field_warehouse">창고</div><div class="info-val" id="info-warehouse">-</div></div>
+            <div class="info-row"><div class="info-key" data-i18n="input.field_name">품번</div><div class="info-val" id="info-name">-</div></div>
+            <div class="info-row"><div class="info-key" data-i18n="input.field_spec">품명</div><div class="info-val" id="info-spec">-</div></div>
+            <div class="info-row"><div class="info-key" data-i18n="picker.process">공정</div><div class="info-val" id="info-warehouse">-</div></div>
           </div>
-        </div>
-
-        <div style="margin: 0 20px 20px;">
-          <div class="label" data-i18n="input.warehouse_label">공정 선택 (실제 작업 공정)</div>
-          <select id="warehouse-select" class="input-field" style="padding: 14px 16px; font-size: 15px; appearance: auto;">
-            <option value="" data-i18n="input.warehouse_placeholder">공정 선택...</option>
-          </select>
         </div>
 
         <div style="margin: 0 20px 20px;">
@@ -884,6 +899,12 @@
         'input.worktime_label': '작업 타임',
         'input.worktime_1': '1타임', 'input.worktime_2': '2타임', 'input.worktime_3': '3타임', 'input.worktime_4': '4타임', 'input.worktime_5': '잔업',
         'input.fabric_label': '원단 사용량 (M)', 'input.fabric_placeholder': '예: 12.5',
+        'picker.car': '차종', 'picker.color': '칼라', 'picker.fabric': '원단사양', 'picker.label': '라벨',
+        'picker.side': 'LH/RH', 'picker.process': '공정', 'picker.reset': '처음부터 다시',
+        'picker.select_all': '위 항목을 모두 선택하면 품번이 자동 결정됩니다',
+        'picker.no_data': '데이터 없음 - 관리자에게 문의',
+        'picker.label_x': '라벨 없음',
+        'picker.process_cut': '재단', 'picker.process_hot': '핫스템핑', 'picker.process_sew': '봉제', 'picker.process_assy': 'ASSY',
         'input.qty_step': 'STEP 2 · 수량 (직접 입력 가능)', 'input.qty_quick_hint': '버튼을 누를 때마다 수량이 가산됩니다',
         'input.defect_step': 'STEP 3 · 불량 (선택)', 'input.defect_select_btn': '불량 유형 선택', 'input.good_only': '양품만', 'input.add_btn': '작업 추가',
         'pending.title': '보류 항목', 'pending.empty': '보류 항목 없음', 'pending.total': '합계', 'pending.send_all': '최종 전송', 'pending.sending': '전송 중...',
@@ -915,6 +936,12 @@
         'input.worktime_label': 'Work Shift',
         'input.worktime_1': 'Shift 1', 'input.worktime_2': 'Shift 2', 'input.worktime_3': 'Shift 3', 'input.worktime_4': 'Shift 4', 'input.worktime_5': 'Overtime',
         'input.fabric_label': 'Fabric (M)', 'input.fabric_placeholder': 'e.g. 12.5',
+        'picker.car': 'Car Model', 'picker.color': 'Color', 'picker.fabric': 'Fabric', 'picker.label': 'Label',
+        'picker.side': 'LH/RH', 'picker.process': 'Process', 'picker.reset': 'Reset',
+        'picker.select_all': 'Select all above to auto-determine part number',
+        'picker.no_data': 'No data - contact admin',
+        'picker.label_x': 'No label',
+        'picker.process_cut': 'Cutting', 'picker.process_hot': 'Hot Stamping', 'picker.process_sew': 'Sewing', 'picker.process_assy': 'ASSY',
         'input.qty_step': 'STEP 2 · Quantity', 'input.qty_quick_hint': 'Tap to add to current quantity',
         'input.defect_step': 'STEP 3 · Defect (optional)', 'input.defect_select_btn': 'Select Defect Type', 'input.good_only': 'Good only', 'input.add_btn': 'Add Entry',
         'pending.title': 'Pending Items', 'pending.empty': 'No pending items', 'pending.total': 'Total', 'pending.send_all': 'Send All', 'pending.sending': 'Sending...',
@@ -946,6 +973,12 @@
         'input.worktime_label': 'Рабочая смена',
         'input.worktime_1': 'Смена 1', 'input.worktime_2': 'Смена 2', 'input.worktime_3': 'Смена 3', 'input.worktime_4': 'Смена 4', 'input.worktime_5': 'Сверхурочно',
         'input.fabric_label': 'Ткань (М)', 'input.fabric_placeholder': 'напр. 12.5',
+        'picker.car': 'Модель авто', 'picker.color': 'Цвет', 'picker.fabric': 'Материал', 'picker.label': 'Этикетка',
+        'picker.side': 'LH/RH', 'picker.process': 'Процесс', 'picker.reset': 'Сбросить',
+        'picker.select_all': 'Выберите всё выше для авто-определения артикула',
+        'picker.no_data': 'Нет данных - обратитесь к админу',
+        'picker.label_x': 'Без этикетки',
+        'picker.process_cut': 'Раскрой', 'picker.process_hot': 'Тиснение', 'picker.process_sew': 'Шитьё', 'picker.process_assy': 'Сборка',
         'input.qty_step': 'ШАГ 2 · Количество', 'input.qty_quick_hint': 'Нажимайте для прибавления',
         'input.defect_step': 'ШАГ 3 · Брак (необязательно)', 'input.defect_select_btn': 'Выбрать тип брака', 'input.good_only': 'Только годные', 'input.add_btn': 'Добавить',
         'pending.title': 'Ожидающие записи', 'pending.empty': 'Нет ожидающих', 'pending.total': 'Итого', 'pending.send_all': 'Отправить всё', 'pending.sending': 'Отправка...',
@@ -1006,6 +1039,8 @@
       pending: [], sent: [], partsMaster: {},
       warehouses: [], currentWarehouse: '',
       currentWorkTime: '',
+      pick: { car: '', color: '', fabric: '', label: '', side: '' },
+      pickedPart: null,  // 자동 결정된 부품 객체
       notices: [], myLeaves: [], meals: [],
       stream: null, detector: null, lastScanned: null, scanLoop: null,
       isSending: false,
@@ -1072,6 +1107,7 @@
         SAMPLE_PARTS.forEach(p => { state.partsMaster[p.partNumber] = { name: p.name, spec: p.spec, warehouse: p.warehouse }; });
         storage.set('parts:master', state.partsMaster);
       }
+      state.partsList = storage.get('parts:list') || Object.entries(state.partsMaster).map(([pn, m]) => ({ part_number: pn, ...m }));
       state.warehouses = storage.get('warehouses') || [];
       state.currentWarehouse = storage.get('current:warehouse') || '';
       state.currentWorkTime = storage.get('current:worktime') || '';
@@ -1279,11 +1315,14 @@
         const res = await fetch(url, { headers: { 'apikey': cfg.key, 'Authorization': 'Bearer ' + cfg.key } });
         if (!res.ok) return;
         const list = await res.json();
+        state.partsList = list;  // 전체 리스트 (picker에서 사용)
         const newMaster = {};
-        list.forEach(m => { newMaster[m.part_number] = { name: m.name || '', spec: m.spec || '', warehouse: m.warehouse || '' }; });
+        list.forEach(m => { newMaster[m.part_number] = m; });
         state.partsMaster = newMaster;
         storage.set('parts:master', state.partsMaster);
+        storage.set('parts:list', list);
         updateFooter();
+        renderPicker();
         renderInfoCard();
       } catch (e) { console.warn('Master sync failed:', e); }
     }
@@ -1420,7 +1459,7 @@
 
     function updateFooter() {
       const cnt = Object.keys(state.partsMaster).length;
-      document.getElementById('footer').textContent = `Worker counter 0507 16 · 마스터 ${cnt}건`;
+      document.getElementById('footer').textContent = `Worker counter 0507 17 · 마스터 ${cnt}건`;
     }
 
     function updateConnStatus() {
@@ -1544,12 +1583,118 @@
     }
 
     // ============ INPUT TAB ============
+    // ============ PICKER (분류 선택 → 자동 품번/공정 매핑) ============
+    function renderPicker() {
+      const list = state.partsList || [];
+      if (list.length === 0 || !list[0].car_model) {
+        // 분류 데이터 없음
+        document.getElementById('pick-car').innerHTML = `<div class="picker-empty">${t('picker.no_data')}</div>`;
+        return;
+      }
+      // 단계별 옵션 필터링
+      const cars = uniq(list.filter(p => p.car_model).map(p => p.car_model));
+      renderPickRow('pick-car', cars, state.pick.car, v => { state.pick.car = v; state.pick.color = state.pick.fabric = state.pick.label = state.pick.side = ''; renderPicker(); decidePart(); });
+
+      // 칼라
+      if (state.pick.car) {
+        document.getElementById('pick-step-color').style.display = 'block';
+        const colors = uniq(list.filter(p => p.car_model === state.pick.car && p.color).map(p => p.color));
+        renderPickRow('pick-color', colors, state.pick.color, v => { state.pick.color = v; state.pick.fabric = state.pick.label = state.pick.side = ''; renderPicker(); decidePart(); });
+      } else { document.getElementById('pick-step-color').style.display = 'none'; }
+
+      // 원단사양
+      if (state.pick.car && state.pick.color) {
+        document.getElementById('pick-step-fabric').style.display = 'block';
+        const fabrics = uniq(list.filter(p => p.car_model === state.pick.car && p.color === state.pick.color && p.fabric).map(p => p.fabric));
+        renderPickRow('pick-fabric', fabrics, state.pick.fabric, v => { state.pick.fabric = v; state.pick.label = state.pick.side = ''; renderPicker(); decidePart(); });
+      } else { document.getElementById('pick-step-fabric').style.display = 'none'; }
+
+      // 라벨
+      if (state.pick.car && state.pick.color && state.pick.fabric) {
+        document.getElementById('pick-step-label').style.display = 'block';
+        const labels = uniq(list.filter(p =>
+          p.car_model === state.pick.car && p.color === state.pick.color && p.fabric === state.pick.fabric && p.label
+        ).map(p => p.label));
+        renderPickRow('pick-label', labels, state.pick.label, v => { state.pick.label = v; state.pick.side = ''; renderPicker(); decidePart(); }, true);
+      } else { document.getElementById('pick-step-label').style.display = 'none'; }
+
+      // LH/RH
+      if (state.pick.car && state.pick.color && state.pick.fabric && state.pick.label) {
+        document.getElementById('pick-step-side').style.display = 'block';
+        const sides = uniq(list.filter(p =>
+          p.car_model === state.pick.car && p.color === state.pick.color && p.fabric === state.pick.fabric && p.label === state.pick.label && p.side
+        ).map(p => p.side));
+        renderPickRow('pick-side', sides, state.pick.side, v => { state.pick.side = v; renderPicker(); decidePart(); });
+      } else { document.getElementById('pick-step-side').style.display = 'none'; }
+    }
+
+    function renderPickRow(containerId, options, selected, onClick, labelStyle) {
+      const el = document.getElementById(containerId);
+      if (!el) return;
+      if (options.length === 0) { el.innerHTML = `<div class="picker-empty">-</div>`; return; }
+      el.innerHTML = options.map(opt => {
+        const isX = labelStyle && opt === 'X';
+        const cls = `picker-btn ${selected === opt ? 'selected' : ''} ${isX ? 'x-label' : ''}`;
+        const display = isX ? t('picker.label_x') : opt;
+        return `<button class="${cls}" data-pick-val="${escapeHtml(opt)}">${escapeHtml(display)}</button>`;
+      }).join('');
+      el.querySelectorAll('[data-pick-val]').forEach(b => b.addEventListener('click', () => onClick(b.dataset.pickVal)));
+    }
+
+    function decidePart() {
+      const list = state.partsList || [];
+      const p = state.pick;
+
+      // 5개 다 선택해야 결정
+      if (!p.car || !p.color || !p.fabric || !p.label || !p.side) {
+        state.pickedPart = null;
+        renderInfoCard();
+        updateAddButton();
+        return;
+      }
+
+      // 후보 찾기
+      let candidates = list.filter(x =>
+        x.car_model === p.car && x.color === p.color && x.fabric === p.fabric &&
+        x.label === p.label && x.side === p.side
+      );
+
+      if (candidates.length === 0) {
+        state.pickedPart = null;
+        showToast('error', t('picker.no_data'));
+      } else if (candidates.length === 1) {
+        state.pickedPart = candidates[0];
+      } else {
+        // 영물 + 다공정인 경우: 작업자가 선택한 공정 우선
+        const myWh = state.currentWarehouse;
+        const matchMy = candidates.find(c => c.warehouse === myWh);
+        state.pickedPart = matchMy || candidates[0];
+      }
+      renderInfoCard();
+      updateAddButton();
+    }
+
+    function resetPicker() {
+      state.pick = { car: '', color: '', fabric: '', label: '', side: '' };
+      state.pickedPart = null;
+      renderPicker();
+      renderInfoCard();
+      updateAddButton();
+    }
+
+    function uniq(arr) {
+      return [...new Set(arr.filter(x => x != null && x !== ''))];
+    }
+
+    function updateAddButton() {
+      const canAdd = !!(state.pickedPart && state.quantity >= 1);
+      const btn = document.getElementById('btn-add');
+      if (btn) btn.disabled = !canAdd;
+    }
+
     function renderInput() {
-      const partInput = document.getElementById('part-number');
-      if (partInput.value !== state.partNumber) partInput.value = state.partNumber;
-      document.getElementById('part-clear').style.display = state.partNumber ? 'flex' : 'none';
       const qtyInput = document.getElementById('qty-num');
-      if (qtyInput !== document.activeElement) qtyInput.value = state.quantity;
+      if (qtyInput && qtyInput !== document.activeElement) qtyInput.value = state.quantity;
       document.getElementById('qty-minus').disabled = state.quantity <= 1;
 
       // 불량 영역 표시/숨김
@@ -1557,15 +1702,15 @@
       document.getElementById('defect-area').style.display = state.isDefect ? 'block' : 'none';
       if (state.isDefect) renderDefectCards();
 
-      // 추가 버튼 활성화
+      // 추가 버튼 활성화 (pickedPart 기반)
       const totalDefect = state.defects.reduce((s, d) => s + (d.quantity || 0), 0);
       const allHaveCode = state.defects.every(d => !!d.code);
       const allHaveQty = state.defects.every(d => d.quantity >= 1);
-      const canAdd = !!state.partNumber.trim() && state.quantity >= 1 &&
+      const canAdd = !!state.pickedPart && state.quantity >= 1 &&
                      (!state.isDefect || (state.defects.length > 0 && allHaveCode && allHaveQty && totalDefect <= state.quantity));
       document.getElementById('btn-add').disabled = !canAdd;
 
-      renderWarehouseSelect();
+      renderPicker();
       renderTimeButtons();
       updateFabricMSection();
       renderInfoCard();
@@ -1662,38 +1807,25 @@
       const card = document.getElementById('info-card');
       const status = document.getElementById('info-status');
       const rows = document.getElementById('info-rows');
-      const part = state.partNumber.trim();
+      if (!card) return;
+
       card.classList.remove('matched', 'unmatched', 'empty');
-      if (!part) {
-        card.classList.add('empty');
-        status.className = 'info-status empty';
-        status.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg><span>품번을 입력하면 정보가 표시됩니다</span>`;
-        rows.style.display = 'none'; return;
-      }
-      const info = state.partsMaster[part];
-      if (info) {
+      const p = state.pickedPart;
+      if (p) {
         card.classList.add('matched');
         status.className = 'info-status matched';
-        status.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg><span>마스터에서 매칭됨</span>`;
-        document.getElementById('info-name').textContent = info.name || '-';
-        document.getElementById('info-spec').textContent = info.spec || '-';
-        document.getElementById('info-warehouse').textContent = info.warehouse || '-';
+        status.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg><span>✓ ${escapeHtml(p.part_number)}</span>`;
+        document.getElementById('info-name').textContent = p.part_number;
+        document.getElementById('info-spec').textContent = p.name || '-';
+        // 창고명 표시 (코드 + 이름)
+        const wh = state.warehouses.find(w => w.code === p.warehouse);
+        document.getElementById('info-warehouse').textContent = wh
+          ? `${p.warehouse} - ${wh.name}` : (p.warehouse || '-');
         rows.style.display = 'block';
-
-        // 공정 기본값: 부품 마스터의 warehouse → 없으면 현재 선택 유지
-        const sel = document.getElementById('warehouse-select');
-        if (sel && info.warehouse && !sel.value) {
-          // 마스터의 창고가 warehouses 목록에 있는지 확인
-          if (state.warehouses.find(w => w.code === info.warehouse)) {
-            sel.value = info.warehouse;
-            state.currentWarehouse = info.warehouse;
-            storage.set('current:warehouse', info.warehouse);
-          }
-        }
       } else {
-        card.classList.add('unmatched');
-        status.className = 'info-status unmatched';
-        status.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span>마스터에 등록되지 않은 품번 (그대로 추가 가능)</span>`;
+        card.classList.add('empty');
+        status.className = 'info-status empty';
+        status.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg><span>${t('picker.select_all')}</span>`;
         rows.style.display = 'none';
       }
     }
@@ -2070,8 +2202,11 @@
 
     // ============ ADD TO PENDING ============
     function addToPending() {
-      const part = state.partNumber.trim();
-      if (!part || state.quantity < 1) return;
+      const p = state.pickedPart;
+      if (!p || state.quantity < 1) {
+        if (!p) showToast('error', t('picker.select_all'));
+        return;
+      }
       let totalDefect = 0;
       let defectsToSave = [];
       if (state.isDefect) {
@@ -2086,12 +2221,6 @@
         }
         defectsToSave = state.defects.map(d => ({ code: d.code, name: d.name, quantity: d.quantity }));
       }
-      const info = state.partsMaster[part] || { name: '', spec: '', warehouse: '' };
-      // 공정 선택: 드롭다운 값 우선, 없으면 부품 마스터의 창고
-      const selectedWarehouse = (document.getElementById('warehouse-select')?.value || '').trim() || info.warehouse || '';
-      if (!selectedWarehouse) {
-        showToast('error', t('toast.select_warehouse')); return;
-      }
       if (!state.currentWorkTime) {
         showToast('error', t('toast.select_worktime')); return;
       }
@@ -2101,8 +2230,8 @@
       const entry = {
         localId: Date.now() + Math.random(),
         worker: state.worker.name, workerId: state.worker.id,
-        partNumber: part,
-        partName: info.name || '', spec: info.spec || '', warehouse: selectedWarehouse,
+        partNumber: p.part_number,
+        partName: p.name || '', spec: p.spec || '', warehouse: p.warehouse || '',
         workTime: state.currentWorkTime,
         fabricM: fabricM,
         quantity: state.quantity,
@@ -2110,6 +2239,10 @@
         defects: defectsToSave,
         timestamp: Date.now(),
       };
+      // 작업자의 마지막 공정으로 기록 (다음 영물 라벨 선택 시 이 공정 자동 사용)
+      state.currentWarehouse = p.warehouse || '';
+      storage.set('current:warehouse', state.currentWarehouse);
+
       state.pending = [entry, ...state.pending];
       storage.set('pending', state.pending);
       if (navigator.vibrate) navigator.vibrate([60, 40, 60]);
@@ -2117,9 +2250,12 @@
         ? `생산 ${state.quantity} · 불량 ${totalDefect} (${defectsToSave.length}종) · 미전송 ${state.pending.length}건`
         : `양품 ${state.quantity} · 미전송 ${state.pending.length}건`;
       showToast('success', '작업 내역에 추가됨', sub);
-      // 입력 초기화
+      // 입력 초기화 (picker는 같은 작업 반복 가능하도록 유지, 수량/불량만 리셋)
       state.partNumber = ''; state.quantity = 1;
       state.isDefect = false; state.defects = []; state.editingDefectIndex = -1;
+      // 원단M 입력 비우기
+      const fmInput = document.getElementById('fabric-m-input');
+      if (fmInput) fmInput.value = '';
       renderInput();
       updateBadges();
     }
@@ -2514,16 +2650,9 @@
       bindSetup();
       document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => switchTab(t.dataset.tab)));
 
-      document.getElementById('btn-open-cam').addEventListener('click', openCamera);
-      document.getElementById('cam-close').addEventListener('click', closeCamera);
-      document.getElementById('cam-shutter').addEventListener('click', captureScan);
-      document.getElementById('cam-result-use').addEventListener('click', useScannedCode);
-      document.getElementById('cam-result-retry').addEventListener('click', retryScan);
-      document.getElementById('cam-torch').addEventListener('click', toggleTorch);
-
-      const partInput = document.getElementById('part-number');
-      partInput.addEventListener('input', e => setPartNumber(e.target.value));
-      document.getElementById('part-clear').addEventListener('click', () => { setPartNumber(''); partInput.focus(); });
+      // 카메라/품번 입력은 더 이상 사용 안 함 (picker 방식으로 교체)
+      // picker 리셋
+      document.getElementById('pick-reset').addEventListener('click', resetPicker);
 
       // 수량 - 키보드 입력 + 스테퍼 + 빠른 버튼
       const qtyInput = document.getElementById('qty-num');
@@ -2533,7 +2662,7 @@
         const n = parseInt(cleaned) || 0;
         state.quantity = n < 1 ? 1 : Math.min(999999, n);
         document.getElementById('qty-minus').disabled = state.quantity <= 1;
-        document.getElementById('btn-add').disabled = !state.partNumber.trim() || state.quantity < 1;
+        updateAddButton();
       });
       qtyInput.addEventListener('blur', () => {
         if (!qtyInput.value || parseInt(qtyInput.value) < 1) { qtyInput.value = state.quantity = 1; renderInput(); }
@@ -2548,14 +2677,6 @@
       }));
 
       document.getElementById('btn-add').addEventListener('click', addToPending);
-
-      const whSel = document.getElementById('warehouse-select');
-      if (whSel) {
-        whSel.addEventListener('change', () => {
-          state.currentWarehouse = whSel.value;
-          storage.set('current:warehouse', whSel.value);
-        });
-      }
 
       // 작업 타임 버튼
       document.querySelectorAll('[data-time]').forEach(b => b.addEventListener('click', () => {
