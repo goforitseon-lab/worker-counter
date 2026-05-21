@@ -474,11 +474,11 @@
           <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#ffd60a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
         </div>
         <div class="setup-tag">WORKER REGISTRATION</div>
-        <h1 class="setup-title">작업자 등록</h1>
-        <p class="setup-sub">이름을 입력하면 작업자 ID가 자동 발급됩니다</p>
-        <input type="text" id="setup-name" class="input-field" placeholder="이름 (예: 김철수)" autocomplete="off">
+        <h1 class="setup-title" data-i18n="setup.title">작업자 등록</h1>
+        <p class="setup-sub" data-i18n="setup.sub">이름을 입력하면 작업자 ID가 자동 발급됩니다</p>
+        <input type="text" id="setup-name" class="input-field" placeholder="이름 (예: 김철수)" data-i18n-ph="setup.name_placeholder" autocomplete="off">
         <button id="setup-save" class="btn-primary" disabled>
-          시작하기
+          <span data-i18n="setup.start_btn">시작하기</span>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
       </div>
@@ -626,7 +626,7 @@
           <!-- 기본: 불량 추가 버튼 -->
           <button class="add-defect-btn" id="btn-add-defect">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-            불량 추가하기
+            <span data-i18n="defect.add_btn">불량 추가하기</span>
           </button>
 
           <!-- 불량 입력 영역 (불량 추가 시 표시) -->
@@ -634,12 +634,12 @@
             <div id="defect-list-container"></div>
             <button class="add-more-defect-btn" id="btn-add-more-defect">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              다른 불량 추가
+              <span data-i18n="defect.add_more">다른 불량 추가</span>
             </button>
             <div class="defect-total" id="defect-total"></div>
             <button class="defect-cancel-btn" id="btn-cancel-defect">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-              불량 없음으로 변경
+              <span data-i18n="defect.cancel_to_good">불량 없음으로 변경</span>
             </button>
           </div>
         </div>
@@ -655,27 +655,27 @@
       <!-- ============ TAB: PENDING (작업 내역) ============ -->
       <div id="tab-pending" class="tab-content" style="display:none;">
         <div class="stat-card pending">
-          <div class="stat-tag">PENDING · 미전송</div>
-          <div class="stat-sub">최종 전송 대기 중인 작업</div>
+          <div class="stat-tag"><span data-i18n="pending.tag">PENDING · 미전송</span></div>
+          <div class="stat-sub" data-i18n="pending.sub">최종 전송 대기 중인 작업</div>
           <div class="stat-grid">
             <div>
-              <div class="stat-item-label">건수</div>
-              <div class="stat-num-wrap"><span class="stat-num" id="pending-count">0</span><span class="stat-unit">건</span></div>
+              <div class="stat-item-label" data-i18n="pending.count_label">건수</div>
+              <div class="stat-num-wrap"><span class="stat-num" id="pending-count">0</span><span class="stat-unit" data-i18n="unit.count">건</span></div>
             </div>
             <div>
-              <div class="stat-item-label">합계 수량</div>
+              <div class="stat-item-label" data-i18n="pending.qty_label">합계 수량</div>
               <div class="stat-num-wrap"><span class="stat-num" id="pending-qty">0</span><span class="stat-unit">EA</span></div>
             </div>
           </div>
         </div>
 
-        <div class="label">목록 (좌→우 X 버튼으로 삭제)</div>
+        <div class="label" data-i18n="pending.list_hint">목록 (좌→우 X 버튼으로 삭제)</div>
         <div id="pending-list-container"></div>
 
         <div class="send-section">
           <button class="send-btn" id="btn-send-all" disabled>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-            <span id="send-btn-text">전송할 항목 없음</span>
+            <span id="send-btn-text" data-i18n="pending.empty_btn">전송할 항목 없음</span>
           </button>
         </div>
       </div>
@@ -683,62 +683,62 @@
       <!-- ============ TAB: SENT (제출 내역) ============ -->
       <div id="tab-sent" class="tab-content" style="display:none;">
         <div class="stat-card sent">
-          <div class="stat-tag">SENT · 전송 완료</div>
-          <div class="stat-sub" id="sent-name">- · 누적 제출량</div>
+          <div class="stat-tag"><span data-i18n="sent.tag">SENT · 전송 완료</span></div>
+          <div class="stat-sub" id="sent-name">- · <span data-i18n="sent.total_label">누적 제출량</span></div>
           <div class="stat-grid">
             <div>
-              <div class="stat-item-label">오늘 생산</div>
+              <div class="stat-item-label" data-i18n="sent.today_prod">오늘 생산</div>
               <div class="stat-num-wrap"><span class="stat-num" id="sent-today">0</span><span class="stat-unit">EA</span></div>
             </div>
             <div>
-              <div class="stat-item-label">오늘 불량</div>
+              <div class="stat-item-label" data-i18n="sent.today_defect">오늘 불량</div>
               <div class="stat-num-wrap"><span class="stat-num" id="sent-today-defect" style="color:#ff8caa;">0</span><span class="stat-unit" id="sent-today-rate">0%</span></div>
             </div>
           </div>
         </div>
 
         <div id="sent-parts-section">
-          <div class="label">오늘 품번별</div>
+          <div class="label" data-i18n="sent.by_part">오늘 품번별</div>
           <div class="part-list" id="sent-part-list"></div>
         </div>
 
         <div>
-          <div class="label">최근 전송</div>
+          <div class="label" data-i18n="sent.recent">최근 전송</div>
           <div id="sent-recent-container"></div>
         </div>
 
         <div class="actions-row" style="grid-template-columns: 1fr;">
           <button class="action-btn danger" id="btn-clear-sent">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-            로컬 캐시 삭제
+            <span data-i18n="sent.clear_cache">로컬 캐시 삭제</span>
           </button>
         </div>
       </div>
 
       <!-- ============ TAB: LEAVE (연차) ============ -->
       <div id="tab-leave" class="tab-content" style="display:none;">
-        <div class="label">새 연차 신청</div>
+        <div class="label" data-i18n="leave.new_request">새 연차 신청</div>
         <div class="leave-form">
           <div class="leave-form-row">
-            <div class="label">시작일 / 종료일 (하루면 같게)</div>
+            <div class="label" data-i18n="leave.date_range">시작일 / 종료일 (하루면 같게)</div>
             <div class="leave-date-row">
               <input type="date" id="leave-start" class="leave-input">
               <input type="date" id="leave-end" class="leave-input">
             </div>
           </div>
           <div class="leave-form-row">
-            <div class="label">사유</div>
-            <textarea id="leave-reason" class="leave-textarea" placeholder="예: 개인 사유, 가족 행사 등"></textarea>
+            <div class="label" data-i18n="leave.reason">사유</div>
+            <textarea id="leave-reason" class="leave-textarea" placeholder="예: 개인 사유, 가족 행사 등" data-i18n-ph="leave.reason_placeholder"></textarea>
           </div>
           <button class="submit-btn" id="btn-submit-leave" disabled>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-            연차 신청
+            <span data-i18n="leave.submit_btn">연차 신청</span>
           </button>
         </div>
 
-        <div class="label">내 신청 내역</div>
+        <div class="label" data-i18n="leave.my_history">내 신청 내역</div>
         <div id="leave-list-container">
-          <div class="empty">신청 내역이 없습니다</div>
+          <div class="empty" data-i18n="leave.empty">신청 내역이 없습니다</div>
         </div>
       </div>
 
@@ -761,26 +761,26 @@
   <div class="modal-bg" id="modal-settings">
     <div class="modal">
       <div class="modal-handle"></div>
-      <div class="modal-title">설정</div>
-      <div class="modal-sub">서버 연결, 마스터 관리, 작업자 변경</div>
+      <div class="modal-title" data-i18n="settings.title">설정</div>
+      <div class="modal-sub" data-i18n="settings.sub">서버 연결, 마스터 관리, 작업자 변경</div>
       <div class="modal-btns">
         <button class="modal-btn" id="btn-server-config">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>
-          서버 연결 설정
+          <span data-i18n="settings.server_cfg">서버 연결 설정</span>
         </button>
         <button class="modal-btn" id="btn-import-master">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-          품번 마스터 가져오기 (CSV)
+          <span data-i18n="settings.import_master">품번 마스터 가져오기 (CSV)</span>
         </button>
         <button class="modal-btn" id="btn-export-master">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          품번 마스터 내보내기 (CSV)
+          <span data-i18n="settings.export_master">품번 마스터 내보내기 (CSV)</span>
         </button>
         <button class="modal-btn" id="btn-change-worker">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-          작업자 변경
+          <span data-i18n="settings.change_worker">작업자 변경</span>
         </button>
-        <button class="modal-btn ghost" id="btn-modal-close">닫기</button>
+        <button class="modal-btn ghost" id="btn-modal-close" data-i18n="settings.close">닫기</button>
       </div>
     </div>
   </div>
@@ -789,18 +789,18 @@
   <div class="modal-bg" id="modal-server">
     <div class="modal">
       <div class="modal-handle"></div>
-      <div class="modal-title">서버 연결 설정</div>
-      <div class="modal-sub">Supabase URL과 anon public 키를 입력하세요</div>
+      <div class="modal-title" data-i18n="settings.server_cfg">서버 연결 설정</div>
+      <div class="modal-sub" data-i18n="server.sub">Supabase URL과 anon public 키를 입력하세요</div>
       <div class="label">SUPABASE URL</div>
       <input type="text" id="cfg-url" class="modal-input" placeholder="https://xxxxxxx.supabase.co" autocomplete="off">
       <div class="label" style="margin-top:8px;">ANON PUBLIC KEY</div>
       <textarea id="cfg-key" class="csv-area" placeholder="eyJhbGc..." style="min-height:80px;"></textarea>
       <div class="modal-status" id="cfg-status"></div>
       <div style="display:flex; gap:8px; margin-top:12px;">
-        <button class="modal-btn" id="btn-test-conn" style="flex:1;">연결 테스트</button>
-        <button class="modal-btn" id="btn-save-cfg" style="flex:1; background:var(--amber); color:#0f0f10;">저장</button>
+        <button class="modal-btn" id="btn-test-conn" style="flex:1;" data-i18n="server.test">연결 테스트</button>
+        <button class="modal-btn" id="btn-save-cfg" style="flex:1; background:var(--amber); color:#0f0f10;" data-i18n="server.save">저장</button>
       </div>
-      <button class="modal-btn ghost" id="btn-server-cancel" style="margin-top:8px;">닫기</button>
+      <button class="modal-btn ghost" id="btn-server-cancel" style="margin-top:8px;" data-i18n="settings.close">닫기</button>
     </div>
   </div>
 
@@ -889,7 +889,7 @@
         'lang.label': '🌐',
         'tab.input': '입력', 'tab.pending': '작업내역', 'tab.sent': '제출내역', 'tab.leave': '연차',
         'header.demo': 'WORKER · DEMO', 'header.refresh': '새로고침', 'header.settings': '설정', 'header.admin': '관리자 페이지로',
-        'setup.title': '작업자 등록', 'setup.name_label': '이름', 'setup.name_placeholder': '이름을 입력하세요', 'setup.start_btn': '시작',
+        'setup.title': '작업자 등록', 'setup.sub': '이름을 입력하면 작업자 ID가 자동 발급됩니다', 'setup.name_label': '이름', 'setup.name_placeholder': '이름 (예: 김철수)', 'setup.start_btn': '시작하기',
         'input.part_step': 'STEP 1 · 품번 입력', 'input.part_placeholder': '품번 입력 또는 바코드 스캔', 'input.camera_btn': '카메라 스캔',
         'input.matched': '마스터에서 매칭됨', 'input.not_matched': '마스터에 없음',
         'input.field_name': '품명', 'input.field_spec': '규격', 'input.field_warehouse': '창고',
@@ -904,11 +904,31 @@
         'picker.label_x': '라벨 없음',
         'picker.process_cut': '재단', 'picker.process_hot': '핫스템핑', 'picker.process_sew': '봉제', 'picker.process_assy': 'ASSY',
         'input.qty_step': 'STEP 2 · 수량 (직접 입력 가능)', 'input.qty_quick_hint': '버튼을 누를 때마다 수량이 가산됩니다',
-        'input.defect_step': 'STEP 3 · 불량 (선택)', 'input.defect_select_btn': '불량 유형 선택', 'input.good_only': '양품만', 'input.add_btn': '작업 추가',
+        'input.defect_step': 'STEP 3 · 불량 (선택사항 — 없으면 모두 양품)', 'input.defect_select_btn': '불량 유형 선택', 'input.good_only': '양품만', 'input.add_btn': '작업 내역에 추가',
+        'defect.add_btn': '불량 추가하기', 'defect.add_more': '다른 불량 추가', 'defect.cancel_to_good': '불량 없음으로 변경',
+        'pending.tag': 'PENDING · 미전송', 'pending.sub': '최종 전송 대기 중인 작업',
+        'pending.count_label': '건수', 'pending.qty_label': '합계 수량',
+        'pending.list_hint': '목록 (좌→우 X 버튼으로 삭제)',
+        'pending.empty_btn': '전송할 항목 없음', 'pending.empty_hint': '입력 탭에서 작업을 추가하세요',
         'pending.title': '보류 항목', 'pending.empty': '보류 항목 없음', 'pending.total': '합계', 'pending.send_all': '최종 전송', 'pending.sending': '전송 중...',
-        'sent.title': '오늘 보낸 항목', 'sent.empty': '오늘 전송한 항목 없음',
-        'leave.request_title': '연차 신청', 'leave.start_date': '시작일', 'leave.end_date': '종료일', 'leave.reason': '사유', 'leave.submit_btn': '신청',
+        'sent.tag': 'SENT · 전송 완료', 'sent.total_label': '누적 제출량',
+        'sent.today_prod': '오늘 생산', 'sent.today_defect': '오늘 불량',
+        'sent.by_part': '오늘 품번별', 'sent.recent': '최근 전송',
+        'sent.clear_cache': '로컬 캐시 삭제',
+        'sent.title': '오늘 보낸 항목', 'sent.empty': '전송된 작업이 없습니다',
+        'badge.good': '양품', 'badge.defect': '불량', 'badge.fabric': '원단',
+        'unit.count': '건', 'unit.kind': '종',
+        'footer.master': '마스터',
+        'leave.request_title': '연차 신청', 'leave.new_request': '새 연차 신청', 'leave.date_range': '시작일 / 종료일 (하루면 같게)', 'leave.start_date': '시작일', 'leave.end_date': '종료일', 'leave.reason': '사유', 'leave.reason_placeholder': '예: 개인 사유, 가족 행사 등', 'leave.submit_btn': '연차 신청', 'leave.my_history': '내 신청 내역', 'leave.empty': '신청 내역이 없습니다',
         'leave.history_title': '신청 내역', 'leave.status_pending': '대기 중', 'leave.status_approved': '승인됨', 'leave.status_rejected': '거부됨', 'leave.cancel': '취소',
+        'leave.status_short_pending': '대기', 'leave.status_short_approved': '승인', 'leave.status_short_rejected': '반려',
+        'leave.requested': '신청', 'leave.reviewed': '처리', 'leave.admin_memo': '관리자 메모', 'leave.cancel_request': '신청 취소',
+        'leave.err_start_required': '시작일 필수', 'leave.err_end_before_start': '종료일이 시작일보다 빠릅니다',
+        'leave.submit_success': '연차 신청 완료', 'leave.submit_success_sub': '관리자 승인 대기 중',
+        'leave.submit_failed': '신청 실패', 'leave.confirm_cancel': '신청을 취소하시겠습니까?',
+        'leave.cancel_success': '취소됨', 'leave.cancel_failed': '취소 실패',
+        'settings.sub': '서버 연결, 마스터 관리, 작업자 변경', 'settings.server_cfg': '서버 연결 설정', 'settings.import_master': '품번 마스터 가져오기 (CSV)', 'settings.export_master': '품번 마스터 내보내기 (CSV)', 'settings.change_worker': '작업자 변경',
+        'server.sub': 'Supabase URL과 anon public 키를 입력하세요', 'server.test': '연결 테스트', 'server.save': '저장',
         'meal.week_title': '이번 주 식단', 'meal.view_all': '전체 보기', 'meal.today_label': '오늘', 'meal.empty': '등록 안 됨', 'meal.modal_title': '🍱 이번 주 식단', 'meal.close': '닫기',
         'notice.title': '공지사항',
         'cam.scanning': '🔍 자동 스캔 중 · 바코드를 박스에 맞추세요', 'cam.hint_bottom': '구형폰: 셔터 누르면 더 정밀하게 시도', 'cam.close': '닫기',
@@ -916,6 +936,11 @@
         'defect.title': '불량 유형 선택', 'defect.search_placeholder': '코드 또는 이름으로 검색', 'defect.cancel': '취소',
         'toast.select_warehouse': '공정을 선택해주세요', 'toast.select_worktime': '작업 타임을 선택해주세요',
         'toast.added': '추가됨', 'toast.sent': '전송 완료', 'toast.send_failed': '전송 실패',
+        'toast.added_to_pending': '작업 내역에 추가됨',
+        'toast.sub_prod': '생산', 'toast.sub_defect': '불량', 'toast.sub_good': '양품', 'toast.sub_pending': '미전송',
+        'toast.saved_to_server': '서버에 저장되었습니다',
+        'toast.need_server': '서버 설정이 필요합니다', 'toast.need_server_sub': '⚙ 설정에서 Supabase URL/key 입력',
+        'toast.offline': '오프라인 상태', 'toast.offline_sub': '인터넷 연결 후 다시 시도',
         'toast.admin_granted': '관리자 권한 부여됨',
         'confirm.goto_admin': '관리자 페이지로 이동하시겠습니까?',
         'confirm.delete_item': '이 항목을 삭제하시겠습니까?',
@@ -926,7 +951,7 @@
         'lang.label': '🌐',
         'tab.input': 'Input', 'tab.pending': 'Pending', 'tab.sent': 'Sent', 'tab.leave': 'Leave',
         'header.demo': 'WORKER · DEMO', 'header.refresh': 'Refresh', 'header.settings': 'Settings', 'header.admin': 'Admin Page',
-        'setup.title': 'Worker Registration', 'setup.name_label': 'Name', 'setup.name_placeholder': 'Enter your name', 'setup.start_btn': 'Start',
+        'setup.title': 'Worker Registration', 'setup.sub': 'Enter your name to get an auto-generated worker ID', 'setup.name_label': 'Name', 'setup.name_placeholder': 'Name (e.g. John Smith)', 'setup.start_btn': 'Start',
         'input.part_step': 'STEP 1 · Part Number', 'input.part_placeholder': 'Enter or scan part number', 'input.camera_btn': 'Scan',
         'input.matched': 'Matched in master', 'input.not_matched': 'Not in master',
         'input.field_name': 'Name', 'input.field_spec': 'Spec', 'input.field_warehouse': 'Warehouse',
@@ -941,11 +966,31 @@
         'picker.label_x': 'No label',
         'picker.process_cut': 'Cutting', 'picker.process_hot': 'Hot Stamping', 'picker.process_sew': 'Sewing', 'picker.process_assy': 'ASSY',
         'input.qty_step': 'STEP 2 · Quantity', 'input.qty_quick_hint': 'Tap to add to current quantity',
-        'input.defect_step': 'STEP 3 · Defect (optional)', 'input.defect_select_btn': 'Select Defect Type', 'input.good_only': 'Good only', 'input.add_btn': 'Add Entry',
+        'input.defect_step': 'STEP 3 · Defect (optional — all good if none)', 'input.defect_select_btn': 'Select Defect Type', 'input.good_only': 'Good only', 'input.add_btn': 'Add to List',
+        'defect.add_btn': 'Add Defect', 'defect.add_more': 'Add Another Defect', 'defect.cancel_to_good': 'Mark as Good',
+        'pending.tag': 'PENDING · Not Sent', 'pending.sub': 'Items waiting to be sent',
+        'pending.count_label': 'Items', 'pending.qty_label': 'Total Qty',
+        'pending.list_hint': 'List (swipe to delete with X)',
+        'pending.empty_btn': 'No items to send', 'pending.empty_hint': 'Add work from the Input tab',
         'pending.title': 'Pending Items', 'pending.empty': 'No pending items', 'pending.total': 'Total', 'pending.send_all': 'Send All', 'pending.sending': 'Sending...',
-        'sent.title': "Today's Submitted", 'sent.empty': 'No items sent today',
-        'leave.request_title': 'Request Leave', 'leave.start_date': 'Start Date', 'leave.end_date': 'End Date', 'leave.reason': 'Reason', 'leave.submit_btn': 'Submit',
+        'sent.tag': 'SENT · Completed', 'sent.total_label': 'Cumulative submissions',
+        'sent.today_prod': "Today's Production", 'sent.today_defect': "Today's Defects",
+        'sent.by_part': "Today by Part", 'sent.recent': 'Recently Sent',
+        'sent.clear_cache': 'Clear Local Cache',
+        'sent.title': "Today's Submitted", 'sent.empty': 'No sent items',
+        'badge.good': 'Good', 'badge.defect': 'Defect', 'badge.fabric': 'Fabric',
+        'unit.count': 'items', 'unit.kind': 'types',
+        'footer.master': 'Master',
+        'leave.request_title': 'Request Leave', 'leave.new_request': 'New Leave Request', 'leave.date_range': 'Start / End (same date if single day)', 'leave.start_date': 'Start Date', 'leave.end_date': 'End Date', 'leave.reason': 'Reason', 'leave.reason_placeholder': 'e.g. personal reasons, family event', 'leave.submit_btn': 'Submit Request', 'leave.my_history': 'My Requests', 'leave.empty': 'No request history',
         'leave.history_title': 'Request History', 'leave.status_pending': 'Pending', 'leave.status_approved': 'Approved', 'leave.status_rejected': 'Rejected', 'leave.cancel': 'Cancel',
+        'leave.status_short_pending': 'Pending', 'leave.status_short_approved': 'Approved', 'leave.status_short_rejected': 'Rejected',
+        'leave.requested': 'Requested', 'leave.reviewed': 'Reviewed', 'leave.admin_memo': 'Admin note', 'leave.cancel_request': 'Cancel Request',
+        'leave.err_start_required': 'Start date required', 'leave.err_end_before_start': 'End date is before start date',
+        'leave.submit_success': 'Leave request submitted', 'leave.submit_success_sub': 'Awaiting admin approval',
+        'leave.submit_failed': 'Submission failed', 'leave.confirm_cancel': 'Cancel this request?',
+        'leave.cancel_success': 'Cancelled', 'leave.cancel_failed': 'Cancel failed',
+        'settings.sub': 'Server, Master, Change Worker', 'settings.server_cfg': 'Server Configuration', 'settings.import_master': 'Import Part Master (CSV)', 'settings.export_master': 'Export Part Master (CSV)', 'settings.change_worker': 'Change Worker',
+        'server.sub': 'Enter Supabase URL and anon public key', 'server.test': 'Test Connection', 'server.save': 'Save',
         'meal.week_title': "This Week's Meals", 'meal.view_all': 'View All', 'meal.today_label': 'Today', 'meal.empty': 'Not registered', 'meal.modal_title': "🍱 This Week's Meals", 'meal.close': 'Close',
         'notice.title': 'Announcements',
         'cam.scanning': '🔍 Auto scanning · Aim barcode in box', 'cam.hint_bottom': 'Older phones: tap shutter for deeper scan', 'cam.close': 'Close',
@@ -953,6 +998,11 @@
         'defect.title': 'Select Defect Type', 'defect.search_placeholder': 'Search by code or name', 'defect.cancel': 'Cancel',
         'toast.select_warehouse': 'Please select a process', 'toast.select_worktime': 'Please select a work shift',
         'toast.added': 'Added', 'toast.sent': 'Sent', 'toast.send_failed': 'Send failed',
+        'toast.added_to_pending': 'Added to pending list',
+        'toast.sub_prod': 'Prod', 'toast.sub_defect': 'Defect', 'toast.sub_good': 'Good', 'toast.sub_pending': 'Pending',
+        'toast.saved_to_server': 'Saved to server',
+        'toast.need_server': 'Server config required', 'toast.need_server_sub': '⚙ Enter Supabase URL/key in Settings',
+        'toast.offline': 'Offline', 'toast.offline_sub': 'Reconnect to internet and retry',
         'toast.admin_granted': 'Admin access granted',
         'confirm.goto_admin': 'Go to admin page?',
         'confirm.delete_item': 'Delete this item?',
@@ -963,7 +1013,7 @@
         'lang.label': '🌐',
         'tab.input': 'Ввод', 'tab.pending': 'Ожидание', 'tab.sent': 'Отправлено', 'tab.leave': 'Отпуск',
         'header.demo': 'РАБОТНИК · ДЕМО', 'header.refresh': 'Обновить', 'header.settings': 'Настройки', 'header.admin': 'Админ-панель',
-        'setup.title': 'Регистрация работника', 'setup.name_label': 'Имя', 'setup.name_placeholder': 'Введите имя', 'setup.start_btn': 'Начать',
+        'setup.title': 'Регистрация работника', 'setup.sub': 'Введите имя, ID работника будет создан автоматически', 'setup.name_label': 'Имя', 'setup.name_placeholder': 'Имя (напр. Иван Иванов)', 'setup.start_btn': 'Начать',
         'input.part_step': 'ШАГ 1 · Артикул', 'input.part_placeholder': 'Введите или сканируйте артикул', 'input.camera_btn': 'Сканер',
         'input.matched': 'Найдено в базе', 'input.not_matched': 'Нет в базе',
         'input.field_name': 'Название', 'input.field_spec': 'Спецификация', 'input.field_warehouse': 'Склад',
@@ -978,11 +1028,31 @@
         'picker.label_x': 'Без этикетки',
         'picker.process_cut': 'Раскрой', 'picker.process_hot': 'Тиснение', 'picker.process_sew': 'Шитьё', 'picker.process_assy': 'Сборка',
         'input.qty_step': 'ШАГ 2 · Количество', 'input.qty_quick_hint': 'Нажимайте для прибавления',
-        'input.defect_step': 'ШАГ 3 · Брак (необязательно)', 'input.defect_select_btn': 'Выбрать тип брака', 'input.good_only': 'Только годные', 'input.add_btn': 'Добавить',
+        'input.defect_step': 'ШАГ 3 · Брак (необязательно — всё годное, если нет)', 'input.defect_select_btn': 'Выбрать тип брака', 'input.good_only': 'Только годные', 'input.add_btn': 'Добавить в список',
+        'defect.add_btn': 'Добавить брак', 'defect.add_more': 'Добавить ещё брак', 'defect.cancel_to_good': 'Отметить как годное',
+        'pending.tag': 'ОЖИДАНИЕ · Не отправлено', 'pending.sub': 'Записи в очереди на отправку',
+        'pending.count_label': 'Записей', 'pending.qty_label': 'Всего',
+        'pending.list_hint': 'Список (свайп для удаления)',
+        'pending.empty_btn': 'Нет записей для отправки', 'pending.empty_hint': 'Добавьте запись на вкладке Ввод',
         'pending.title': 'Ожидающие записи', 'pending.empty': 'Нет ожидающих', 'pending.total': 'Итого', 'pending.send_all': 'Отправить всё', 'pending.sending': 'Отправка...',
-        'sent.title': 'Отправлено сегодня', 'sent.empty': 'Сегодня ничего не отправлено',
-        'leave.request_title': 'Запрос отпуска', 'leave.start_date': 'Дата начала', 'leave.end_date': 'Дата окончания', 'leave.reason': 'Причина', 'leave.submit_btn': 'Отправить',
+        'sent.tag': 'ОТПРАВЛЕНО · Готово', 'sent.total_label': 'Всего отправлено',
+        'sent.today_prod': 'Сегодня сделано', 'sent.today_defect': 'Сегодня брак',
+        'sent.by_part': 'Сегодня по артикулам', 'sent.recent': 'Недавние отправки',
+        'sent.clear_cache': 'Очистить локальный кэш',
+        'sent.title': 'Отправлено сегодня', 'sent.empty': 'Нет отправленных записей',
+        'badge.good': 'Годное', 'badge.defect': 'Брак', 'badge.fabric': 'Ткань',
+        'unit.count': 'шт.', 'unit.kind': 'видов',
+        'footer.master': 'База',
+        'leave.request_title': 'Запрос отпуска', 'leave.new_request': 'Новый запрос отпуска', 'leave.date_range': 'Начало / Конец (одинаково для 1 дня)', 'leave.start_date': 'Дата начала', 'leave.end_date': 'Дата окончания', 'leave.reason': 'Причина', 'leave.reason_placeholder': 'напр. личные дела, семейное событие', 'leave.submit_btn': 'Отправить запрос', 'leave.my_history': 'Мои запросы', 'leave.empty': 'Нет запросов',
         'leave.history_title': 'История запросов', 'leave.status_pending': 'Ожидание', 'leave.status_approved': 'Одобрено', 'leave.status_rejected': 'Отклонено', 'leave.cancel': 'Отменить',
+        'leave.status_short_pending': 'Ожид.', 'leave.status_short_approved': 'Одобр.', 'leave.status_short_rejected': 'Откл.',
+        'leave.requested': 'Запрошено', 'leave.reviewed': 'Обработано', 'leave.admin_memo': 'Заметка админа', 'leave.cancel_request': 'Отменить запрос',
+        'leave.err_start_required': 'Требуется дата начала', 'leave.err_end_before_start': 'Дата окончания раньше начала',
+        'leave.submit_success': 'Запрос отпуска отправлен', 'leave.submit_success_sub': 'Ожидает одобрения админа',
+        'leave.submit_failed': 'Ошибка отправки', 'leave.confirm_cancel': 'Отменить этот запрос?',
+        'leave.cancel_success': 'Отменено', 'leave.cancel_failed': 'Ошибка отмены',
+        'settings.sub': 'Сервер, База, Сменить работника', 'settings.server_cfg': 'Настройки сервера', 'settings.import_master': 'Импорт базы артикулов (CSV)', 'settings.export_master': 'Экспорт базы артикулов (CSV)', 'settings.change_worker': 'Сменить работника',
+        'server.sub': 'Введите Supabase URL и anon public ключ', 'server.test': 'Тест соединения', 'server.save': 'Сохранить',
         'meal.week_title': 'Меню недели', 'meal.view_all': 'Показать всё', 'meal.today_label': 'Сегодня', 'meal.empty': 'Не зарегистрировано', 'meal.modal_title': '🍱 Меню недели', 'meal.close': 'Закрыть',
         'notice.title': 'Объявления',
         'cam.scanning': '🔍 Автосканирование · Наведите штрихкод в рамку', 'cam.hint_bottom': 'Старый телефон: нажмите кнопку для точного сканирования', 'cam.close': 'Закрыть',
@@ -990,6 +1060,11 @@
         'defect.title': 'Выберите тип брака', 'defect.search_placeholder': 'Поиск по коду или имени', 'defect.cancel': 'Отмена',
         'toast.select_warehouse': 'Выберите процесс', 'toast.select_worktime': 'Выберите рабочую смену',
         'toast.added': 'Добавлено', 'toast.sent': 'Отправлено', 'toast.send_failed': 'Ошибка отправки',
+        'toast.added_to_pending': 'Добавлено в список',
+        'toast.sub_prod': 'Прод.', 'toast.sub_defect': 'Брак', 'toast.sub_good': 'Годн.', 'toast.sub_pending': 'Ожид.',
+        'toast.saved_to_server': 'Сохранено на сервере',
+        'toast.need_server': 'Требуется настройка сервера', 'toast.need_server_sub': '⚙ Введите Supabase URL/key в Настройках',
+        'toast.offline': 'Нет соединения', 'toast.offline_sub': 'Подключитесь к интернету и повторите',
         'toast.admin_granted': 'Права администратора предоставлены',
         'confirm.goto_admin': 'Перейти в админ-панель?',
         'confirm.delete_item': 'Удалить эту запись?',
@@ -1010,10 +1085,12 @@
       localStorage.setItem('wc:lang', lang);
       applyI18n();
       // 동적 영역 다시 그리기
+      try { renderHeader(); } catch (e) {}
+      try { updateFooter(); } catch (e) {}
       try { renderInput(); } catch (e) {}
       try { renderPending(); } catch (e) {}
       try { renderSent(); } catch (e) {}
-      try { renderMyLeaves(); } catch (e) {}
+      try { renderLeaves(); } catch (e) {}
       try { renderMeals(); } catch (e) {}
       try { renderTimeButtons(); } catch (e) {}
       // 언어 토글 active 상태 갱신
@@ -1329,7 +1406,7 @@
       const sel = document.getElementById('warehouse-select');
       if (!sel) return;
       const current = state.currentWarehouse || sel.value || '';
-      sel.innerHTML = '<option value="">공정 선택...</option>' +
+      sel.innerHTML = `<option value="">${t('input.warehouse_placeholder')}</option>` +
         state.warehouses.map(w => `<option value="${escapeHtml(w.code)}">${escapeHtml(w.code)} - ${escapeHtml(w.name)}</option>`).join('');
       sel.value = current;
     }
@@ -1403,14 +1480,14 @@
       const container = document.getElementById('leave-list-container');
       if (!container) return;
       if (!state.myLeaves || state.myLeaves.length === 0) {
-        container.innerHTML = '<div class="empty">신청 내역이 없습니다</div>';
+        container.innerHTML = `<div class="empty">${t('leave.empty')}</div>`;
         return;
       }
       container.innerHTML = '<div class="leave-list">' + state.myLeaves.map(l => {
         const start = l.start_date;
         const end = l.end_date || l.start_date;
         const dates = start === end ? start : `${start} ~ ${end}`;
-        const statusText = { pending:'대기', approved:'승인', rejected:'반려' }[l.status] || l.status;
+        const statusText = { pending: t('leave.status_short_pending'), approved: t('leave.status_short_approved'), rejected: t('leave.status_short_rejected') }[l.status] || l.status;
         const requested = new Date(l.requested_at).toLocaleString('ko-KR', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
         const reviewed = l.reviewed_at ? new Date(l.reviewed_at).toLocaleString('ko-KR', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }) : null;
         return `<div class="leave-item">
@@ -1419,9 +1496,9 @@
             <div class="leave-item-status ${l.status}">${statusText}</div>
           </div>
           ${l.reason ? `<div class="leave-item-reason">${escapeHtml(l.reason)}</div>` : ''}
-          <div class="leave-item-meta">신청: ${requested}${reviewed ? ` · 처리: ${reviewed}` : ''}${l.reviewed_by ? ` · ${escapeHtml(l.reviewed_by)}` : ''}</div>
-          ${l.review_note ? `<div class="leave-item-note"><strong>관리자 메모:</strong> ${escapeHtml(l.review_note)}</div>` : ''}
-          ${l.status === 'pending' ? `<button class="leave-item-cancel" data-cancel="${l.id}">신청 취소</button>` : ''}
+          <div class="leave-item-meta">${t('leave.requested')}: ${requested}${reviewed ? ` · ${t('leave.reviewed')}: ${reviewed}` : ''}${l.reviewed_by ? ` · ${escapeHtml(l.reviewed_by)}` : ''}</div>
+          ${l.review_note ? `<div class="leave-item-note"><strong>${t('leave.admin_memo')}:</strong> ${escapeHtml(l.review_note)}</div>` : ''}
+          ${l.status === 'pending' ? `<button class="leave-item-cancel" data-cancel="${l.id}">${t('leave.cancel_request')}</button>` : ''}
         </div>`;
       }).join('') + '</div>';
       container.querySelectorAll('[data-cancel]').forEach(b => b.addEventListener('click', () => cancelLeave(parseInt(b.dataset.cancel))));
@@ -1431,10 +1508,10 @@
       const start = document.getElementById('leave-start').value;
       const end = document.getElementById('leave-end').value || start;
       const reason = document.getElementById('leave-reason').value.trim();
-      if (!start) { showToast('error', '시작일 필수'); return; }
-      if (end < start) { showToast('error', '종료일이 시작일보다 빠릅니다'); return; }
+      if (!start) { showToast('error', t('leave.err_start_required')); return; }
+      if (end < start) { showToast('error', t('leave.err_end_before_start')); return; }
       const cfg = state.serverConfig;
-      if (!cfg.url || !cfg.key) { showToast('error', '서버 설정 필요'); return; }
+      if (!cfg.url || !cfg.key) { showToast('error', t('toast.need_server')); return; }
       const btn = document.getElementById('btn-submit-leave');
       btn.disabled = true;
       try {
@@ -1447,20 +1524,20 @@
           })
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        showToast('success', '연차 신청 완료', '관리자 승인 대기 중');
+        showToast('success', t('leave.submit_success'), t('leave.submit_success_sub'));
         document.getElementById('leave-start').value = '';
         document.getElementById('leave-end').value = '';
         document.getElementById('leave-reason').value = '';
         updateLeaveBtn();
         await fetchMyLeaves();
       } catch (e) {
-        showToast('error', '신청 실패: ' + e.message);
+        showToast('error', t('leave.submit_failed') + ': ' + e.message);
         btn.disabled = false;
       }
     }
 
     async function cancelLeave(id) {
-      if (!confirm('신청을 취소하시겠습니까?')) return;
+      if (!confirm(t('leave.confirm_cancel'))) return;
       const cfg = state.serverConfig;
       try {
         const res = await fetch(`${cfg.url.replace(/\/$/,'')}/rest/v1/leave_requests?id=eq.${id}`, {
@@ -1468,9 +1545,9 @@
           headers: { 'apikey': cfg.key, 'Authorization': 'Bearer ' + cfg.key }
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        showToast('success', '취소됨');
+        showToast('success', t('leave.cancel_success'));
         await fetchMyLeaves();
-      } catch (e) { showToast('error', '취소 실패: ' + e.message); }
+      } catch (e) { showToast('error', t('leave.cancel_failed') + ': ' + e.message); }
     }
 
     function updateLeaveBtn() {
@@ -1486,7 +1563,7 @@
 
     function updateFooter() {
       const cnt = Object.keys(state.partsMaster).length;
-      document.getElementById('footer').textContent = `Worker counter 0507 18 · 마스터 ${cnt}건`;
+      document.getElementById('footer').textContent = `Worker counter 0507 18 · ${t('footer.master')} ${cnt}${t('unit.count')}`;
     }
 
     function updateConnStatus() {
@@ -1594,7 +1671,7 @@
     function renderHeader() {
       document.getElementById('worker-name').textContent = state.worker.name;
       document.getElementById('worker-id').textContent = state.worker.id;
-      document.getElementById('sent-name').textContent = state.worker.name + ' · 누적 제출량';
+      document.getElementById('sent-name').textContent = state.worker.name + ' · ' + t('sent.total_label');
     }
 
     function switchTab(tab) {
@@ -2284,9 +2361,9 @@
       storage.set('pending', state.pending);
       if (navigator.vibrate) navigator.vibrate([60, 40, 60]);
       const sub = totalDefect > 0
-        ? `생산 ${state.quantity} · 불량 ${totalDefect} (${defectsToSave.length}종) · 미전송 ${state.pending.length}건`
-        : `양품 ${state.quantity} · 미전송 ${state.pending.length}건`;
-      showToast('success', '작업 내역에 추가됨', sub);
+        ? `${t('toast.sub_prod')} ${state.quantity} · ${t('toast.sub_defect')} ${totalDefect} (${defectsToSave.length}${t('unit.kind')}) · ${t('toast.sub_pending')} ${state.pending.length}${t('unit.count')}`
+        : `${t('toast.sub_good')} ${state.quantity} · ${t('toast.sub_pending')} ${state.pending.length}${t('unit.count')}`;
+      showToast('success', t('toast.added_to_pending'), sub);
       // 입력 초기화 (picker는 같은 작업 반복 가능하도록 유지, 수량/불량만 리셋)
       state.partNumber = ''; state.quantity = 1;
       state.isDefect = false; state.defects = []; state.editingDefectIndex = -1;
@@ -2314,20 +2391,20 @@
       const sendTxt = document.getElementById('send-btn-text');
       if (cnt === 0) {
         sendBtn.disabled = true;
-        sendTxt.textContent = '전송할 항목 없음';
+        sendTxt.textContent = t('pending.empty_btn');
       } else if (state.isSending) {
         sendBtn.disabled = true;
-        sendTxt.textContent = '전송 중...';
+        sendTxt.textContent = t('pending.sending');
       } else {
         sendBtn.disabled = false;
-        sendTxt.textContent = `${cnt}건 최종 전송`;
+        sendTxt.textContent = `${cnt}${t('unit.count')} ${t('pending.send_all')}`;
       }
 
       const container = document.getElementById('pending-list-container');
       if (cnt === 0) {
         container.innerHTML = `<div class="empty">
           <div class="empty-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#5a564f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
-          입력 탭에서 작업을 추가하세요
+          ${t('pending.empty_hint')}
         </div>`;
         return;
       }
@@ -2336,14 +2413,14 @@
         const okQty = p.quantity - dq;
         const defects = p.defects || (p.defectCode ? [{ code: p.defectCode, name: p.defectName, quantity: dq }] : []);
         const badge = dq > 0
-          ? `<span class="item-defect">⚠ 불량 ${dq}${defects.length > 1 ? ` (${defects.length}종)` : ''}</span>`
-          : `<span class="item-ok">✓ 양품 ${p.quantity}</span>`;
+          ? `<span class="item-defect">⚠ ${t('badge.defect')} ${dq}${defects.length > 1 ? ` (${defects.length}${t('unit.kind')})` : ''}</span>`
+          : `<span class="item-ok">✓ ${t('badge.good')} ${p.quantity}</span>`;
         const defectLines = defects.map(d => `<span style="color:#ff8caa;">${escapeHtml(d.code)} ${escapeHtml(d.name)} ×${d.quantity}</span>`).join(' · ');
         const subline = dq > 0
-          ? `${defectLines} · 양품 ${okQty}`
+          ? `${defectLines} · ${t('badge.good')} ${okQty}`
           : (p.partName ? escapeHtml(p.partName) + (p.spec ? ' · ' + escapeHtml(p.spec) : '') : '');
         const timeTag = p.workTime ? `<span style="font-size:10px; padding:1px 6px; background:rgba(245,184,0,0.15); color:#a07a00; border-radius:999px; margin-right:4px; font-weight:700;">${escapeHtml(p.workTime)}</span>` : '';
-        const fabricTag = (typeof p.fabricM === 'number' && p.fabricM > 0) ? `<span style="font-size:10px; padding:1px 6px; background:rgba(0,168,101,0.15); color:#006d42; border-radius:999px; margin-right:4px; font-weight:700;">원단 ${p.fabricM}M</span>` : '';
+        const fabricTag = (typeof p.fabricM === 'number' && p.fabricM > 0) ? `<span style="font-size:10px; padding:1px 6px; background:rgba(0,168,101,0.15); color:#006d42; border-radius:999px; margin-right:4px; font-weight:700;">${t('badge.fabric')} ${p.fabricM}M</span>` : '';
         return `<div class="item-row">
           <div class="item-info">
             <div class="item-part">${escapeHtml(p.partNumber)}</div>
@@ -2363,7 +2440,7 @@
       container.querySelectorAll('[data-del]').forEach(btn => {
         btn.addEventListener('click', () => {
           const id = parseFloat(btn.dataset.del);
-          if (confirm('이 항목을 삭제하시겠습니까?')) removePending(id);
+          if (confirm(t('confirm.delete_item'))) removePending(id);
         });
       });
     }
@@ -2373,12 +2450,12 @@
       if (state.isSending || state.pending.length === 0) return;
       const cfg = state.serverConfig;
       if (!cfg.url || !cfg.key) {
-        showToast('error', '서버 설정이 필요합니다', '⚙ 설정에서 Supabase URL/key 입력');
+        showToast('error', t('toast.need_server'), t('toast.need_server_sub'));
         setTimeout(() => openModal('modal-server'), 800);
         return;
       }
       if (!navigator.onLine) {
-        showToast('error', '오프라인 상태', '인터넷 연결 후 다시 시도');
+        showToast('error', t('toast.offline'), t('toast.offline_sub'));
         return;
       }
 
@@ -2439,11 +2516,11 @@
         storage.set('sent', state.sent);
         storage.set('pending', state.pending);
         if (navigator.vibrate) navigator.vibrate([80, 30, 80, 30, 80]);
-        showToast('success', `${sentEntries.length}건 전송 완료`, '서버에 저장되었습니다');
+        showToast('success', `${sentEntries.length}${t('unit.count')} ${t('toast.sent')}`, t('toast.saved_to_server'));
         switchTab('sent');
       } catch (e) {
         console.error(e);
-        showToast('error', '전송 실패', e.message);
+        showToast('error', t('toast.send_failed'), e.message);
       } finally {
         state.isSending = false;
         renderPending();
@@ -2491,14 +2568,14 @@
       const recentEl = document.getElementById('sent-recent-container');
       const recent = mine.slice(0, 30);
       if (recent.length === 0) {
-        recentEl.innerHTML = '<div class="empty"><div class="empty-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#5a564f" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></div>전송된 작업이 없습니다</div>';
+        recentEl.innerHTML = `<div class="empty"><div class="empty-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#5a564f" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></div>${t('sent.empty')}</div>`;
       } else {
         recentEl.innerHTML = '<div class="item-list">' + recent.map(s => {
           const dq = s.defectQuantity || 0;
           const defects = s.defects || (s.defectCode ? [{ code: s.defectCode, name: s.defectName, quantity: dq }] : []);
           const badge = dq > 0
-            ? `<span class="item-defect">⚠ 불량 ${dq}${defects.length > 1 ? ` (${defects.length}종)` : ''}</span>`
-            : `<span class="item-ok">✓ 양품 ${s.quantity}</span>`;
+            ? `<span class="item-defect">⚠ ${t('badge.defect')} ${dq}${defects.length > 1 ? ` (${defects.length}${t('unit.kind')})` : ''}</span>`
+            : `<span class="item-ok">✓ ${t('badge.good')} ${s.quantity}</span>`;
           const defectLines = defects.map(d => `<span style="color:#ff8caa;">${escapeHtml(d.code || '')} ${escapeHtml(d.name || '')} ×${d.quantity || 0}</span>`).join(' · ');
           const subline = dq > 0 ? defectLines : (s.partName ? escapeHtml(s.partName) : '');
           return `<div class="item-row">
