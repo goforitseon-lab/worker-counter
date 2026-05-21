@@ -1292,7 +1292,17 @@
       if (!sec) return;
       // 재단 공정 품번이 선택되었을 때만 원단M 입력 활성화 (작업자 권한 무관)
       const p = state.pickedPart;
-      const isCutting = !!(p && (p.process === '재단' || (p.warehouse || '').toUpperCase() === 'FA'));
+      let isCutting = false;
+      if (p) {
+        const proc = (p.process || '').trim();
+        const wh = (p.warehouse || '').trim().toUpperCase();
+        const pn = (p.part_number || '').trim();
+        // 1) process 필드가 '재단'
+        // 2) warehouse 코드가 'FA' (재단공정 창고)
+        // 3) 품번 패턴이 재단 부품(예: LQ2a-C-RBQ-LH) - fallback
+        isCutting = (proc === '재단') || (wh === 'FA') || /^[A-Z0-9]+[a-z]?-[CS]-/i.test(pn);
+      }
+      console.log('[fabric-m] pickedPart:', p, '→ isCutting:', isCutting);
       sec.style.display = isCutting ? 'block' : 'none';
     }
 
@@ -2247,7 +2257,10 @@
         showToast('error', t('toast.select_worktime')); return;
       }
       // 원단M: 재단 공정 품번이 선택된 경우만 값 수집
-      const isCuttingPart = !!(p && (p.process === '재단' || (p.warehouse || '').toUpperCase() === 'FA'));
+      const _proc = (p.process || '').trim();
+      const _wh = (p.warehouse || '').trim().toUpperCase();
+      const _pn = (p.part_number || '').trim();
+      const isCuttingPart = (_proc === '재단') || (_wh === 'FA') || /^[A-Z0-9]+[a-z]?-[CS]-/i.test(_pn);
       const fabricM = isCuttingPart
         ? parseFloat(document.getElementById('fabric-m-input')?.value || '0') || 0
         : null;
