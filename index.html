@@ -1289,7 +1289,11 @@
 
     function updateFabricMSection() {
       const sec = document.getElementById('fabric-m-section');
-      if (sec) sec.style.display = state.worker?.trackFabricM ? 'block' : 'none';
+      if (!sec) return;
+      // 재단 공정 품번이 선택되었을 때만 원단M 입력 활성화 (작업자 권한 무관)
+      const p = state.pickedPart;
+      const isCutting = !!(p && (p.process === '재단' || (p.warehouse || '').toUpperCase() === 'FA'));
+      sec.style.display = isCutting ? 'block' : 'none';
     }
 
     function renderTimeButtons() {
@@ -2242,7 +2246,9 @@
       if (!state.currentWorkTime) {
         showToast('error', t('toast.select_worktime')); return;
       }
-      const fabricM = state.worker?.trackFabricM
+      // 원단M: 재단 공정 품번이 선택된 경우만 값 수집
+      const isCuttingPart = !!(p && (p.process === '재단' || (p.warehouse || '').toUpperCase() === 'FA'));
+      const fabricM = isCuttingPart
         ? parseFloat(document.getElementById('fabric-m-input')?.value || '0') || 0
         : null;
       const entry = {
