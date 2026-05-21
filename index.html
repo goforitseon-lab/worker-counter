@@ -7,13 +7,12 @@
   ============================================================
   REVISION
   ============================================================
+  0507 15 · ERP 업로드 개선 (Edge Function v5와 함께 적용)
+            - 최종전송 1회당 batch_id 생성 → ERP에서 1전표로 묶임
+            - 작업타임/원단M 정보가 ERP 적요1/적요2에 들어감
+            - 생산수량 = 총수량 (불량 포함)
+            - 작업일자 기준으로 ERP 등록
   0507 14 · 구형 폰 바코드 인식 강화
-            - 이미지 전처리: 업스케일 2배 + 흑백 + 명암 대비 강화
-            - 각 영역마다 원본/전처리본 둘 다 시도 (인식률 ↑)
-            - 카메라 해상도 단계 폴백 (2560→1920→1280→자동)
-            - 자동 스캔 인터벌 350ms→500ms (CPU 여유)
-            - 수동 셔터: 모든 영역+모든 처리 (정밀 시도)
-  0507 13 · 바코드 인식 강화 (연속 자동 스캔)
   0507 04 · iOS Safari 카메라 지원 (ZXing-js fallback)
             - BarcodeDetector 미지원 브라우저(iOS Safari 등) 자동 fallback
             - 가이드 박스 영역만 캔버스로 잘라 분석 (다중 바코드 자동 제외)
@@ -48,7 +47,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <meta name="version" content="worker-counter-0507-14">
+  <meta name="version" content="worker-counter-0507-15">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>작업량 입력</title>
@@ -1276,7 +1275,7 @@
 
     function updateFooter() {
       const cnt = Object.keys(state.partsMaster).length;
-      document.getElementById('footer').textContent = `Worker counter 0507 14 · 마스터 ${cnt}건`;
+      document.getElementById('footer').textContent = `Worker counter 0507 15 · 마스터 ${cnt}건`;
     }
 
     function updateConnStatus() {
@@ -2067,6 +2066,8 @@
 
       state.isSending = true; renderPending();
 
+      // 한 번 전송 = 같은 batch_id → ERP에서 한 전표로 묶임
+      const batchId = `B-${Date.now()}-${state.worker.id}`;
       const payload = state.pending.map(p => {
         const dq = p.defectQuantity || 0;
         const defects = p.defects || [];
@@ -2086,7 +2087,7 @@
           defect_code: first ? (first.code || null) : null,
           defect_name: first ? (first.name || null) : null,
           defects: defects.length > 0 ? defects : null,
-          // 클라이언트 timestamp를 서버에 같이 보냄 (ISO 형식)
+          batch_id: batchId,
           created_at: new Date(p.timestamp).toISOString(),
         };
       });
