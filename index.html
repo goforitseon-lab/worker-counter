@@ -7,12 +7,12 @@
   ============================================================
   REVISION
   ============================================================
-  0507 15 · ERP 업로드 개선 (Edge Function v5와 함께 적용)
-            - 최종전송 1회당 batch_id 생성 → ERP에서 1전표로 묶임
-            - 작업타임/원단M 정보가 ERP 적요1/적요2에 들어감
-            - 생산수량 = 총수량 (불량 포함)
-            - 작업일자 기준으로 ERP 등록
-  0507 14 · 구형 폰 바코드 인식 강화
+  0507 16 · 다국어 지원 (한국어 / English / Русский)
+            - 헤더에 언어 토글 (한/EN/RU)
+            - 탭, 입력 라벨, 작업타임, 식단, 카메라 등 핵심 번역
+            - localStorage에 언어 선택 저장 (wc:lang)
+            - 동적 렌더에서 t() 함수로 번역 적용
+  0507 15 · ERP 업로드 개선 (Edge Function v5)
   0507 04 · iOS Safari 카메라 지원 (ZXing-js fallback)
             - BarcodeDetector 미지원 브라우저(iOS Safari 등) 자동 fallback
             - 가이드 박스 영역만 캔버스로 잘라 분석 (다중 바코드 자동 제외)
@@ -47,7 +47,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <meta name="version" content="worker-counter-0507-15">
+  <meta name="version" content="worker-counter-0507-16">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>작업량 입력</title>
@@ -173,6 +173,12 @@
     .time-segment { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; background: #f0f0ee; padding: 4px; border-radius: 10px; }
     .time-btn { padding: 11px 4px; border-radius: 6px; font-size: 12px; font-weight: 700; color: var(--text-dim); }
     .time-btn.active { background: var(--amber); color: #0f0f10; box-shadow: 0 2px 4px rgba(245,184,0,0.3); }
+
+    /* 언어 토글 */
+    .lang-switch { display: inline-flex; gap: 2px; padding: 3px; background: rgba(0,0,0,0.05); border-radius: 8px; }
+    .lang-switch button { padding: 5px 9px; font-size: 11px; font-weight: 700; border-radius: 5px; color: var(--text-muted); }
+    .lang-switch button.active { background: white; color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .lang-switch button:hover { color: var(--text); }
 
     .submit-section { padding: 0 20px; }
     .submit-btn { width: 100%; padding: 20px; border-radius: 16px; font-size: 18px; font-weight: 700; background: linear-gradient(135deg, var(--amber), #ffaa00); color: #0f0f10; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 8px 24px rgba(255,214,10,0.25); }
@@ -478,6 +484,11 @@
         <button class="icon-btn" id="btn-go-admin" title="관리자 페이지로" style="display:none; background: rgba(245,184,0,0.15); border-color: rgba(245,184,0,0.4);">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a07a00" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
         </button>
+        <div class="lang-switch" id="lang-switch">
+          <button data-lang="ko">한</button>
+          <button data-lang="en">EN</button>
+          <button data-lang="ru">RU</button>
+        </div>
         <button class="icon-btn" id="btn-settings">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a8a29e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         </button>
@@ -485,52 +496,52 @@
 
       <!-- 공지사항 (있을 때만 표시) -->
       <div class="notice-section" id="notice-section" style="display:none;">
-        <div class="label">📢 공지사항</div>
+        <div class="label">📢 <span data-i18n="notice.title">공지사항</span></div>
         <div id="notice-list"></div>
       </div>
 
       <!-- 식단표 (있을 때만 표시) -->
       <div class="notice-section" id="meal-section" style="display:none;">
-        <div class="label">🍱 식단표</div>
+        <div class="label">🍱 <span data-i18n="meal.week_title">이번 주 식단</span></div>
         <div id="meal-list"></div>
       </div>
 
       <div class="tabs">
         <button class="tab active" data-tab="input">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          입력
+          <span data-i18n="tab.input">입력</span>
         </button>
         <button class="tab" data-tab="pending">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-          작업내역<span class="tab-badge" id="tab-badge-pending" style="display:none;">0</span>
+          <span data-i18n="tab.pending">작업내역</span><span class="tab-badge" id="tab-badge-pending" style="display:none;">0</span>
         </button>
         <button class="tab" data-tab="sent">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-          제출내역
+          <span data-i18n="tab.sent">제출내역</span>
         </button>
         <button class="tab" data-tab="leave">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-          연차
+          <span data-i18n="tab.leave">연차</span>
         </button>
       </div>
 
       <!-- ============ TAB: INPUT ============ -->
       <div id="tab-input">
         <div class="scan-section">
-          <div class="label">STEP 1 · 품번 스캔</div>
+          <div class="label" data-i18n="input.part_step">STEP 1 · 품번 스캔</div>
           <button class="scan-entry" id="btn-open-cam">
             <div class="scan-icon-wrap">
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ffd60a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
             </div>
-            <div class="scan-text">탭하여 카메라 열기</div>
+            <div class="scan-text" data-i18n="input.camera_btn">카메라 스캔</div>
             <div class="scan-formats">갖다대고 셔터 누르기</div>
           </button>
         </div>
 
         <div class="part-section">
-          <div class="label">품번</div>
+          <div class="label" data-i18n="input.field_name">품번</div>
           <div class="part-input-wrap">
-            <input type="text" id="part-number" class="part-input" placeholder="품번 입력 또는 스캔" autocomplete="off">
+            <input type="text" id="part-number" class="part-input" placeholder="품번 입력 또는 스캔" data-i18n-ph="input.part_placeholder" autocomplete="off">
             <button class="part-clear" id="part-clear" style="display:none;">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a8a29e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
@@ -543,37 +554,37 @@
             <span>품번을 입력하면 정보가 표시됩니다</span>
           </div>
           <div id="info-rows" style="display:none;">
-            <div class="info-row"><div class="info-key">품명</div><div class="info-val" id="info-name">-</div></div>
-            <div class="info-row"><div class="info-key">규격</div><div class="info-val" id="info-spec">-</div></div>
-            <div class="info-row"><div class="info-key">창고</div><div class="info-val" id="info-warehouse">-</div></div>
+            <div class="info-row"><div class="info-key" data-i18n="input.field_name">품명</div><div class="info-val" id="info-name">-</div></div>
+            <div class="info-row"><div class="info-key" data-i18n="input.field_spec">규격</div><div class="info-val" id="info-spec">-</div></div>
+            <div class="info-row"><div class="info-key" data-i18n="input.field_warehouse">창고</div><div class="info-val" id="info-warehouse">-</div></div>
           </div>
         </div>
 
         <div style="margin: 0 20px 20px;">
-          <div class="label">공정 선택 (실제 작업 공정)</div>
+          <div class="label" data-i18n="input.warehouse_label">공정 선택 (실제 작업 공정)</div>
           <select id="warehouse-select" class="input-field" style="padding: 14px 16px; font-size: 15px; appearance: auto;">
-            <option value="">공정 선택...</option>
+            <option value="" data-i18n="input.warehouse_placeholder">공정 선택...</option>
           </select>
         </div>
 
         <div style="margin: 0 20px 20px;">
-          <div class="label">작업 타임</div>
+          <div class="label" data-i18n="input.worktime_label">작업 타임</div>
           <div class="time-segment">
-            <button class="time-btn" data-time="1타임">1타임</button>
-            <button class="time-btn" data-time="2타임">2타임</button>
-            <button class="time-btn" data-time="3타임">3타임</button>
-            <button class="time-btn" data-time="4타임">4타임</button>
-            <button class="time-btn" data-time="잔업">잔업</button>
+            <button class="time-btn" data-time="1타임" data-i18n="input.worktime_1">1타임</button>
+            <button class="time-btn" data-time="2타임" data-i18n="input.worktime_2">2타임</button>
+            <button class="time-btn" data-time="3타임" data-i18n="input.worktime_3">3타임</button>
+            <button class="time-btn" data-time="4타임" data-i18n="input.worktime_4">4타임</button>
+            <button class="time-btn" data-time="잔업" data-i18n="input.worktime_5">잔업</button>
           </div>
         </div>
 
         <div id="fabric-m-section" style="display:none; margin: 0 20px 20px;">
-          <div class="label">원단 사용량 (M)</div>
-          <input type="number" id="fabric-m-input" class="input-field" step="0.1" placeholder="예: 12.5" inputmode="decimal" style="padding: 14px 16px; font-size: 15px;">
+          <div class="label" data-i18n="input.fabric_label">원단 사용량 (M)</div>
+          <input type="number" id="fabric-m-input" class="input-field" step="0.1" placeholder="예: 12.5" data-i18n-ph="input.fabric_placeholder" inputmode="decimal" style="padding: 14px 16px; font-size: 15px;">
         </div>
 
         <div class="qty-section">
-          <div class="label">STEP 2 · 수량 (직접 입력 가능)</div>
+          <div class="label" data-i18n="input.qty_step">STEP 2 · 수량 (직접 입력 가능)</div>
           <div class="qty-stepper">
             <button class="qty-btn qty-btn-minus" id="qty-minus">
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#f5f0e6" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -593,11 +604,11 @@
             <button class="qty-quick-btn" data-add-qty="50">+50</button>
             <button class="qty-quick-btn" data-add-qty="100">+100</button>
           </div>
-          <div class="qty-quick-label">버튼을 누를 때마다 수량이 가산됩니다</div>
+          <div class="qty-quick-label" data-i18n="input.qty_quick_hint">버튼을 누를 때마다 수량이 가산됩니다</div>
         </div>
 
         <div class="qc-section">
-          <div class="label">STEP 3 · 불량 (선택사항 — 없으면 모두 양품)</div>
+          <div class="label" data-i18n="input.defect_step">STEP 3 · 불량 (선택사항 — 없으면 모두 양품)</div>
 
           <!-- 기본: 불량 추가 버튼 -->
           <button class="add-defect-btn" id="btn-add-defect">
@@ -623,7 +634,7 @@
         <div class="submit-section">
           <button class="submit-btn" id="btn-add" disabled>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
-            작업 내역에 추가
+            <span data-i18n="input.add_btn">작업 내역에 추가</span>
           </button>
         </div>
       </div>
@@ -821,11 +832,11 @@
     <video id="cam-video" class="cam-video" playsinline muted></video>
     <div class="cam-flash" id="cam-flash"></div>
     <div class="cam-overlay">
-      <div class="cam-hint-top">🔍 자동 스캔 중 · 바코드를 박스에 맞추세요</div>
+      <div class="cam-hint-top" data-i18n="cam.scanning">🔍 자동 스캔 중 · 바코드를 박스에 맞추세요</div>
       <div class="cam-frame">
         <div class="cam-frame-line"></div>
       </div>
-      <div class="cam-hint-bottom">구형폰: 셔터 누르면 더 정밀하게 시도</div>
+      <div class="cam-hint-bottom" data-i18n="cam.hint_bottom">구형폰: 셔터 누르면 더 정밀하게 시도</div>
       <div class="cam-hint">노란 박스 안에 바코드를 넣고<br>아래 셔터 버튼을 누르세요</div>
     </div>
     <div class="cam-result" id="cam-result">
@@ -859,6 +870,136 @@
     };
 
     // ============ STATE ============
+    // ============ I18N ============
+    const I18N = {
+      ko: {
+        'lang.label': '🌐',
+        'tab.input': '입력', 'tab.pending': '작업내역', 'tab.sent': '제출내역', 'tab.leave': '연차',
+        'header.demo': 'WORKER · DEMO', 'header.refresh': '새로고침', 'header.settings': '설정', 'header.admin': '관리자 페이지로',
+        'setup.title': '작업자 등록', 'setup.name_label': '이름', 'setup.name_placeholder': '이름을 입력하세요', 'setup.start_btn': '시작',
+        'input.part_step': 'STEP 1 · 품번 입력', 'input.part_placeholder': '품번 입력 또는 바코드 스캔', 'input.camera_btn': '카메라 스캔',
+        'input.matched': '마스터에서 매칭됨', 'input.not_matched': '마스터에 없음',
+        'input.field_name': '품명', 'input.field_spec': '규격', 'input.field_warehouse': '창고',
+        'input.warehouse_label': '공정 선택 (실제 작업 공정)', 'input.warehouse_placeholder': '공정 선택...',
+        'input.worktime_label': '작업 타임',
+        'input.worktime_1': '1타임', 'input.worktime_2': '2타임', 'input.worktime_3': '3타임', 'input.worktime_4': '4타임', 'input.worktime_5': '잔업',
+        'input.fabric_label': '원단 사용량 (M)', 'input.fabric_placeholder': '예: 12.5',
+        'input.qty_step': 'STEP 2 · 수량 (직접 입력 가능)', 'input.qty_quick_hint': '버튼을 누를 때마다 수량이 가산됩니다',
+        'input.defect_step': 'STEP 3 · 불량 (선택)', 'input.defect_select_btn': '불량 유형 선택', 'input.good_only': '양품만', 'input.add_btn': '작업 추가',
+        'pending.title': '보류 항목', 'pending.empty': '보류 항목 없음', 'pending.total': '합계', 'pending.send_all': '최종 전송', 'pending.sending': '전송 중...',
+        'sent.title': '오늘 보낸 항목', 'sent.empty': '오늘 전송한 항목 없음',
+        'leave.request_title': '연차 신청', 'leave.start_date': '시작일', 'leave.end_date': '종료일', 'leave.reason': '사유', 'leave.submit_btn': '신청',
+        'leave.history_title': '신청 내역', 'leave.status_pending': '대기 중', 'leave.status_approved': '승인됨', 'leave.status_rejected': '거부됨', 'leave.cancel': '취소',
+        'meal.week_title': '이번 주 식단', 'meal.view_all': '전체 보기', 'meal.today_label': '오늘', 'meal.empty': '등록 안 됨', 'meal.modal_title': '🍱 이번 주 식단', 'meal.close': '닫기',
+        'notice.title': '공지사항',
+        'cam.scanning': '🔍 자동 스캔 중 · 바코드를 박스에 맞추세요', 'cam.hint_bottom': '구형폰: 셔터 누르면 더 정밀하게 시도', 'cam.close': '닫기',
+        'settings.title': '설정', 'settings.lang_label': '언어', 'settings.worker_label': '작업자', 'settings.change': '변경', 'settings.server_label': '서버', 'settings.server_change': '서버 변경', 'settings.close': '닫기',
+        'defect.title': '불량 유형 선택', 'defect.search_placeholder': '코드 또는 이름으로 검색', 'defect.cancel': '취소',
+        'toast.select_warehouse': '공정을 선택해주세요', 'toast.select_worktime': '작업 타임을 선택해주세요',
+        'toast.added': '추가됨', 'toast.sent': '전송 완료', 'toast.send_failed': '전송 실패',
+        'toast.admin_granted': '관리자 권한 부여됨',
+        'confirm.goto_admin': '관리자 페이지로 이동하시겠습니까?',
+        'confirm.delete_item': '이 항목을 삭제하시겠습니까?',
+        'dow.sun': '일', 'dow.mon': '월', 'dow.tue': '화', 'dow.wed': '수', 'dow.thu': '목', 'dow.fri': '금', 'dow.sat': '토',
+        'days.suffix': '요일',
+      },
+      en: {
+        'lang.label': '🌐',
+        'tab.input': 'Input', 'tab.pending': 'Pending', 'tab.sent': 'Sent', 'tab.leave': 'Leave',
+        'header.demo': 'WORKER · DEMO', 'header.refresh': 'Refresh', 'header.settings': 'Settings', 'header.admin': 'Admin Page',
+        'setup.title': 'Worker Registration', 'setup.name_label': 'Name', 'setup.name_placeholder': 'Enter your name', 'setup.start_btn': 'Start',
+        'input.part_step': 'STEP 1 · Part Number', 'input.part_placeholder': 'Enter or scan part number', 'input.camera_btn': 'Scan',
+        'input.matched': 'Matched in master', 'input.not_matched': 'Not in master',
+        'input.field_name': 'Name', 'input.field_spec': 'Spec', 'input.field_warehouse': 'Warehouse',
+        'input.warehouse_label': 'Select Process (actual work area)', 'input.warehouse_placeholder': 'Select process...',
+        'input.worktime_label': 'Work Shift',
+        'input.worktime_1': 'Shift 1', 'input.worktime_2': 'Shift 2', 'input.worktime_3': 'Shift 3', 'input.worktime_4': 'Shift 4', 'input.worktime_5': 'Overtime',
+        'input.fabric_label': 'Fabric (M)', 'input.fabric_placeholder': 'e.g. 12.5',
+        'input.qty_step': 'STEP 2 · Quantity', 'input.qty_quick_hint': 'Tap to add to current quantity',
+        'input.defect_step': 'STEP 3 · Defect (optional)', 'input.defect_select_btn': 'Select Defect Type', 'input.good_only': 'Good only', 'input.add_btn': 'Add Entry',
+        'pending.title': 'Pending Items', 'pending.empty': 'No pending items', 'pending.total': 'Total', 'pending.send_all': 'Send All', 'pending.sending': 'Sending...',
+        'sent.title': "Today's Submitted", 'sent.empty': 'No items sent today',
+        'leave.request_title': 'Request Leave', 'leave.start_date': 'Start Date', 'leave.end_date': 'End Date', 'leave.reason': 'Reason', 'leave.submit_btn': 'Submit',
+        'leave.history_title': 'Request History', 'leave.status_pending': 'Pending', 'leave.status_approved': 'Approved', 'leave.status_rejected': 'Rejected', 'leave.cancel': 'Cancel',
+        'meal.week_title': "This Week's Meals", 'meal.view_all': 'View All', 'meal.today_label': 'Today', 'meal.empty': 'Not registered', 'meal.modal_title': "🍱 This Week's Meals", 'meal.close': 'Close',
+        'notice.title': 'Announcements',
+        'cam.scanning': '🔍 Auto scanning · Aim barcode in box', 'cam.hint_bottom': 'Older phones: tap shutter for deeper scan', 'cam.close': 'Close',
+        'settings.title': 'Settings', 'settings.lang_label': 'Language', 'settings.worker_label': 'Worker', 'settings.change': 'Change', 'settings.server_label': 'Server', 'settings.server_change': 'Change Server', 'settings.close': 'Close',
+        'defect.title': 'Select Defect Type', 'defect.search_placeholder': 'Search by code or name', 'defect.cancel': 'Cancel',
+        'toast.select_warehouse': 'Please select a process', 'toast.select_worktime': 'Please select a work shift',
+        'toast.added': 'Added', 'toast.sent': 'Sent', 'toast.send_failed': 'Send failed',
+        'toast.admin_granted': 'Admin access granted',
+        'confirm.goto_admin': 'Go to admin page?',
+        'confirm.delete_item': 'Delete this item?',
+        'dow.sun': 'Sun', 'dow.mon': 'Mon', 'dow.tue': 'Tue', 'dow.wed': 'Wed', 'dow.thu': 'Thu', 'dow.fri': 'Fri', 'dow.sat': 'Sat',
+        'days.suffix': '',
+      },
+      ru: {
+        'lang.label': '🌐',
+        'tab.input': 'Ввод', 'tab.pending': 'Ожидание', 'tab.sent': 'Отправлено', 'tab.leave': 'Отпуск',
+        'header.demo': 'РАБОТНИК · ДЕМО', 'header.refresh': 'Обновить', 'header.settings': 'Настройки', 'header.admin': 'Админ-панель',
+        'setup.title': 'Регистрация работника', 'setup.name_label': 'Имя', 'setup.name_placeholder': 'Введите имя', 'setup.start_btn': 'Начать',
+        'input.part_step': 'ШАГ 1 · Артикул', 'input.part_placeholder': 'Введите или сканируйте артикул', 'input.camera_btn': 'Сканер',
+        'input.matched': 'Найдено в базе', 'input.not_matched': 'Нет в базе',
+        'input.field_name': 'Название', 'input.field_spec': 'Спецификация', 'input.field_warehouse': 'Склад',
+        'input.warehouse_label': 'Выберите процесс (рабочая зона)', 'input.warehouse_placeholder': 'Выберите процесс...',
+        'input.worktime_label': 'Рабочая смена',
+        'input.worktime_1': 'Смена 1', 'input.worktime_2': 'Смена 2', 'input.worktime_3': 'Смена 3', 'input.worktime_4': 'Смена 4', 'input.worktime_5': 'Сверхурочно',
+        'input.fabric_label': 'Ткань (М)', 'input.fabric_placeholder': 'напр. 12.5',
+        'input.qty_step': 'ШАГ 2 · Количество', 'input.qty_quick_hint': 'Нажимайте для прибавления',
+        'input.defect_step': 'ШАГ 3 · Брак (необязательно)', 'input.defect_select_btn': 'Выбрать тип брака', 'input.good_only': 'Только годные', 'input.add_btn': 'Добавить',
+        'pending.title': 'Ожидающие записи', 'pending.empty': 'Нет ожидающих', 'pending.total': 'Итого', 'pending.send_all': 'Отправить всё', 'pending.sending': 'Отправка...',
+        'sent.title': 'Отправлено сегодня', 'sent.empty': 'Сегодня ничего не отправлено',
+        'leave.request_title': 'Запрос отпуска', 'leave.start_date': 'Дата начала', 'leave.end_date': 'Дата окончания', 'leave.reason': 'Причина', 'leave.submit_btn': 'Отправить',
+        'leave.history_title': 'История запросов', 'leave.status_pending': 'Ожидание', 'leave.status_approved': 'Одобрено', 'leave.status_rejected': 'Отклонено', 'leave.cancel': 'Отменить',
+        'meal.week_title': 'Меню недели', 'meal.view_all': 'Показать всё', 'meal.today_label': 'Сегодня', 'meal.empty': 'Не зарегистрировано', 'meal.modal_title': '🍱 Меню недели', 'meal.close': 'Закрыть',
+        'notice.title': 'Объявления',
+        'cam.scanning': '🔍 Автосканирование · Наведите штрихкод в рамку', 'cam.hint_bottom': 'Старый телефон: нажмите кнопку для точного сканирования', 'cam.close': 'Закрыть',
+        'settings.title': 'Настройки', 'settings.lang_label': 'Язык', 'settings.worker_label': 'Работник', 'settings.change': 'Изменить', 'settings.server_label': 'Сервер', 'settings.server_change': 'Изменить сервер', 'settings.close': 'Закрыть',
+        'defect.title': 'Выберите тип брака', 'defect.search_placeholder': 'Поиск по коду или имени', 'defect.cancel': 'Отмена',
+        'toast.select_warehouse': 'Выберите процесс', 'toast.select_worktime': 'Выберите рабочую смену',
+        'toast.added': 'Добавлено', 'toast.sent': 'Отправлено', 'toast.send_failed': 'Ошибка отправки',
+        'toast.admin_granted': 'Права администратора предоставлены',
+        'confirm.goto_admin': 'Перейти в админ-панель?',
+        'confirm.delete_item': 'Удалить эту запись?',
+        'dow.sun': 'Вс', 'dow.mon': 'Пн', 'dow.tue': 'Вт', 'dow.wed': 'Ср', 'dow.thu': 'Чт', 'dow.fri': 'Пт', 'dow.sat': 'Сб',
+        'days.suffix': '',
+      },
+    };
+
+    let currentLang = localStorage.getItem('wc:lang') || 'ko';
+
+    function t(key) {
+      return I18N[currentLang]?.[key] ?? I18N.ko[key] ?? key;
+    }
+
+    function setLang(lang) {
+      if (!I18N[lang]) return;
+      currentLang = lang;
+      localStorage.setItem('wc:lang', lang);
+      applyI18n();
+      // 동적 영역 다시 그리기
+      try { renderInput(); } catch (e) {}
+      try { renderPending(); } catch (e) {}
+      try { renderSent(); } catch (e) {}
+      try { renderMyLeaves(); } catch (e) {}
+      try { renderMeals(); } catch (e) {}
+      try { renderTimeButtons(); } catch (e) {}
+      // 언어 토글 active 상태 갱신
+      document.querySelectorAll('[data-lang]').forEach(b => b.classList.toggle('active', b.dataset.lang === lang));
+    }
+
+    function applyI18n() {
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.dataset.i18n;
+        const text = t(key);
+        if (text) el.textContent = text;
+      });
+      document.querySelectorAll('[data-i18n-ph]').forEach(el => {
+        el.placeholder = t(el.dataset.i18nPh);
+      });
+    }
+
     const state = {
       worker: null, tab: 'input', partNumber: '', quantity: 1,
       isDefect: false, defects: [], editingDefectIndex: -1,
@@ -941,6 +1082,10 @@
       else { showScreen('main'); renderHeader(); renderInput(); updateBadges(); updateAdminButton(); }
       bindEvents();
 
+      // 언어 설정 적용
+      applyI18n();
+      document.querySelectorAll('[data-lang]').forEach(b => b.classList.toggle('active', b.dataset.lang === currentLang));
+
       window.addEventListener('online', updateConnStatus);
       window.addEventListener('offline', updateConnStatus);
 
@@ -996,9 +1141,10 @@
 
       const today = new Date().toISOString().slice(0,10);
       const monday = getMondayOf(today);
+      const dowKeys = ['dow.sun','dow.mon','dow.tue','dow.wed','dow.thu','dow.fri','dow.sat'];
 
       // 7일 그리드 생성
-      let html = '<div class="meal-week-bar"><span class="meal-week-bar-label">📅 이번 주 식단</span><button class="meal-week-bar-btn" id="meal-show-all">전체 보기</button></div>';
+      let html = '<div class="meal-week-bar"><span class="meal-week-bar-label">📅 ' + t('meal.week_title') + '</span><button class="meal-week-bar-btn" id="meal-show-all">' + t('meal.view_all') + '</button></div>';
       html += '<div class="meal-week-grid-mini">';
       for (let i = 0; i < 7; i++) {
         const date = addDays(monday, i);
@@ -1013,19 +1159,18 @@
         const lineCount = meal ? meal.menu.split('\n').filter(s => s.trim()).length : 0;
         html += `<div class="${cls}" data-meal-date="${date}">
           <div class="meal-mini-head">
-            <span class="meal-mini-dow ${dowClass}">${DAY_NAMES_LONG[dow]}</span>
+            <span class="meal-mini-dow ${dowClass}">${t(dowKeys[dow])}</span>
             <span class="meal-mini-date">${date.slice(5)}</span>
-            ${isToday ? '<span class="meal-mini-today">오늘</span>' : ''}
+            ${isToday ? `<span class="meal-mini-today">${t('meal.today_label')}</span>` : ''}
           </div>
           ${meal
-            ? `<div class="meal-mini-menu">${escapeHtml(firstLine)}${lineCount > 1 ? `<div class="meal-mini-more">외 ${lineCount - 1}개</div>` : ''}</div>`
+            ? `<div class="meal-mini-menu">${escapeHtml(firstLine)}${lineCount > 1 ? `<div class="meal-mini-more">+${lineCount - 1}</div>` : ''}</div>`
             : '<div class="meal-mini-empty">-</div>'}
         </div>`;
       }
       html += '</div>';
 
       list.innerHTML = html;
-      // 각 카드 클릭 시 상세 모달
       list.querySelectorAll('[data-meal-date]').forEach(card => {
         card.addEventListener('click', () => showMealDetail(card.dataset.mealDate));
       });
@@ -1035,9 +1180,9 @@
     function showMealDetail(focusDate, showAll) {
       const today = new Date().toISOString().slice(0,10);
       const monday = getMondayOf(focusDate);
-      const meal = state.meals.find(m => m.meal_date === focusDate);
+      const dowKeys = ['dow.sun','dow.mon','dow.tue','dow.wed','dow.thu','dow.fri','dow.sat'];
 
-      let html = '<div class="meal-modal-title">🍱 이번 주 식단</div>';
+      let html = '<div class="meal-modal-title">' + t('meal.modal_title') + '</div>';
       html += '<div class="meal-modal-list">';
       for (let i = 0; i < 7; i++) {
         const date = addDays(monday, i);
@@ -1048,15 +1193,15 @@
         const dowClass = dow === 0 ? 'sun' : (dow === 6 ? 'sat' : '');
         html += `<div class="meal-detail-item${isToday ? ' today' : ''}">
           <div class="meal-detail-head">
-            <span class="meal-detail-dow ${dowClass}">${DAY_NAMES_LONG[dow]}요일</span>
+            <span class="meal-detail-dow ${dowClass}">${t(dowKeys[dow])}${t('days.suffix')}</span>
             <span class="meal-detail-date">${date.slice(5)}</span>
-            ${isToday ? '<span class="meal-mini-today">오늘</span>' : ''}
+            ${isToday ? `<span class="meal-mini-today">${t('meal.today_label')}</span>` : ''}
           </div>
-          ${m ? `<div class="meal-detail-menu">${escapeHtml(m.menu)}</div>${m.notes ? `<div class="meal-detail-notes">📝 ${escapeHtml(m.notes)}</div>` : ''}` : '<div class="meal-detail-empty">등록 안 됨</div>'}
+          ${m ? `<div class="meal-detail-menu">${escapeHtml(m.menu)}</div>${m.notes ? `<div class="meal-detail-notes">📝 ${escapeHtml(m.notes)}</div>` : ''}` : `<div class="meal-detail-empty">${t('meal.empty')}</div>`}
         </div>`;
       }
       html += '</div>';
-      html += '<button class="modal-btn ghost" id="meal-detail-close" style="margin-top:12px;width:100%;">닫기</button>';
+      html += '<button class="modal-btn ghost" id="meal-detail-close" style="margin-top:12px;width:100%;">' + t('meal.close') + '</button>';
 
       const modal = document.getElementById('modal-meal-detail');
       modal.querySelector('.modal').innerHTML = html;
@@ -1082,7 +1227,7 @@
           updateAdminButton();
           updateFabricMSection();
           if (state.worker.isAdmin && !wasAdmin) {
-            showToast('success', '관리자 권한 부여됨', '⭐ 버튼 클릭으로 관리자 페이지 이동');
+            showToast('success', t('toast.admin_granted'), '⭐');
           }
         }
       } catch (e) { console.warn('refresh me failed:', e); }
@@ -1275,7 +1420,7 @@
 
     function updateFooter() {
       const cnt = Object.keys(state.partsMaster).length;
-      document.getElementById('footer').textContent = `Worker counter 0507 15 · 마스터 ${cnt}건`;
+      document.getElementById('footer').textContent = `Worker counter 0507 16 · 마스터 ${cnt}건`;
     }
 
     function updateConnStatus() {
@@ -1945,10 +2090,10 @@
       // 공정 선택: 드롭다운 값 우선, 없으면 부품 마스터의 창고
       const selectedWarehouse = (document.getElementById('warehouse-select')?.value || '').trim() || info.warehouse || '';
       if (!selectedWarehouse) {
-        showToast('error', '공정을 선택해주세요'); return;
+        showToast('error', t('toast.select_warehouse')); return;
       }
       if (!state.currentWorkTime) {
-        showToast('error', '작업 타임을 선택해주세요'); return;
+        showToast('error', t('toast.select_worktime')); return;
       }
       const fabricM = state.worker?.trackFabricM
         ? parseFloat(document.getElementById('fabric-m-input')?.value || '0') || 0
@@ -2432,8 +2577,11 @@
       // 설정 모달
       document.getElementById('btn-settings').addEventListener('click', () => openModal('modal-settings'));
       document.getElementById('btn-go-admin').addEventListener('click', () => {
-        if (confirm('관리자 페이지로 이동하시겠습니까?')) window.location.href = 'admin.html';
+        if (confirm(t('confirm.goto_admin'))) window.location.href = 'admin.html';
       });
+
+      // 언어 토글
+      document.querySelectorAll('[data-lang]').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang)));
       document.getElementById('btn-modal-close').addEventListener('click', () => closeModal('modal-settings'));
       document.getElementById('btn-server-config').addEventListener('click', openServerModal);
       document.getElementById('btn-change-worker').addEventListener('click', changeWorker);
