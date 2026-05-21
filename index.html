@@ -7,13 +7,11 @@
   ============================================================
   REVISION
   ============================================================
+  0507 18 · 차종 마스터 테이블 분리 (car_models)
+            - 부품 없는 차종도 picker에 표시 (MX5 같은 신규)
+            - 차종 선택 후 부품 미등록이면 안내 메시지
+            - LQ2a → LQ2로 코드 통일
   0507 17 · 입력방식 완전 개편 - 분류 picker 방식
-            - 카메라/품번 입력 제거
-            - 차종 → 칼라 → 원단사양 → 라벨 → LH/RH 버튼식 선택
-            - 단계별 가능한 옵션만 자동 필터링
-            - 5개 선택 완료 시 품번 + 공정(창고) 자동 결정
-            - 영물 라벨 다공정 시 작업자 현재 공정 자동 사용
-  0507 16 · 다국어 지원 (한국어 / English / Русский)
   0507 04 · iOS Safari 카메라 지원 (ZXing-js fallback)
             - BarcodeDetector 미지원 브라우저(iOS Safari 등) 자동 fallback
             - 가이드 박스 영역만 캔버스로 잘라 분석 (다중 바코드 자동 제외)
@@ -48,7 +46,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <meta name="version" content="worker-counter-0507-17">
+  <meta name="version" content="worker-counter-0507-18">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>작업량 입력</title>
@@ -1039,8 +1037,9 @@
       pending: [], sent: [], partsMaster: {},
       warehouses: [], currentWarehouse: '',
       currentWorkTime: '',
+      carModels: [],
       pick: { car: '', color: '', fabric: '', label: '', side: '' },
-      pickedPart: null,  // 자동 결정된 부품 객체
+      pickedPart: null,
       notices: [], myLeaves: [], meals: [],
       stream: null, detector: null, lastScanned: null, scanLoop: null,
       isSending: false,
@@ -1111,6 +1110,7 @@
       state.warehouses = storage.get('warehouses') || [];
       state.currentWarehouse = storage.get('current:warehouse') || '';
       state.currentWorkTime = storage.get('current:worktime') || '';
+      state.carModels = storage.get('car_models') || [];
       updateFooter();
       updateConnStatus();
 
@@ -1133,7 +1133,20 @@
     }
 
     async function syncFromServer() {
-      await Promise.all([syncPartsMaster(), syncWarehouses(), fetchNotices(), fetchMyLeaves(), fetchMeals(), refreshMyInfo()]);
+      await Promise.all([syncPartsMaster(), syncWarehouses(), syncCarModels(), fetchNotices(), fetchMyLeaves(), fetchMeals(), refreshMyInfo()]);
+    }
+
+    async function syncCarModels() {
+      const cfg = state.serverConfig;
+      if (!cfg.url || !cfg.key) return;
+      try {
+        const url = `${cfg.url.replace(/\/$/,'')}/rest/v1/car_models?active=eq.true&order=code.asc`;
+        const res = await fetch(url, { headers: { 'apikey': cfg.key, 'Authorization': 'Bearer ' + cfg.key } });
+        if (!res.ok) return;
+        state.carModels = await res.json();
+        storage.set('car_models', state.carModels);
+        renderPicker();
+      } catch (e) { console.warn('CarModels sync failed:', e); }
     }
 
     async function fetchMeals() {
@@ -1459,7 +1472,7 @@
 
     function updateFooter() {
       const cnt = Object.keys(state.partsMaster).length;
-      document.getElementById('footer').textContent = `Worker counter 0507 17 · 마스터 ${cnt}건`;
+      document.getElementById('footer').textContent = `Worker counter 0507 18 · 마스터 ${cnt}건`;
     }
 
     function updateConnStatus() {
@@ -1586,20 +1599,25 @@
     // ============ PICKER (분류 선택 → 자동 품번/공정 매핑) ============
     function renderPicker() {
       const list = state.partsList || [];
-      if (list.length === 0 || !list[0].car_model) {
-        // 분류 데이터 없음
+      const cars = state.carModels && state.carModels.length > 0
+        ? state.carModels.map(c => c.code)
+        : uniq(list.filter(p => p.car_model).map(p => p.car_model));
+
+      if (cars.length === 0) {
         document.getElementById('pick-car').innerHTML = `<div class="picker-empty">${t('picker.no_data')}</div>`;
         return;
       }
-      // 단계별 옵션 필터링
-      const cars = uniq(list.filter(p => p.car_model).map(p => p.car_model));
       renderPickRow('pick-car', cars, state.pick.car, v => { state.pick.car = v; state.pick.color = state.pick.fabric = state.pick.label = state.pick.side = ''; renderPicker(); decidePart(); });
 
       // 칼라
       if (state.pick.car) {
         document.getElementById('pick-step-color').style.display = 'block';
         const colors = uniq(list.filter(p => p.car_model === state.pick.car && p.color).map(p => p.color));
-        renderPickRow('pick-color', colors, state.pick.color, v => { state.pick.color = v; state.pick.fabric = state.pick.label = state.pick.side = ''; renderPicker(); decidePart(); });
+        if (colors.length === 0) {
+          document.getElementById('pick-color').innerHTML = `<div class="picker-empty">⚠ "${state.pick.car}" 부품 데이터 미등록 (관리자가 추가 필요)</div>`;
+        } else {
+          renderPickRow('pick-color', colors, state.pick.color, v => { state.pick.color = v; state.pick.fabric = state.pick.label = state.pick.side = ''; renderPicker(); decidePart(); });
+        }
       } else { document.getElementById('pick-step-color').style.display = 'none'; }
 
       // 원단사양
