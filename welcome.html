@@ -69,6 +69,16 @@
   .btn-primary, .btn-secondary { padding: 14px; border-radius: 10px; border: none; font-family: inherit; font-size: 15px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: transform 0.15s, box-shadow 0.2s; }
   .btn-primary { background: linear-gradient(135deg, #d97706, #f59e0b); color: #fff; grid-column: 1 / -1; box-shadow: 0 2px 8px rgba(217,119,6,0.3); }
   .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(217,119,6,0.4); }
+  .btn-company {
+    padding: 14px; border-radius: 10px; border: none;
+    font-family: inherit; font-size: 15px; font-weight: 700; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    transition: transform 0.15s, box-shadow 0.2s;
+    background: linear-gradient(135deg, #1e3a8a, #2563eb); color: #fff;
+    grid-column: 1 / -1;
+    box-shadow: 0 2px 8px rgba(37,99,235,0.3);
+  }
+  .btn-company:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(37,99,235,0.4); }
   .btn-secondary { background: #f1f5f9; color: #334155; border: 1px solid #e2e8f0; }
   .btn-secondary:hover { background: #e2e8f0; }
 
@@ -316,6 +326,407 @@
   }
   .display-company { text-align: right; font-size: 18px; color: var(--text-faint); letter-spacing: 0.06em; }
 
+  /* ============================================ */
+  /* COMPANY SLIDES MODE (회사 소개 자동 슬라이드)   */
+  /* ============================================ */
+  .company-mode {
+    display: none;
+    width: 100vw; height: 100vh;
+    position: relative;
+    overflow: hidden;
+    color: #0f172a;
+    background: linear-gradient(135deg, #f8fafc 0%, #eff6ff 100%);
+  }
+  body.company-active .edit-mode { display: none; }
+  body.company-active .company-mode { display: block; }
+
+  /* 진행 인디케이터 (상단 점들) */
+  .slide-indicators {
+    position: absolute; top: 32px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 10px; z-index: 10;
+  }
+  .slide-dot {
+    width: 36px; height: 4px;
+    background: rgba(15,23,42,0.12);
+    border-radius: 2px;
+    transition: background 0.3s;
+    overflow: hidden;
+    position: relative;
+  }
+  .slide-dot.active::after {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(90deg, #2563eb, #16a34a);
+    border-radius: 2px;
+    animation: indicator-fill var(--slide-duration, 8s) linear forwards;
+  }
+  .slide-dot.done { background: linear-gradient(90deg, #2563eb, #16a34a); }
+  @keyframes indicator-fill { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+
+  /* 슬라이드 컨테이너 */
+  .slide-stack { position: absolute; inset: 0; }
+  .c-slide {
+    position: absolute; inset: 0;
+    padding: 120px 100px 90px;
+    opacity: 0; visibility: hidden;
+    transition: opacity 0.8s ease, visibility 0s linear 0.8s;
+    display: flex; flex-direction: column;
+    z-index: 2;
+  }
+  .c-slide.active { opacity: 1; visibility: visible; transition: opacity 0.8s ease; }
+
+  /* 슬라이드 공통 요소 */
+  .c-slide-num {
+    font-family: 'Playfair Display', serif;
+    font-size: 14px; font-weight: 700;
+    color: #94a3b8; letter-spacing: 0.3em;
+    margin-bottom: 8px;
+  }
+  .c-slide-title {
+    font-family: 'Noto Serif KR', serif;
+    font-size: 56px; font-weight: 800;
+    color: #0f172a; line-height: 1.1;
+    margin-bottom: 16px;
+    letter-spacing: -0.02em;
+  }
+  .c-slide-sub {
+    font-size: 22px;
+    color: #475569;
+    font-weight: 500;
+    margin-bottom: 50px;
+  }
+  .c-slide-accent {
+    width: 80px; height: 4px;
+    background: linear-gradient(90deg, #2563eb, #16a34a);
+    border-radius: 4px;
+    margin-bottom: 24px;
+  }
+
+  /* Slide 1 - 인트로 (2단 레이아웃) */
+  .c-intro {
+    flex-direction: row !important;
+    align-items: center; justify-content: center;
+    gap: 80px;
+    padding: 80px 100px !important;
+  }
+  .c-intro-logo {
+    width: 480px; height: 265px;
+    background-image: var(--logo-v);
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    filter: drop-shadow(0 8px 32px rgba(15,23,42,0.15));
+    animation: logo-float 6s ease-in-out infinite;
+  }
+  .c-intro-text-block { max-width: 600px; }
+  .c-intro-eyebrow {
+    font-family: 'Playfair Display', serif;
+    font-size: 16px; font-weight: 700;
+    color: #2563eb; letter-spacing: 0.4em;
+    margin-bottom: 20px;
+    text-transform: uppercase;
+  }
+  .c-intro-title {
+    font-family: 'Noto Serif KR', serif;
+    font-size: 72px; font-weight: 900;
+    color: #0f172a; line-height: 1.15;
+    margin-bottom: 14px;
+    letter-spacing: -0.03em;
+  }
+  .c-intro-slogan {
+    font-size: 26px; font-weight: 600;
+    color: #1e3a8a;
+    line-height: 1.4;
+    margin-top: 28px;
+    padding-top: 28px;
+    border-top: 2px solid rgba(37,99,235,0.15);
+  }
+  .c-intro-en {
+    font-family: 'Playfair Display', serif;
+    font-size: 22px; font-style: italic;
+    color: #16a34a;
+    margin-top: 8px;
+  }
+
+  /* Slide 2 - 사업 영역 (4 카드 그리드) */
+  .c-cards-4 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    flex: 1;
+  }
+  .c-card {
+    background: #fff;
+    border: 1px solid rgba(15,23,42,0.08);
+    border-radius: 18px;
+    padding: 32px;
+    box-shadow: 0 4px 16px rgba(15,23,42,0.04);
+    display: flex; flex-direction: column;
+    position: relative; overflow: hidden;
+  }
+  .c-card::before {
+    content: ''; position: absolute;
+    top: 0; left: 0; right: 0; height: 4px;
+    background: linear-gradient(90deg, #2563eb, #16a34a);
+  }
+  .c-card-icon {
+    font-size: 44px;
+    margin-bottom: 14px;
+    line-height: 1;
+  }
+  .c-card-title {
+    font-size: 26px; font-weight: 800;
+    color: #0f172a;
+    margin-bottom: 10px;
+  }
+  .c-card-desc {
+    font-size: 16px;
+    color: #475569;
+    line-height: 1.6;
+  }
+
+  /* Slide 3 - 차별화 기술 (좌 큰 숫자, 우 리스트) */
+  .c-tech {
+    flex-direction: row !important;
+    align-items: center;
+    gap: 80px;
+    padding-top: 80px !important;
+  }
+  .c-tech-left {
+    flex: 1;
+    display: flex; flex-direction: column;
+    justify-content: center;
+  }
+  .c-tech-right { flex: 1.2; }
+  .c-badge-grid { display: flex; flex-direction: column; gap: 24px; }
+  .c-badge-row {
+    display: flex; align-items: center; gap: 20px;
+    padding: 22px 26px;
+    background: #fff;
+    border-radius: 14px;
+    border-left: 5px solid #2563eb;
+    box-shadow: 0 2px 10px rgba(15,23,42,0.04);
+  }
+  .c-badge-row.green { border-left-color: #16a34a; }
+  .c-badge-row.orange { border-left-color: #d97706; }
+  .c-badge-icon {
+    width: 56px; height: 56px;
+    flex-shrink: 0;
+    background: linear-gradient(135deg, #2563eb, #16a34a);
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 26px; color: #fff;
+  }
+  .c-badge-row.green .c-badge-icon { background: linear-gradient(135deg, #16a34a, #84cc16); }
+  .c-badge-row.orange .c-badge-icon { background: linear-gradient(135deg, #d97706, #f59e0b); }
+  .c-badge-text { flex: 1; }
+  .c-badge-title { font-size: 20px; font-weight: 800; color: #0f172a; margin-bottom: 4px; }
+  .c-badge-desc { font-size: 14px; color: #64748b; }
+
+  /* Slide 4 - 생산 시스템 (큰 통계 + 4 박스) */
+  .c-stat-big {
+    text-align: center;
+    margin: 20px 0 40px;
+  }
+  .c-stat-big-num {
+    font-family: 'Playfair Display', serif;
+    font-size: 120px; font-weight: 900;
+    line-height: 1;
+    background: linear-gradient(135deg, #2563eb, #16a34a);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    letter-spacing: -0.04em;
+  }
+  .c-stat-big-label {
+    font-size: 22px; font-weight: 700;
+    color: #0f172a;
+    margin-top: 8px;
+  }
+  .c-stat-big-sub { font-size: 16px; color: #64748b; margin-top: 4px; }
+  .c-feat-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  .c-feat-box {
+    background: #fff;
+    border-radius: 14px;
+    padding: 22px;
+    text-align: center;
+    border: 1px solid rgba(15,23,42,0.06);
+  }
+  .c-feat-icon { font-size: 32px; margin-bottom: 8px; }
+  .c-feat-title { font-size: 16px; font-weight: 800; color: #0f172a; margin-bottom: 4px; }
+  .c-feat-desc { font-size: 13px; color: #64748b; }
+
+  /* Slide 5 - 품질 시험 (5개 인증 카드) */
+  .c-tests {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 16px;
+    flex: 1; align-content: center;
+  }
+  .c-test-card {
+    background: #fff;
+    border: 2px solid #16a34a;
+    border-radius: 18px;
+    padding: 32px 18px;
+    text-align: center;
+    position: relative;
+    box-shadow: 0 4px 16px rgba(22,163,74,0.08);
+  }
+  .c-test-card::after {
+    content: '✓'; position: absolute;
+    top: -14px; right: -14px;
+    width: 36px; height: 36px;
+    background: #16a34a; color: #fff;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 900; font-size: 18px;
+    box-shadow: 0 4px 12px rgba(22,163,74,0.3);
+  }
+  .c-test-icon { font-size: 48px; margin-bottom: 12px; }
+  .c-test-name { font-size: 18px; font-weight: 800; color: #0f172a; margin-bottom: 4px; }
+  .c-test-sub { font-size: 12px; color: #64748b; }
+
+  /* Slide 6 - 제품 라인업 (6 카드) */
+  .c-products {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    flex: 1; align-content: center;
+  }
+  .c-prod-card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 26px;
+    border: 1px solid rgba(15,23,42,0.08);
+    box-shadow: 0 2px 10px rgba(15,23,42,0.04);
+    text-align: center;
+  }
+  .c-prod-flag { font-size: 36px; margin-bottom: 10px; }
+  .c-prod-name { font-size: 19px; font-weight: 800; color: #0f172a; margin-bottom: 6px; }
+  .c-prod-desc { font-size: 13px; color: #64748b; line-height: 1.5; }
+
+  /* Slide 7 - 공급 프로세스 (3단계) */
+  .c-process {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr auto 1fr;
+    gap: 16px;
+    align-items: center;
+    flex: 1;
+  }
+  .c-step {
+    background: #fff;
+    border-radius: 18px;
+    padding: 36px 28px;
+    text-align: center;
+    border: 1px solid rgba(15,23,42,0.08);
+    box-shadow: 0 4px 16px rgba(15,23,42,0.05);
+    position: relative;
+  }
+  .c-step-num {
+    position: absolute;
+    top: -20px; left: 50%; transform: translateX(-50%);
+    width: 50px; height: 50px;
+    background: linear-gradient(135deg, #2563eb, #16a34a);
+    color: #fff;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Playfair Display', serif;
+    font-size: 22px; font-weight: 900;
+    box-shadow: 0 4px 14px rgba(37,99,235,0.3);
+  }
+  .c-step-title { font-size: 24px; font-weight: 800; color: #0f172a; margin-top: 16px; margin-bottom: 10px; }
+  .c-step-list { font-size: 14px; color: #475569; line-height: 1.8; text-align: left; padding: 0 8px; }
+  .c-step-list li { list-style: none; padding-left: 14px; position: relative; }
+  .c-step-list li::before { content: '·'; position: absolute; left: 0; color: #2563eb; font-weight: 900; }
+  .c-arrow { font-size: 32px; color: #94a3b8; font-weight: 300; }
+
+  /* Slide 8 - 마무리 */
+  .c-outro {
+    align-items: center; justify-content: center;
+    text-align: center;
+    padding: 80px !important;
+  }
+  .c-outro-logo {
+    width: 420px; height: 232px;
+    background-image: var(--logo-v);
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    margin-bottom: 36px;
+    filter: drop-shadow(0 8px 32px rgba(15,23,42,0.15));
+    animation: logo-float 6s ease-in-out infinite;
+  }
+  .c-outro-title {
+    font-family: 'Noto Serif KR', serif;
+    font-size: 52px; font-weight: 800;
+    color: #0f172a;
+    margin-bottom: 12px;
+    letter-spacing: -0.02em;
+  }
+  .c-outro-sub {
+    font-family: 'Playfair Display', serif;
+    font-style: italic;
+    font-size: 26px;
+    color: #2563eb;
+    margin-bottom: 36px;
+  }
+  .c-outro-cta {
+    font-size: 18px;
+    color: #475569;
+    line-height: 1.7;
+    max-width: 600px;
+    padding: 20px 32px;
+    background: rgba(255,255,255,0.6);
+    border-radius: 14px;
+    border-left: 4px solid #16a34a;
+  }
+
+  /* 하단 회사명 배너 (모든 슬라이드 공통) */
+  .c-bottom-bar {
+    position: absolute;
+    bottom: 32px; left: 0; right: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 100px;
+    z-index: 5;
+    pointer-events: none;
+  }
+  .c-bottom-logo {
+    width: 140px; height: 26px;
+    background-image: var(--logo-h);
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: left center;
+    opacity: 0.75;
+  }
+  .c-bottom-text {
+    font-size: 13px;
+    color: #64748b;
+    letter-spacing: 0.1em;
+    font-weight: 600;
+  }
+
+  /* 회사 모드 컨트롤 */
+  .company-controls {
+    position: fixed; top: 20px; right: 20px;
+    display: flex; gap: 8px;
+    opacity: 0;
+    transition: opacity 0.3s;
+    z-index: 100;
+  }
+  .company-mode:hover .company-controls,
+  .company-controls:hover { opacity: 1; }
+  .company-controls .ctrl-btn {
+    background: rgba(255,255,255,0.85);
+    border-color: rgba(15,23,42,0.15);
+    color: #0f172a;
+  }
+  .company-controls .ctrl-btn:hover { background: rgba(255,255,255,1); }
+
   .display-controls { position: fixed; top: 20px; right: 20px; display: flex; gap: 8px; opacity: 0; transition: opacity 0.3s; z-index: 100; }
   .display-mode:hover .display-controls, .display-controls:hover { opacity: 1; }
   .ctrl-btn { padding: 8px 14px; background: rgba(0,0,0,0.15); border: 1px solid rgba(255,255,255,0.2); color: inherit; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; backdrop-filter: blur(10px); font-family: inherit; }
@@ -377,7 +788,8 @@
       </div>
 
       <div class="action-row">
-        <button class="btn-primary" id="btn-display">🎉 TV에 환영 화면 띄우기</button>
+        <button class="btn-primary" id="btn-display">🎉 환영 화면 띄우기</button>
+        <button class="btn-company" id="btn-company">🏢 회사 소개 화면 띄우기</button>
         <button class="btn-secondary" id="btn-reset">초기화</button>
         <button class="btn-secondary" id="btn-copy-url">URL 복사</button>
       </div>
@@ -393,10 +805,12 @@
       </div>
       <div style="margin-top:14px; padding:14px; background:#f8fafc; border-radius:10px; font-size:13px; color:#475569; line-height:1.6;">
         <strong style="color:#0f172a;">💡 사용 방법</strong><br>
-        1. 좌측에 방문자 정보 입력 → 미리보기 확인<br>
-        2. <strong>"TV에 환영 화면 띄우기"</strong> 클릭하면 풀스크린으로 전환<br>
-        3. TV에서 ESC 키를 누르면 입력 모드로 돌아옵니다<br>
-        4. <strong>URL 복사</strong>로 받은 링크를 TV 브라우저에 붙여넣으면 바로 환영 화면이 표시됩니다
+        <strong>방문 손님이 올 때:</strong><br>
+        1. 손님 정보 입력 → <strong>"🎉 환영 화면 띄우기"</strong> 클릭<br>
+        2. ESC 키로 입력 화면 복귀<br><br>
+        <strong>평상시 (방문자 없을 때):</strong><br>
+        ▸ <strong>"🏢 회사 소개 화면 띄우기"</strong> 클릭하면 회사 소개 슬라이드가 8개씩 자동 재생됩니다 (9초 간격)<br>
+        ▸ URL 복사로 받은 링크를 TV 브라우저에 붙여넣으면 부팅 시 자동 시작
       </div>
     </div>
   </div>
@@ -438,6 +852,253 @@
     <button class="ctrl-btn" id="btn-back-edit">입력 화면 (ESC)</button>
   </div>
   <div class="esc-hint">ESC = 입력화면 / F = 전체화면</div>
+</div>
+
+<!-- ====================== COMPANY MODE ====================== -->
+<div class="company-mode" id="company-mode">
+  <!-- 진행 인디케이터 -->
+  <div class="slide-indicators" id="slide-indicators"></div>
+
+  <div class="slide-stack">
+    <!-- Slide 1: 인트로 -->
+    <div class="c-slide c-intro" data-slide="1">
+      <div class="c-intro-logo"></div>
+      <div class="c-intro-text-block">
+        <div class="c-intro-eyebrow">WOOJOO SPECIAL INDUSTRY</div>
+        <div class="c-intro-title">우주특수산업</div>
+        <div class="c-intro-en">Trust · Belief · Value</div>
+        <div class="c-intro-slogan">믿음과 신뢰로<br>고객 가치를 만드는 기업</div>
+      </div>
+    </div>
+
+    <!-- Slide 2: 주요 사업 영역 -->
+    <div class="c-slide" data-slide="2">
+      <div class="c-slide-num">01 · BUSINESS AREAS</div>
+      <div class="c-slide-title">주요 사업 영역</div>
+      <div class="c-slide-accent"></div>
+      <div class="c-slide-sub">자동차 안전 라벨 전문 제조</div>
+      <div class="c-cards-4">
+        <div class="c-card">
+          <div class="c-card-icon">☀️</div>
+          <div class="c-card-title">Sunvisor</div>
+          <div class="c-card-desc">자동차 운전석·조수석 햇빛가리개용 UV 특수라벨. 에어백 등 안전 정보를 영구적으로 표시합니다.</div>
+        </div>
+        <div class="c-card">
+          <div class="c-card-icon">💺</div>
+          <div class="c-card-title">Headrest</div>
+          <div class="c-card-desc">자동차 좌석 머리받침 부착 안전 라벨. 탑승자 안전 관련 정보를 영구 표시합니다.</div>
+        </div>
+        <div class="c-card">
+          <div class="c-card-icon">🚙</div>
+          <div class="c-card-title">Cargo Screen</div>
+          <div class="c-card-desc">SUV 트렁크 수납공간 부착 라벨. 직사광선 차단과 수납공간 보호 안내 표시.</div>
+        </div>
+        <div class="c-card">
+          <div class="c-card-icon">🏷️</div>
+          <div class="c-card-title">각종 스티커 라벨</div>
+          <div class="c-card-desc">엔진·파이프·계기판·창문·도어 등 차량 곳곳에 부착되는 안내 및 경고 라벨.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Slide 3: 차별화 기술 -->
+    <div class="c-slide c-tech" data-slide="3">
+      <div class="c-tech-left">
+        <div class="c-slide-num">02 · CORE TECHNOLOGY</div>
+        <div class="c-slide-title">독자 개발 기술력</div>
+        <div class="c-slide-accent"></div>
+        <div class="c-slide-sub" style="margin-bottom:0;">독자 특허로 입증된 품질과 신뢰성</div>
+      </div>
+      <div class="c-tech-right">
+        <div class="c-badge-grid">
+          <div class="c-badge-row">
+            <div class="c-badge-icon">📜</div>
+            <div class="c-badge-text">
+              <div class="c-badge-title">라벨 제조 방법 특허</div>
+              <div class="c-badge-desc">특허 제 10-1353935 호 · 전세계 특허 출원 진행 중</div>
+            </div>
+          </div>
+          <div class="c-badge-row green">
+            <div class="c-badge-icon">🏅</div>
+            <div class="c-badge-text">
+              <div class="c-badge-title">ISO 9001 인증</div>
+              <div class="c-badge-desc">국제 품질경영시스템 인증 보유</div>
+            </div>
+          </div>
+          <div class="c-badge-row orange">
+            <div class="c-badge-icon">⚙️</div>
+            <div class="c-badge-text">
+              <div class="c-badge-title">자체 개발 핫멜트 원단</div>
+              <div class="c-badge-desc">기존 대비 약 5배 고급 원단 · 스웨덴제 고급 UV 잉크 사용</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Slide 4: 생산 시스템 -->
+    <div class="c-slide" data-slide="4">
+      <div class="c-slide-num">03 · PRODUCTION</div>
+      <div class="c-slide-title">최첨단 생산 시스템</div>
+      <div class="c-slide-accent"></div>
+      <div class="c-stat-big">
+        <div class="c-stat-big-num">150만+</div>
+        <div class="c-stat-big-label">월간 라벨 생산 CAPA</div>
+        <div class="c-stat-big-sub">EA / Month</div>
+      </div>
+      <div class="c-feat-row">
+        <div class="c-feat-box">
+          <div class="c-feat-icon">🖨️</div>
+          <div class="c-feat-title">로터리 인쇄기</div>
+          <div class="c-feat-desc">UV 건조 방식 자동화 라인</div>
+        </div>
+        <div class="c-feat-box">
+          <div class="c-feat-icon">💾</div>
+          <div class="c-feat-title">ERP 시스템</div>
+          <div class="c-feat-desc">수주·재고·출하 통합관리</div>
+        </div>
+        <div class="c-feat-box">
+          <div class="c-feat-icon">🧪</div>
+          <div class="c-feat-title">클린룸 시스템</div>
+          <div class="c-feat-desc">에어샤워 이물질 제거</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Slide 5: 품질 시험 -->
+    <div class="c-slide" data-slide="5">
+      <div class="c-slide-num">04 · QUALITY ASSURANCE</div>
+      <div class="c-slide-title">엄격한 품질 관리</div>
+      <div class="c-slide-accent"></div>
+      <div class="c-slide-sub">고객사 생산 시스템과 동일 조건 TEST 후 출하</div>
+      <div class="c-tests">
+        <div class="c-test-card">
+          <div class="c-test-icon">🔥</div>
+          <div class="c-test-name">내열성</div>
+          <div class="c-test-sub">Heat Resistance</div>
+        </div>
+        <div class="c-test-card">
+          <div class="c-test-icon">☀️</div>
+          <div class="c-test-name">내광성</div>
+          <div class="c-test-sub">Light Resistance</div>
+        </div>
+        <div class="c-test-card">
+          <div class="c-test-icon">🔥</div>
+          <div class="c-test-name">연소성</div>
+          <div class="c-test-sub">Flammability</div>
+        </div>
+        <div class="c-test-card">
+          <div class="c-test-icon">💨</div>
+          <div class="c-test-name">TVOC</div>
+          <div class="c-test-sub">유해 휘발성 검사</div>
+        </div>
+        <div class="c-test-card">
+          <div class="c-test-icon">⚗️</div>
+          <div class="c-test-name">중금속</div>
+          <div class="c-test-sub">Heavy Metal</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Slide 6: 제품 라인업 -->
+    <div class="c-slide" data-slide="6">
+      <div class="c-slide-num">05 · PRODUCT LINEUP</div>
+      <div class="c-slide-title">글로벌 표준 제품</div>
+      <div class="c-slide-accent"></div>
+      <div class="c-slide-sub">자사 생산 30여 종 · 전세계 자동차 안전 표준 대응</div>
+      <div class="c-products">
+        <div class="c-prod-card">
+          <div class="c-prod-flag">🇨🇳</div>
+          <div class="c-prod-name">중국어 라벨</div>
+          <div class="c-prod-desc">중국 시장 자동차 안전 표시</div>
+        </div>
+        <div class="c-prod-card">
+          <div class="c-prod-flag">🇺🇸</div>
+          <div class="c-prod-name">영문 라벨</div>
+          <div class="c-prod-desc">영어권 글로벌 표준</div>
+        </div>
+        <div class="c-prod-card">
+          <div class="c-prod-flag">🇪🇺</div>
+          <div class="c-prod-name">유럽통합 라벨</div>
+          <div class="c-prod-desc">EU 통합 안전 규격</div>
+        </div>
+        <div class="c-prod-card">
+          <div class="c-prod-flag">💺</div>
+          <div class="c-prod-name">Headrest 라벨</div>
+          <div class="c-prod-desc">머리받침 부착용</div>
+        </div>
+        <div class="c-prod-card">
+          <div class="c-prod-flag">🚙</div>
+          <div class="c-prod-name">Cargo Screen</div>
+          <div class="c-prod-desc">SUV 카고 스크린</div>
+        </div>
+        <div class="c-prod-card">
+          <div class="c-prod-flag">🏷️</div>
+          <div class="c-prod-name">스티커 라벨</div>
+          <div class="c-prod-desc">엔진·net·각종 부착</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Slide 7: 공급 프로세스 -->
+    <div class="c-slide" data-slide="7">
+      <div class="c-slide-num">06 · PROCESS</div>
+      <div class="c-slide-title">공급 프로세스</div>
+      <div class="c-slide-accent"></div>
+      <div class="c-slide-sub">검토부터 양산까지 체계적 단계 진행</div>
+      <div class="c-process">
+        <div class="c-step">
+          <div class="c-step-num">1</div>
+          <div class="c-step-title">검토</div>
+          <ul class="c-step-list">
+            <li>공급 가능 여부 판단</li>
+            <li>단가 / 공급량 협의</li>
+          </ul>
+        </div>
+        <div class="c-arrow">→</div>
+        <div class="c-step">
+          <div class="c-step-num">2</div>
+          <div class="c-step-title">개발</div>
+          <ul class="c-step-list">
+            <li>라벨 도면 수취 후 개발</li>
+            <li>품질 / 개발팀 승인</li>
+            <li>TEST 수량 발주 및 공급</li>
+          </ul>
+        </div>
+        <div class="c-arrow">→</div>
+        <div class="c-step">
+          <div class="c-step-num">3</div>
+          <div class="c-step-title">양산</div>
+          <ul class="c-step-list">
+            <li>발주 수량에 맞춰 공급</li>
+            <li>납기 일자 이전 인도</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Slide 8: 마무리 -->
+    <div class="c-slide c-outro" data-slide="8">
+      <div class="c-outro-logo"></div>
+      <div class="c-outro-title">함께 성장하는 파트너</div>
+      <div class="c-outro-sub">A Partner That Grows With You</div>
+      <div class="c-outro-cta">
+        세계로 뻗어나가는 <strong>우주특수산업</strong>의 동반자가 되어주십시오.<br>
+        <span style="color:#94a3b8; font-size:14px;">WOOJOO SPECIAL INDUSTRY · Trust · Belief · Value</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 하단 바 (모든 슬라이드 공통) -->
+  <div class="c-bottom-bar">
+    <div class="c-bottom-logo"></div>
+    <div class="c-bottom-text">WOOJOO SPECIAL INDUSTRY</div>
+  </div>
+
+  <div class="company-controls">
+    <button class="ctrl-btn" id="btn-c-fullscreen">전체화면</button>
+    <button class="ctrl-btn" id="btn-c-back">입력 화면 (ESC)</button>
+  </div>
 </div>
 
 <script>
@@ -557,6 +1218,7 @@ function readInputs() {
 
 function enterDisplay() {
   if (IS_PREVIEW) return; // ★ preview에서는 절대 풀스크린 금지
+  document.body.classList.remove('company-active');
   document.body.classList.add('display-active');
   spawnParticles();
   spawnStars();
@@ -567,8 +1229,68 @@ function enterDisplay() {
 }
 function exitDisplay() {
   document.body.classList.remove('display-active');
+  document.body.classList.remove('company-active');
+  stopCompanySlides();
   if (document.exitFullscreen && document.fullscreenElement) {
     document.exitFullscreen().catch(() => {});
+  }
+}
+
+// ============================================
+// 회사 소개 슬라이드 자동 재생
+// ============================================
+const SLIDE_DURATION_MS = 9000; // 슬라이드당 9초
+let companyTimer = null;
+let currentSlide = 0;
+const TOTAL_SLIDES = 8;
+
+function buildIndicators() {
+  const wrap = $('slide-indicators');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  for (let i = 0; i < TOTAL_SLIDES; i++) {
+    const d = document.createElement('div');
+    d.className = 'slide-dot';
+    d.style.setProperty('--slide-duration', (SLIDE_DURATION_MS/1000) + 's');
+    wrap.appendChild(d);
+  }
+}
+
+function showSlide(idx) {
+  const slides = document.querySelectorAll('.c-slide');
+  const dots = document.querySelectorAll('.slide-dot');
+  slides.forEach((s, i) => {
+    s.classList.toggle('active', i === idx);
+  });
+  dots.forEach((d, i) => {
+    d.classList.remove('active', 'done');
+    if (i < idx) d.classList.add('done');
+    else if (i === idx) d.classList.add('active');
+  });
+  currentSlide = idx;
+}
+
+function startCompanySlides() {
+  buildIndicators();
+  currentSlide = 0;
+  showSlide(0);
+  stopCompanySlides();
+  companyTimer = setInterval(() => {
+    const next = (currentSlide + 1) % TOTAL_SLIDES;
+    showSlide(next);
+  }, SLIDE_DURATION_MS);
+}
+function stopCompanySlides() {
+  if (companyTimer) { clearInterval(companyTimer); companyTimer = null; }
+}
+
+function enterCompany() {
+  if (IS_PREVIEW) return;
+  document.body.classList.remove('display-active');
+  document.body.classList.add('company-active');
+  startCompanySlides();
+  if (document.documentElement.requestFullscreen && !document.fullscreenElement) {
+    document.documentElement.requestFullscreen().catch(() => {});
   }
 }
 
@@ -591,7 +1313,11 @@ if (!IS_PREVIEW) {
     if (!state.name) { alert('방문자 성함을 입력해주세요'); $('inp-name').focus(); return; }
     enterDisplay();
   });
+  $('btn-company').addEventListener('click', () => {
+    enterCompany();
+  });
   $('btn-back-edit').addEventListener('click', exitDisplay);
+  $('btn-c-back').addEventListener('click', exitDisplay);
 
   $('btn-reset').addEventListener('click', () => {
     ['inp-org', 'inp-name', 'inp-title', 'inp-host'].forEach(id => { $(id).value = ''; });
@@ -599,17 +1325,24 @@ if (!IS_PREVIEW) {
   });
 
   $('btn-copy-url').addEventListener('click', () => {
+    const mode = state.name ? 'welcome' : 'company';
     const params = new URLSearchParams({
+      mode: mode,
       org: state.org, name: state.name, title: state.title, host: state.host,
       theme: state.theme, auto: '1',
     });
     const url = `${location.origin}${location.pathname}?${params.toString()}`;
+    const modeLabel = mode === 'company' ? '회사 소개 슬라이드' : '방문자 환영 화면';
     navigator.clipboard.writeText(url).then(() => {
-      alert('✓ URL 복사 완료!\n\nTV 브라우저에 붙여넣으면 자동으로 환영 화면이 표시됩니다.\n\n' + url);
+      alert(`✓ URL 복사 완료!\n\n[${modeLabel}] 모드\n\nTV 브라우저에 붙여넣으면 자동으로 표시됩니다.\n\n` + url);
     }).catch(() => { prompt('URL을 복사하세요:', url); });
   });
 
   $('btn-fullscreen').addEventListener('click', () => {
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+    else document.exitFullscreen();
+  });
+  $('btn-c-fullscreen').addEventListener('click', () => {
     if (!document.fullscreenElement) document.documentElement.requestFullscreen();
     else document.exitFullscreen();
   });
@@ -628,7 +1361,8 @@ if (!IS_PREVIEW) {
 
 function loadFromURL() {
   const params = new URLSearchParams(location.search);
-  if (params.has('org') || params.has('name') || params.has('title') || params.has('theme')) {
+  const mode = params.get('mode');
+  if (params.has('org') || params.has('name') || params.has('title') || params.has('theme') || mode) {
     state.org = params.get('org') || '';
     state.name = params.get('name') || '';
     state.title = params.get('title') || '';
@@ -654,8 +1388,12 @@ function loadFromURL() {
       if (ctrls) ctrls.style.display = 'none';
       if (hint) hint.style.display = 'none';
     } else if (params.get('auto') === '1') {
-      // auto=1일 때만 자동 풀스크린 (TV용 URL)
-      enterDisplay();
+      // auto=1일 때 자동 풀스크린 (TV용 URL)
+      if (mode === 'company') {
+        enterCompany();
+      } else {
+        enterDisplay();
+      }
     }
   }
 }
