@@ -188,6 +188,24 @@
     .picker-empty { font-size: 12px; color: var(--text-muted); padding: 10px; }
     .picker-reset { width: 100%; margin-top: 4px; padding: 10px; border-radius: 8px; background: rgba(0,0,0,0.05); font-size: 12px; font-weight: 700; color: var(--text-dim); }
     .picker-reset:hover { background: rgba(0,0,0,0.1); color: var(--text); }
+    /* 봉제반 서브 단계 - 들여쓰기로 트리 형태 표현 */
+    .picker-sub-step { 
+      margin-left: 16px; 
+      padding-left: 14px; 
+      border-left: 3px solid var(--amber); 
+      background: rgba(245,184,0,0.04);
+      border-radius: 0 8px 8px 0;
+      padding-top: 8px; padding-bottom: 8px;
+    }
+    .picker-sub-step .picker-step-num { background: white; color: var(--amber); border: 2px solid var(--amber); }
+    /* 봉제 그룹 버튼 - 펼침 표시 */
+    .picker-btn.is-group { padding-right: 12px; }
+    .picker-btn.is-group::after { content: ' ▾'; color: inherit; opacity: 0.7; }
+    .picker-btn.is-group.selected::after { transform: rotate(180deg); display: inline-block; }
+    /* 사양 단계 강조 */
+    #pick-step-spec .picker-btn { font-size: 12px; padding: 10px 12px; min-width: 60px; }
+    #pick-step-spec .picker-step-head { color: var(--amber); }
+    #pick-step-spec .picker-step-num { background: var(--amber); }
 
     /* 언어 토글 */
     .lang-switch { display: inline-flex; gap: 2px; padding: 3px; background: rgba(0,0,0,0.05); border-radius: 8px; }
@@ -542,11 +560,15 @@
 
       <!-- ============ TAB: INPUT ============ -->
       <div id="tab-input">
-        <!-- ============ 분류 선택 (공정 → 차종 → 칼라 → 원단 → 라벨 → LH/RH) ============ -->
+        <!-- ============ 분류 선택 (공정 → [봉제 서브] → 차종 → 칼라 → 원단 → 라벨 → LH/RH → 사양) ============ -->
         <div class="picker-section">
           <div class="picker-step">
             <div class="picker-step-head"><span class="picker-step-num">1</span><span data-i18n="picker.process_step">공정</span></div>
             <div class="picker-options" id="pick-process"></div>
+          </div>
+          <div class="picker-step picker-sub-step" id="pick-step-process-sub" style="display:none;">
+            <div class="picker-step-head"><span class="picker-step-num">1·</span><span data-i18n="picker.process_sub">봉제반 세부 공정</span></div>
+            <div class="picker-options" id="pick-process-sub"></div>
           </div>
           <div class="picker-step" id="pick-step-car" style="display:none;">
             <div class="picker-step-head"><span class="picker-step-num">2</span><span data-i18n="picker.car">차종</span></div>
@@ -567,6 +589,10 @@
           <div class="picker-step" id="pick-step-side" style="display:none;">
             <div class="picker-step-head"><span class="picker-step-num">6</span><span data-i18n="picker.side">LH/RH</span></div>
             <div class="picker-options" id="pick-side"></div>
+          </div>
+          <div class="picker-step" id="pick-step-spec" style="display:none;">
+            <div class="picker-step-head"><span class="picker-step-num">7</span><span data-i18n="picker.spec">사양 (최종 품번 선택)</span></div>
+            <div class="picker-options" id="pick-spec"></div>
           </div>
           <button class="picker-reset" id="pick-reset" data-i18n="picker.reset">처음부터 다시</button>
         </div>
@@ -908,6 +934,9 @@
         'picker.no_data': '데이터 없음 - 관리자에게 문의',
         'picker.label_x': '라벨 없음',
         'picker.process_cut': '재단', 'picker.process_hot': '핫스템핑', 'picker.process_sew': '봉제', 'picker.process_assy': 'ASSY',
+        'picker.process_sub': '봉제반 세부 공정', 'picker.process_sew_group': '봉제 ▾',
+        'picker.process_sew_only': '봉제', 'picker.process_wrap': '감싸기', 'picker.process_flip': '뒤집기', 'picker.process_stitch': '미싱',
+        'picker.spec': '사양 (최종 품번 선택)',
         'input.qty_step': 'STEP 2 · 수량 (직접 입력 가능)', 'input.qty_quick_hint': '버튼을 누를 때마다 수량이 가산됩니다',
         'input.defect_step': 'STEP 3 · 불량 (선택사항 — 없으면 모두 양품)', 'input.defect_select_btn': '불량 유형 선택', 'input.good_only': '양품만', 'input.add_btn': '작업 내역에 추가',
         'defect.add_btn': '불량 추가하기', 'defect.add_more': '다른 불량 추가', 'defect.cancel_to_good': '불량 없음으로 변경',
@@ -971,6 +1000,9 @@
         'picker.no_data': 'No data - contact admin',
         'picker.label_x': 'No label',
         'picker.process_cut': 'Cutting', 'picker.process_hot': 'Hot Stamping', 'picker.process_sew': 'Sewing', 'picker.process_assy': 'ASSY',
+        'picker.process_sub': 'Sewing Team Sub-process', 'picker.process_sew_group': 'Sewing ▾',
+        'picker.process_sew_only': 'Sewing', 'picker.process_wrap': 'Wrapping', 'picker.process_flip': 'Flipping', 'picker.process_stitch': 'Stitching',
+        'picker.spec': 'Spec (Final Part)',
         'input.qty_step': 'STEP 2 · Quantity', 'input.qty_quick_hint': 'Tap to add to current quantity',
         'input.defect_step': 'STEP 3 · Defect (optional — all good if none)', 'input.defect_select_btn': 'Select Defect Type', 'input.good_only': 'Good only', 'input.add_btn': 'Add to List',
         'defect.add_btn': 'Add Defect', 'defect.add_more': 'Add Another Defect', 'defect.cancel_to_good': 'Mark as Good',
@@ -1034,6 +1066,9 @@
         'picker.no_data': 'Нет данных - обратитесь к админу',
         'picker.label_x': 'Без этикетки',
         'picker.process_cut': 'Раскрой', 'picker.process_hot': 'Тиснение', 'picker.process_sew': 'Шитьё', 'picker.process_assy': 'Сборка',
+        'picker.process_sub': 'Швейный цех — этап', 'picker.process_sew_group': 'Шитьё ▾',
+        'picker.process_sew_only': 'Шитьё', 'picker.process_wrap': 'Обёртка', 'picker.process_flip': 'Переворот', 'picker.process_stitch': 'Прошивка',
+        'picker.spec': 'Спецификация (окончательно)',
         'input.qty_step': 'ШАГ 2 · Количество', 'input.qty_quick_hint': 'Нажимайте для прибавления',
         'input.defect_step': 'ШАГ 3 · Брак (необязательно — всё годное, если нет)', 'input.defect_select_btn': 'Выбрать тип брака', 'input.good_only': 'Только годные', 'input.add_btn': 'Добавить в список',
         'defect.add_btn': 'Добавить брак', 'defect.add_more': 'Добавить ещё брак', 'defect.cancel_to_good': 'Отметить как годное',
@@ -1122,7 +1157,7 @@
       warehouses: [], currentWarehouse: '',
       currentWorkTime: '',
       carModels: [],
-      pick: { process: '', car: '', color: '', fabric: '', label: '', side: '' },
+      pick: { process: '', processGroup: '', car: '', color: '', fabric: '', label: '', side: '', specification: '' },
       pickedPart: null,
       notices: [], myLeaves: [], meals: [],
       stream: null, detector: null, lastScanned: null, scanLoop: null,
@@ -1700,69 +1735,172 @@
       return map[proc] || proc;
     }
 
+    // 봉제반 세부 공정 (그룹으로 묶일 process 값들)
+    const SEWING_GROUP_PROCS = ['봉제', '감싸기', '뒤집기', '미싱'];
+    // 감싸기/뒤집기/미싱은 차종+원단만 사용 (칼라/라벨/LH-RH 스킵)
+    const SHORT_FLOW_PROCS = ['감싸기', '뒤집기', '미싱'];
+    function isShortFlow(proc) { return SHORT_FLOW_PROCS.includes(proc); }
+
+    // 사용자의 픽 조건과 일치하는 부품들을 찾기 (NULL 매칭 포함)
+    function matchPart(p, pick) {
+      if (p.process !== pick.process) return false;
+      if ((pick.car || null) !== (p.car_model || null)) return false;
+      if ((pick.fabric || null) !== (p.fabric || null)) return false;
+      if (!isShortFlow(pick.process)) {
+        if ((pick.color || null) !== (p.color || null)) return false;
+        if ((pick.label || null) !== (p.label || null)) return false;
+        if ((pick.side || null) !== (p.side || null)) return false;
+      }
+      return true;
+    }
+
     function renderPicker() {
       const list = state.partsList || [];
 
-      // STEP 1: 공정 (재단/핫스템핑/봉제/ASSY) - 데이터에 있는 공정 중에서만 표시
-      const PROCESS_ORDER = ['재단', '핫스템핑', '봉제', 'ASSY'];
+      // ====== STEP 1: 공정 그룹 (재단/핫스템핑/봉제▾/ASSY) ======
       const availableProcs = uniq(list.filter(p => p.process).map(p => p.process));
-      const procs = PROCESS_ORDER.filter(p => availableProcs.includes(p));
-      if (procs.length === 0) {
+      const hasSewingChildren = SEWING_GROUP_PROCS.some(p => availableProcs.includes(p));
+
+      // 상위 그룹 정의 (봉제는 그룹으로 묶음)
+      const TOP_GROUPS = [
+        { key: '재단', label: t('picker.process_cut'), isGroup: false },
+        { key: '핫스템핑', label: t('picker.process_hot'), isGroup: false },
+        { key: 'sewing', label: t('picker.process_sew_group'), isGroup: true },
+        { key: 'ASSY', label: 'ASSY', isGroup: false },
+      ];
+      const visibleGroups = TOP_GROUPS.filter(g => {
+        if (g.isGroup) return hasSewingChildren;
+        return availableProcs.includes(g.key);
+      });
+
+      if (visibleGroups.length === 0) {
         document.getElementById('pick-process').innerHTML = `<div class="picker-empty">${t('picker.no_data')}</div>`;
         return;
       }
-      // 공정 버튼은 표시명으로 보여주되 value는 원래 한국어
+
       const procEl = document.getElementById('pick-process');
-      procEl.innerHTML = procs.map(opt => {
-        const cls = `picker-btn ${state.pick.process === opt ? 'selected' : ''}`;
-        return `<button class="${cls}" data-pick-val="${escapeHtml(opt)}">${escapeHtml(procDisplay(opt))}</button>`;
+      procEl.innerHTML = visibleGroups.map(g => {
+        let isSelected = false;
+        if (g.isGroup) {
+          isSelected = state.pick.processGroup === g.key;
+        } else {
+          isSelected = state.pick.process === g.key && !state.pick.processGroup;
+        }
+        const cls = `picker-btn ${isSelected ? 'selected' : ''} ${g.isGroup ? 'is-group' : ''}`;
+        return `<button class="${cls}" data-group="${g.key}" data-is-group="${g.isGroup ? '1' : '0'}">${escapeHtml(g.label)}</button>`;
       }).join('');
-      procEl.querySelectorAll('[data-pick-val]').forEach(b => b.addEventListener('click', () => {
-        state.pick.process = b.dataset.pickVal;
-        state.pick.car = state.pick.color = state.pick.fabric = state.pick.label = state.pick.side = '';
+
+      procEl.querySelectorAll('[data-group]').forEach(b => b.addEventListener('click', () => {
+        const isGroup = b.dataset.isGroup === '1';
+        if (isGroup) {
+          // 봉제 그룹 토글
+          if (state.pick.processGroup === b.dataset.group) {
+            state.pick.processGroup = '';
+            state.pick.process = '';
+          } else {
+            state.pick.processGroup = b.dataset.group;
+            state.pick.process = '';
+          }
+        } else {
+          // 일반 공정
+          state.pick.process = b.dataset.group;
+          state.pick.processGroup = '';
+        }
+        state.pick.car = state.pick.color = state.pick.fabric = state.pick.label = state.pick.side = state.pick.specification = '';
         renderPicker(); decidePart();
       }));
 
-      // STEP 2: 차종 (공정 선택 후)
-      if (state.pick.process) {
-        document.getElementById('pick-step-car').style.display = 'block';
-        // car_models 마스터가 있으면 사용, 없으면 부품에서 추출 (단 현재 공정에 한해서)
-        const carsInProc = uniq(list.filter(p => p.process === state.pick.process && p.car_model).map(p => p.car_model));
-        const cars = state.carModels && state.carModels.length > 0
-          ? state.carModels.map(c => c.code).filter(c => carsInProc.includes(c) || carsInProc.length === 0)
-          : carsInProc;
-        if (cars.length === 0) {
-          document.getElementById('pick-car').innerHTML = `<div class="picker-empty">${t('picker.no_data')}</div>`;
-        } else {
-          renderPickRow('pick-car', cars, state.pick.car, v => { state.pick.car = v; state.pick.color = state.pick.fabric = state.pick.label = state.pick.side = ''; renderPicker(); decidePart(); });
-        }
-      } else { document.getElementById('pick-step-car').style.display = 'none'; }
+      // ====== STEP 1·: 봉제 서브 (봉제/감싸기/뒤집기/미싱) ======
+      if (state.pick.processGroup === 'sewing') {
+        document.getElementById('pick-step-process-sub').style.display = 'block';
+        const sewingProcs = SEWING_GROUP_PROCS.filter(p => availableProcs.includes(p));
+        const subEl = document.getElementById('pick-process-sub');
+        // 표시명 매핑
+        const procLabel = (p) => {
+          if (p === '봉제') return t('picker.process_sew_only');
+          if (p === '감싸기') return t('picker.process_wrap');
+          if (p === '뒤집기') return t('picker.process_flip');
+          if (p === '미싱') return t('picker.process_stitch');
+          return p;
+        };
+        subEl.innerHTML = sewingProcs.map(opt => {
+          const cls = `picker-btn ${state.pick.process === opt ? 'selected' : ''}`;
+          return `<button class="${cls}" data-pick-val="${escapeHtml(opt)}">${escapeHtml(procLabel(opt))}</button>`;
+        }).join('');
+        subEl.querySelectorAll('[data-pick-val]').forEach(b => b.addEventListener('click', () => {
+          state.pick.process = b.dataset.pickVal;
+          state.pick.car = state.pick.color = state.pick.fabric = state.pick.label = state.pick.side = state.pick.specification = '';
+          renderPicker(); decidePart();
+        }));
+      } else {
+        document.getElementById('pick-step-process-sub').style.display = 'none';
+      }
 
-      // STEP 3: 칼라 (공정+차종 선택 후)
-      if (state.pick.process && state.pick.car) {
+      // 실제 process가 결정되지 않았으면 이후 단계 모두 숨김
+      const procReady = !!state.pick.process;
+      ['pick-step-car', 'pick-step-color', 'pick-step-fabric', 'pick-step-label', 'pick-step-side', 'pick-step-spec'].forEach(id => {
+        if (!procReady) document.getElementById(id).style.display = 'none';
+      });
+      if (!procReady) return;
+
+      const shortFlow = isShortFlow(state.pick.process);
+
+      // ====== STEP 2: 차종 ======
+      document.getElementById('pick-step-car').style.display = 'block';
+      const carsInProc = uniq(list.filter(p => p.process === state.pick.process && p.car_model).map(p => p.car_model));
+      const cars = state.carModels && state.carModels.length > 0
+        ? state.carModels.map(c => c.code).filter(c => carsInProc.includes(c) || carsInProc.length === 0)
+        : carsInProc;
+      if (cars.length === 0) {
+        document.getElementById('pick-car').innerHTML = `<div class="picker-empty">${t('picker.no_data')}</div>`;
+      } else {
+        renderPickRow('pick-car', cars, state.pick.car, v => {
+          state.pick.car = v;
+          state.pick.color = state.pick.fabric = state.pick.label = state.pick.side = state.pick.specification = '';
+          renderPicker(); decidePart();
+        });
+      }
+      if (!state.pick.car) return;
+
+      // ====== STEP 3: 칼라 (감싸기/뒤집기/미싱은 스킵) ======
+      if (!shortFlow) {
         document.getElementById('pick-step-color').style.display = 'block';
         const colors = uniq(list.filter(p => p.process === state.pick.process && p.car_model === state.pick.car && p.color).map(p => p.color));
         if (colors.length === 0) {
           document.getElementById('pick-color').innerHTML = `<div class="picker-empty">⚠ "${state.pick.car}" ${t('picker.no_parts_in_proc')}</div>`;
-        } else {
-          renderPickRow('pick-color', colors, state.pick.color, v => { state.pick.color = v; state.pick.fabric = state.pick.label = state.pick.side = ''; renderPicker(); decidePart(); });
+          return;
         }
-      } else { document.getElementById('pick-step-color').style.display = 'none'; }
+        renderPickRow('pick-color', colors, state.pick.color, v => {
+          state.pick.color = v;
+          state.pick.fabric = state.pick.label = state.pick.side = state.pick.specification = '';
+          renderPicker(); decidePart();
+        });
+        if (!state.pick.color) return;
+      } else {
+        document.getElementById('pick-step-color').style.display = 'none';
+      }
 
-      // STEP 4: 원단사양
-      if (state.pick.process && state.pick.car && state.pick.color) {
-        document.getElementById('pick-step-fabric').style.display = 'block';
-        const fabrics = uniq(list.filter(p => p.process === state.pick.process && p.car_model === state.pick.car && p.color === state.pick.color && p.fabric).map(p => p.fabric));
-        renderPickRow('pick-fabric', fabrics, state.pick.fabric, v => { state.pick.fabric = v; state.pick.label = state.pick.side = ''; renderPicker(); decidePart(); });
-      } else { document.getElementById('pick-step-fabric').style.display = 'none'; }
+      // ====== STEP 4: 원단사양 ======
+      document.getElementById('pick-step-fabric').style.display = 'block';
+      const fabricFilter = (p) => p.process === state.pick.process 
+        && p.car_model === state.pick.car 
+        && (shortFlow || p.color === state.pick.color);
+      const fabrics = uniq(list.filter(p => fabricFilter(p) && p.fabric).map(p => p.fabric));
+      renderPickRow('pick-fabric', fabrics, state.pick.fabric, v => {
+        state.pick.fabric = v;
+        state.pick.label = state.pick.side = state.pick.specification = '';
+        renderPicker(); decidePart();
+      });
+      if (!state.pick.fabric) return;
 
-      // STEP 5: 라벨 (후보 1개면 자동 선택 + 단계 숨김)
-      if (state.pick.process && state.pick.car && state.pick.color && state.pick.fabric) {
-        const labels = uniq(list.filter(p =>
-          p.process === state.pick.process && p.car_model === state.pick.car && p.color === state.pick.color && p.fabric === state.pick.fabric && p.label
-        ).map(p => p.label));
+      // ====== STEP 5: 라벨 (감싸기/뒤집기/미싱은 스킵, 후보 1개면 자동) ======
+      if (!shortFlow) {
+        const labelCandidates = list.filter(p =>
+          p.process === state.pick.process && p.car_model === state.pick.car 
+          && p.color === state.pick.color && p.fabric === state.pick.fabric && p.label
+        );
+        const labels = uniq(labelCandidates.map(p => p.label));
         if (labels.length === 1) {
-          // 라벨 후보가 하나뿐이면 자동 선택 + 단계 숨김
           if (state.pick.label !== labels[0]) {
             state.pick.label = labels[0];
             state.pick.side = '';
@@ -1770,20 +1908,69 @@
           document.getElementById('pick-step-label').style.display = 'none';
         } else if (labels.length > 1) {
           document.getElementById('pick-step-label').style.display = 'block';
-          renderPickRow('pick-label', labels, state.pick.label, v => { state.pick.label = v; state.pick.side = ''; renderPicker(); decidePart(); }, true);
+          renderPickRow('pick-label', labels, state.pick.label, v => {
+            state.pick.label = v;
+            state.pick.side = state.pick.specification = '';
+            renderPicker(); decidePart();
+          }, true);
         } else {
           document.getElementById('pick-step-label').style.display = 'none';
         }
-      } else { document.getElementById('pick-step-label').style.display = 'none'; }
+        if (!state.pick.label) {
+          document.getElementById('pick-step-side').style.display = 'none';
+          document.getElementById('pick-step-spec').style.display = 'none';
+          return;
+        }
+      } else {
+        document.getElementById('pick-step-label').style.display = 'none';
+      }
 
-      // STEP 6: LH/RH
-      if (state.pick.process && state.pick.car && state.pick.color && state.pick.fabric && state.pick.label) {
+      // ====== STEP 6: LH/RH (감싸기/뒤집기/미싱은 스킵) ======
+      if (!shortFlow) {
         document.getElementById('pick-step-side').style.display = 'block';
         const sides = uniq(list.filter(p =>
-          p.process === state.pick.process && p.car_model === state.pick.car && p.color === state.pick.color && p.fabric === state.pick.fabric && p.label === state.pick.label && p.side
+          p.process === state.pick.process && p.car_model === state.pick.car && p.color === state.pick.color 
+          && p.fabric === state.pick.fabric && p.label === state.pick.label && p.side
         ).map(p => p.side));
-        renderPickRow('pick-side', sides, state.pick.side, v => { state.pick.side = v; renderPicker(); decidePart(); });
-      } else { document.getElementById('pick-step-side').style.display = 'none'; }
+        if (sides.length === 0) {
+          document.getElementById('pick-step-side').style.display = 'none';
+        } else if (sides.length === 1) {
+          if (state.pick.side !== sides[0]) {
+            state.pick.side = sides[0];
+            state.pick.specification = '';
+          }
+          document.getElementById('pick-step-side').style.display = 'none';
+        } else {
+          renderPickRow('pick-side', sides, state.pick.side, v => {
+            state.pick.side = v;
+            state.pick.specification = '';
+            renderPicker(); decidePart();
+          });
+        }
+        if (!state.pick.side) {
+          document.getElementById('pick-step-spec').style.display = 'none';
+          return;
+        }
+      } else {
+        document.getElementById('pick-step-side').style.display = 'none';
+      }
+
+      // ====== STEP 7: 사양 (후보가 여러개일 때만 나타남) ======
+      const candidates = list.filter(p => matchPart(p, state.pick));
+      const specs = uniq(candidates.map(c => c.specification).filter(Boolean));
+      if (specs.length > 1 || (specs.length === 1 && candidates.some(c => !c.specification))) {
+        // 사양으로 추가 구분 필요
+        document.getElementById('pick-step-spec').style.display = 'block';
+        // null 사양도 옵션에 추가 (사양 없는 행이 있으면)
+        const specOptions = candidates.map(c => c.specification || '(기본)');
+        const uniqSpecs = uniq(specOptions);
+        renderPickRow('pick-spec', uniqSpecs, state.pick.specification || '', v => {
+          state.pick.specification = (v === '(기본)') ? '' : v;
+          renderPicker(); decidePart();
+        });
+      } else {
+        document.getElementById('pick-step-spec').style.display = 'none';
+      }
     }
 
     function renderPickRow(containerId, options, selected, onClick, labelStyle) {
@@ -1803,19 +1990,41 @@
       const list = state.partsList || [];
       const p = state.pick;
 
-      // process + car + color + fabric + label + side 모두 필요
-      if (!p.process || !p.car || !p.color || !p.fabric || !p.label || !p.side) {
+      if (!p.process || !p.car || !p.fabric) {
         state.pickedPart = null;
         renderInfoCard();
         updateAddButton();
         return;
       }
 
-      // 후보 찾기 (공정 기준으로 정확히 1개여야 함)
-      const candidates = list.filter(x =>
-        x.process === p.process && x.car_model === p.car && x.color === p.color && x.fabric === p.fabric &&
-        x.label === p.label && x.side === p.side
-      );
+      // 감싸기/뒤집기/미싱이 아니면 color/label/side 필요
+      if (!isShortFlow(p.process)) {
+        if (!p.color || !p.label || (!p.side && uniq(list.filter(x => 
+          x.process === p.process && x.car_model === p.car && x.color === p.color 
+          && x.fabric === p.fabric && x.label === p.label && x.side
+        ).map(x => x.side)).length > 0)) {
+          state.pickedPart = null;
+          renderInfoCard();
+          updateAddButton();
+          return;
+        }
+      }
+
+      // 매칭 + specification 필터
+      let candidates = list.filter(x => matchPart(x, p));
+      if (p.specification) {
+        candidates = candidates.filter(c => c.specification === p.specification);
+      } else if (candidates.length > 1) {
+        // 사양이 있어야 결정 가능 - 사양 단계 표시 중
+        const specs = uniq(candidates.map(c => c.specification).filter(Boolean));
+        if (specs.length >= 1) {
+          // 사용자가 아직 사양을 선택 안 한 상태
+          state.pickedPart = null;
+          renderInfoCard();
+          updateAddButton();
+          return;
+        }
+      }
 
       if (candidates.length === 0) {
         state.pickedPart = null;
@@ -1828,7 +2037,7 @@
     }
 
     function resetPicker() {
-      state.pick = { process: '', car: '', color: '', fabric: '', label: '', side: '' };
+      state.pick = { process: '', processGroup: '', car: '', color: '', fabric: '', label: '', side: '', specification: '' };
       state.pickedPart = null;
       renderPicker();
       renderInfoCard();
