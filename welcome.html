@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1920, initial-scale=1.0">
+<title>우주특수산업 ・ 방문자 환영</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700;800;900&family=Playfair+Display:wght@600;700;900&family=Noto+Serif+KR:wght@500;700;900&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100vw; height: 100vh; overflow: hidden;
+    font-family: 'Pretendard', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* =================== EDIT MODE (입력 화면) =================== */
+  .edit-mode {
+    width: 100vw; min-height: 100vh;
+    background: #f5f7fa;
+    overflow: auto;
+    padding: 32px;
+    color: #0f172a;
+  }
+  .edit-wrap {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 460px 1fr;
+    gap: 24px;
+  }
+
+  /* Edit header */
+  .edit-header {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 28px;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 1px 3px rgba(15,23,42,0.05);
+    margin-bottom: 4px;
+  }
+  .edit-title-block { display: flex; align-items: center; gap: 14px; }
+  .edit-logo {
+    width: 46px; height: 46px;
+    background: linear-gradient(135deg, #d97706, #f59e0b);
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 900; font-size: 20px;
+  }
+  .edit-title { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; }
+  .edit-sub { font-size: 13px; color: #64748b; }
+  .edit-back-link {
+    color: #2563eb; text-decoration: none;
+    font-size: 14px; font-weight: 600;
+    padding: 8px 14px; border-radius: 8px;
+    transition: background 0.2s;
+  }
+  .edit-back-link:hover { background: #eff6ff; }
+
+  /* Input panel */
+  .input-panel {
+    background: #fff;
+    border-radius: 16px;
+    padding: 28px;
+    box-shadow: 0 1px 3px rgba(15,23,42,0.05);
+    height: fit-content;
+  }
+  .panel-head {
+    font-size: 18px; font-weight: 800;
+    margin-bottom: 4px;
+  }
+  .panel-sub {
+    font-size: 13px; color: #64748b;
+    margin-bottom: 20px;
+  }
+  .field-group { margin-bottom: 18px; }
+  .field-label {
+    display: block;
+    font-size: 12px; font-weight: 700;
+    color: #334155;
+    letter-spacing: 0.04em;
+    margin-bottom: 6px;
+  }
+  .field-input, .field-select {
+    width: 100%;
+    padding: 12px 14px;
+    background: #f8fafc;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 15px;
+    color: #0f172a;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .field-input:focus, .field-select:focus {
+    outline: none;
+    border-color: #d97706;
+    background: #fff;
+  }
+  .field-hint {
+    font-size: 11px; color: #94a3b8;
+    margin-top: 4px;
+  }
+
+  /* Theme/style selector */
+  .theme-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+  .theme-btn {
+    aspect-ratio: 1;
+    border: 2px solid transparent;
+    border-radius: 10px;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.15s, border-color 0.15s;
+  }
+  .theme-btn:hover { transform: translateY(-2px); }
+  .theme-btn.active { border-color: #d97706; }
+  .theme-btn.t-classic { background: linear-gradient(135deg, #0f172a, #1e293b); }
+  .theme-btn.t-elegant { background: linear-gradient(135deg, #1c1917, #44403c); }
+  .theme-btn.t-royal { background: linear-gradient(135deg, #1e1b4b, #4338ca); }
+  .theme-btn.t-warm { background: linear-gradient(135deg, #7c2d12, #c2410c); }
+  .theme-btn::after {
+    content: ''; position: absolute;
+    top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 24px; height: 4px;
+    background: rgba(255,255,255,0.4);
+    border-radius: 2px;
+  }
+  .theme-btn.t-elegant::after { background: rgba(217,119,6,0.8); }
+
+  /* Action buttons */
+  .action-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 24px;
+  }
+  .btn-primary, .btn-secondary {
+    padding: 14px;
+    border-radius: 10px;
+    border: none;
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    transition: transform 0.15s, box-shadow 0.2s;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, #d97706, #f59e0b);
+    color: #fff;
+    grid-column: 1 / -1;
+    box-shadow: 0 2px 8px rgba(217,119,6,0.3);
+  }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(217,119,6,0.4); }
+  .btn-secondary {
+    background: #f1f5f9;
+    color: #334155;
+    border: 1px solid #e2e8f0;
+  }
+  .btn-secondary:hover { background: #e2e8f0; }
+
+  /* Preview panel */
+  .preview-panel {
+    background: #fff;
+    border-radius: 16px;
+    padding: 18px;
+    box-shadow: 0 1px 3px rgba(15,23,42,0.05);
+    display: flex;
+    flex-direction: column;
+  }
+  .preview-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .preview-title { font-size: 18px; font-weight: 800; }
+  .preview-meta { font-size: 12px; color: #94a3b8; }
+  .preview-frame {
+    aspect-ratio: 16 / 9;
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+    border: 1px solid #e2e8f0;
+  }
+  .preview-frame iframe {
+    width: 100%; height: 100%;
+    border: 0;
+    transform-origin: top left;
+  }
+
+  /* =================== DISPLAY MODE (풀스크린 환영) =================== */
+  .display-mode {
+    display: none;
+    width: 100vw; height: 100vh;
+    position: relative;
+    overflow: hidden;
+    color: #fff;
+  }
+  body.display-active .edit-mode { display: none; }
+  body.display-active .display-mode { display: block; }
+
+  /* Theme: Classic Dark Navy */
+  .display-mode[data-theme="classic"] {
+    background: radial-gradient(ellipse at top, #1e293b 0%, #0f172a 50%, #020617 100%);
+  }
+  /* Theme: Elegant Brown */
+  .display-mode[data-theme="elegant"] {
+    background: radial-gradient(ellipse at top, #44403c 0%, #292524 50%, #1c1917 100%);
+  }
+  /* Theme: Royal Purple */
+  .display-mode[data-theme="royal"] {
+    background: radial-gradient(ellipse at top, #4338ca 0%, #1e1b4b 50%, #0c0a3e 100%);
+  }
+  /* Theme: Warm Orange */
+  .display-mode[data-theme="warm"] {
+    background: radial-gradient(ellipse at top, #c2410c 0%, #7c2d12 50%, #431407 100%);
+  }
+
+  /* Decorative ornaments */
+  .ornament {
+    position: absolute;
+    pointer-events: none;
+    opacity: 0;
+    animation: ornament-in 1.4s ease-out forwards;
+  }
+  .ornament.top-left { top: 60px; left: 80px; animation-delay: 0.3s; }
+  .ornament.top-right { top: 60px; right: 80px; animation-delay: 0.5s; }
+  .ornament.bot-left { bottom: 60px; left: 80px; animation-delay: 0.7s; }
+  .ornament.bot-right { bottom: 60px; right: 80px; animation-delay: 0.9s; }
+  @keyframes ornament-in {
+    from { opacity: 0; transform: scale(0.5); }
+    to { opacity: 0.6; transform: scale(1); }
+  }
+  .ornament svg path, .ornament svg circle, .ornament svg line {
+    stroke: var(--accent, #d97706);
+  }
+
+  /* Floating particles */
+  .particles {
+    position: absolute; inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+  }
+  .particle {
+    position: absolute;
+    width: 4px; height: 4px;
+    background: var(--accent, #d97706);
+    border-radius: 50%;
+    opacity: 0.3;
+    animation: particle-float linear infinite;
+  }
+  @keyframes particle-float {
+    from { transform: translateY(100vh) translateX(0); opacity: 0; }
+    10% { opacity: 0.4; }
+    90% { opacity: 0.4; }
+    to { transform: translateY(-10vh) translateX(50px); opacity: 0; }
+  }
+
+  /* Center content */
+  .display-content {
+    position: relative;
+    z-index: 2;
+    width: 100%; height: 100%;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    text-align: center;
+    padding: 80px;
+  }
+  .display-logo {
+    width: 96px; height: 96px;
+    background: linear-gradient(135deg, var(--accent, #d97706), #f59e0b);
+    border-radius: 24px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 900; font-size: 44px;
+    color: #fff;
+    margin-bottom: 28px;
+    opacity: 0;
+    animation: fade-up 1s ease-out forwards;
+    box-shadow: 0 8px 32px rgba(217,119,6,0.4);
+  }
+  .display-eyebrow {
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: 0.4em;
+    color: var(--accent, #d97706);
+    text-transform: uppercase;
+    margin-bottom: 14px;
+    opacity: 0;
+    animation: fade-up 1s ease-out 0.2s forwards;
+  }
+  .display-welcome {
+    font-family: 'Noto Serif KR', 'Playfair Display', serif;
+    font-size: 96px;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    margin-bottom: 12px;
+    opacity: 0;
+    animation: fade-up 1s ease-out 0.4s forwards;
+    color: #fff;
+  }
+  .display-welcome-en {
+    font-family: 'Playfair Display', serif;
+    font-size: 28px;
+    font-style: italic;
+    font-weight: 600;
+    color: var(--accent, #d97706);
+    margin-bottom: 60px;
+    opacity: 0;
+    animation: fade-up 1s ease-out 0.55s forwards;
+  }
+  .display-divider {
+    width: 0;
+    height: 1px;
+    background: var(--accent, #d97706);
+    margin: 0 auto 40px;
+    animation: divider-expand 1.2s ease-out 0.8s forwards;
+  }
+  @keyframes divider-expand {
+    to { width: 320px; }
+  }
+  .display-guest-org {
+    font-size: 26px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.65);
+    margin-bottom: 14px;
+    opacity: 0;
+    animation: fade-up 1s ease-out 1.0s forwards;
+    letter-spacing: 0.05em;
+  }
+  .display-guest-name {
+    font-family: 'Noto Serif KR', serif;
+    font-size: 72px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    opacity: 0;
+    animation: fade-up 1s ease-out 1.2s forwards;
+    letter-spacing: -0.01em;
+    color: #fff;
+  }
+  .display-guest-title {
+    font-size: 22px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.7);
+    margin-bottom: 60px;
+    opacity: 0;
+    animation: fade-up 1s ease-out 1.4s forwards;
+  }
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .display-host {
+    margin-top: 40px;
+    font-size: 16px;
+    color: rgba(255,255,255,0.5);
+    letter-spacing: 0.08em;
+    opacity: 0;
+    animation: fade-up 1s ease-out 1.6s forwards;
+  }
+  .display-host-name {
+    font-size: 22px;
+    color: rgba(255,255,255,0.85);
+    font-weight: 700;
+    margin-top: 4px;
+    letter-spacing: 0.04em;
+  }
+
+  /* Date/time at bottom */
+  .display-bottom {
+    position: absolute;
+    bottom: 50px; left: 0; right: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    padding: 0 80px;
+    z-index: 3;
+    opacity: 0;
+    animation: fade-up 1s ease-out 1.8s forwards;
+  }
+  .display-date {
+    text-align: left;
+    font-size: 18px;
+    color: rgba(255,255,255,0.5);
+    letter-spacing: 0.06em;
+  }
+  .display-clock {
+    font-family: 'Playfair Display', serif;
+    font-size: 32px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.7);
+    letter-spacing: 0.04em;
+  }
+  .display-company {
+    text-align: right;
+    font-size: 18px;
+    color: rgba(255,255,255,0.5);
+    letter-spacing: 0.06em;
+  }
+
+  /* Edit controls in display mode (hidden by default, shown on hover) */
+  .display-controls {
+    position: fixed;
+    top: 20px; right: 20px;
+    display: flex; gap: 8px;
+    opacity: 0;
+    transition: opacity 0.3s;
+    z-index: 100;
+  }
+  .display-mode:hover .display-controls,
+  .display-controls:hover { opacity: 1; }
+  .ctrl-btn {
+    padding: 8px 14px;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: #fff;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    backdrop-filter: blur(10px);
+  }
+  .ctrl-btn:hover { background: rgba(255,255,255,0.2); }
+
+  /* Mini hint */
+  .esc-hint {
+    position: fixed;
+    bottom: 12px; right: 16px;
+    font-size: 11px;
+    color: rgba(255,255,255,0.3);
+    letter-spacing: 0.08em;
+    z-index: 100;
+  }
+
+  /* Confetti accent for special themes */
+  .display-mode[data-theme="classic"] { --accent: #d97706; }
+  .display-mode[data-theme="elegant"] { --accent: #c79b56; }
+  .display-mode[data-theme="royal"] { --accent: #fbbf24; }
+  .display-mode[data-theme="warm"] { --accent: #fbbf24; }
+</style>
+</head>
+<body>
+
+<!-- ====================== EDIT MODE ====================== -->
+<div class="edit-mode" id="edit-mode">
+  <div class="edit-wrap">
+    <div class="edit-header">
+      <div class="edit-title-block">
+        <div class="edit-logo">우</div>
+        <div>
+          <div class="edit-title">방문자 환영 화면 만들기</div>
+          <div class="edit-sub">방문자 정보를 입력하면 멋진 환영 화면이 TV에 표시됩니다</div>
+        </div>
+      </div>
+      <a href="admin.html" class="edit-back-link">← 관리자 페이지</a>
+    </div>
+
+    <!-- Input panel -->
+    <div class="input-panel">
+      <div class="panel-head">방문자 정보 입력</div>
+      <div class="panel-sub">실시간으로 우측 미리보기에 반영됩니다</div>
+
+      <div class="field-group">
+        <label class="field-label">소속 (회사명)</label>
+        <input type="text" id="inp-org" class="field-input" placeholder="예: 현대자동차" value="">
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">방문자 성함</label>
+        <input type="text" id="inp-name" class="field-input" placeholder="예: 김철수" value="">
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">직책</label>
+        <input type="text" id="inp-title" class="field-input" placeholder="예: 구매팀장" value="">
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">맞이하는 사람 (선택)</label>
+        <input type="text" id="inp-host" class="field-input" placeholder="예: 우주특수산업 대표 정성태" value="">
+        <div class="field-hint">비워두면 회사명만 표시됩니다</div>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">테마 선택</label>
+        <div class="theme-grid">
+          <div class="theme-btn t-classic active" data-theme="classic" title="클래식 네이비"></div>
+          <div class="theme-btn t-elegant" data-theme="elegant" title="엘레강스 브라운"></div>
+          <div class="theme-btn t-royal" data-theme="royal" title="로얄 퍼플"></div>
+          <div class="theme-btn t-warm" data-theme="warm" title="웜 오렌지"></div>
+        </div>
+        <div class="field-hint">방문자 분위기에 맞춰 선택하세요</div>
+      </div>
+
+      <div class="action-row">
+        <button class="btn-primary" id="btn-display">🎉 TV에 환영 화면 띄우기</button>
+        <button class="btn-secondary" id="btn-reset">초기화</button>
+        <button class="btn-secondary" id="btn-copy-url">URL 복사</button>
+      </div>
+    </div>
+
+    <!-- Preview panel -->
+    <div class="preview-panel">
+      <div class="preview-head">
+        <div class="preview-title">📺 미리보기</div>
+        <div class="preview-meta">1920×1080 비율</div>
+      </div>
+      <div class="preview-frame">
+        <iframe id="preview-frame" src="about:blank"></iframe>
+      </div>
+      <div style="margin-top:14px; padding:14px; background:#f8fafc; border-radius:10px; font-size:13px; color:#475569; line-height:1.6;">
+        <strong style="color:#0f172a;">💡 사용 방법</strong><br>
+        1. 좌측에 방문자 정보 입력 → 미리보기 확인<br>
+        2. <strong>"TV에 환영 화면 띄우기"</strong> 클릭하면 풀스크린으로 전환<br>
+        3. TV에서 ESC 키를 누르면 입력 모드로 돌아옵니다<br>
+        4. <strong>URL 복사</strong>로 받은 링크를 TV 브라우저에 붙여넣으면 바로 환영 화면이 표시됩니다
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ====================== DISPLAY MODE (풀스크린) ====================== -->
+<div class="display-mode" id="display-mode" data-theme="classic">
+  <!-- 장식 (네 모서리) -->
+  <div class="ornament top-left">
+    <svg width="80" height="80" viewBox="0 0 80 80" fill="none"><path d="M0 40 L40 0 M0 30 L30 0 M0 50 L50 0" stroke-width="1.5"/></svg>
+  </div>
+  <div class="ornament top-right">
+    <svg width="80" height="80" viewBox="0 0 80 80" fill="none"><path d="M80 40 L40 0 M80 30 L50 0 M80 50 L30 0" stroke-width="1.5"/></svg>
+  </div>
+  <div class="ornament bot-left">
+    <svg width="80" height="80" viewBox="0 0 80 80" fill="none"><path d="M0 40 L40 80 M0 50 L30 80 M0 30 L50 80" stroke-width="1.5"/></svg>
+  </div>
+  <div class="ornament bot-right">
+    <svg width="80" height="80" viewBox="0 0 80 80" fill="none"><path d="M80 40 L40 80 M80 50 L50 80 M80 30 L30 80" stroke-width="1.5"/></svg>
+  </div>
+
+  <!-- 떠다니는 입자 -->
+  <div class="particles" id="particles"></div>
+
+  <!-- 메인 컨텐츠 -->
+  <div class="display-content">
+    <div class="display-logo">우</div>
+    <div class="display-eyebrow">WELCOME · 환영합니다</div>
+    <div class="display-welcome" id="d-welcome">환영합니다</div>
+    <div class="display-welcome-en">Welcome to Woojoo</div>
+    <div class="display-divider"></div>
+    <div class="display-guest-org" id="d-org">현대자동차</div>
+    <div class="display-guest-name" id="d-name">홍길동</div>
+    <div class="display-guest-title" id="d-title">구매팀장</div>
+    <div id="d-host-wrap" style="display:none;">
+      <div class="display-host">맞이합니다</div>
+      <div class="display-host-name" id="d-host"></div>
+    </div>
+  </div>
+
+  <!-- 하단 -->
+  <div class="display-bottom">
+    <div class="display-date" id="d-date">2026년 6월 8일 월요일</div>
+    <div class="display-clock" id="d-clock">14:30</div>
+    <div class="display-company">우주특수산업 / WOOJOO SPECIAL INDUSTRY</div>
+  </div>
+
+  <!-- 컨트롤 (호버 시만 표시) -->
+  <div class="display-controls">
+    <button class="ctrl-btn" id="btn-fullscreen">전체화면</button>
+    <button class="ctrl-btn" id="btn-back-edit">입력 화면 (ESC)</button>
+  </div>
+  <div class="esc-hint">ESC = 입력화면 / F = 전체화면</div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+// ===== State =====
+const state = {
+  org: '',
+  name: '',
+  title: '',
+  host: '',
+  theme: 'classic',
+};
+
+// ===== Particles =====
+function spawnParticles() {
+  const wrap = $('particles');
+  wrap.innerHTML = '';
+  for (let i = 0; i < 24; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    p.style.left = Math.random() * 100 + '%';
+    p.style.animationDuration = (10 + Math.random() * 20) + 's';
+    p.style.animationDelay = (Math.random() * 10) + 's';
+    p.style.width = p.style.height = (2 + Math.random() * 4) + 'px';
+    wrap.appendChild(p);
+  }
+}
+
+// ===== Clock & Date =====
+function tickClock() {
+  const d = new Date();
+  const days = ['일', '월', '화', '수', '목', '금', '토'];
+  const dateStr = `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일 ${days[d.getDay()]}요일`;
+  const timeStr = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  $('d-date').textContent = dateStr;
+  $('d-clock').textContent = timeStr;
+}
+setInterval(tickClock, 30000);
+tickClock();
+
+// ===== Render display =====
+function renderDisplay() {
+  $('d-org').textContent = state.org || '귀빈';
+  $('d-name').textContent = state.name || '환영합니다';
+  $('d-title').textContent = state.title || '';
+  $('d-title').style.display = state.title ? 'block' : 'none';
+  if (state.host) {
+    $('d-host-wrap').style.display = 'block';
+    $('d-host').textContent = state.host;
+  } else {
+    $('d-host-wrap').style.display = 'none';
+  }
+  $('display-mode').setAttribute('data-theme', state.theme);
+}
+
+// ===== Preview iframe (현재 페이지를 그대로 보여줌) =====
+function updatePreview() {
+  // 미리보기는 동일한 페이지를 iframe으로 보여주되, URL 파라미터를 통해 풀스크린 모드 강제
+  const params = new URLSearchParams({
+    org: state.org,
+    name: state.name,
+    title: state.title,
+    host: state.host,
+    theme: state.theme,
+    preview: '1',
+  });
+  $('preview-frame').src = `${location.pathname}?${params.toString()}#display`;
+  // iframe 스케일 (1920 → 컨테이너 너비에 맞춤)
+  const frame = $('preview-frame');
+  frame.onload = () => {
+    try {
+      const w = frame.parentElement.clientWidth;
+      const scale = w / 1920;
+      frame.style.width = '1920px';
+      frame.style.height = '1080px';
+      frame.style.transform = `scale(${scale})`;
+    } catch (e) {}
+  };
+}
+
+// ===== Input wiring =====
+function readInputs() {
+  state.org = $('inp-org').value.trim();
+  state.name = $('inp-name').value.trim();
+  state.title = $('inp-title').value.trim();
+  state.host = $('inp-host').value.trim();
+  renderDisplay();
+  updatePreview();
+}
+['inp-org', 'inp-name', 'inp-title', 'inp-host'].forEach(id => {
+  $(id).addEventListener('input', readInputs);
+});
+
+// Theme picker
+document.querySelectorAll('.theme-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.theme = btn.dataset.theme;
+    renderDisplay();
+    updatePreview();
+  });
+});
+
+// ===== Display mode toggle =====
+function enterDisplay() {
+  document.body.classList.add('display-active');
+  spawnParticles();
+  // 풀스크린 자동 시도
+  if (document.documentElement.requestFullscreen && !document.fullscreenElement) {
+    document.documentElement.requestFullscreen().catch(() => {});
+  }
+}
+function exitDisplay() {
+  document.body.classList.remove('display-active');
+  if (document.exitFullscreen && document.fullscreenElement) {
+    document.exitFullscreen().catch(() => {});
+  }
+}
+
+$('btn-display').addEventListener('click', () => {
+  if (!state.name) { alert('방문자 성함을 입력해주세요'); $('inp-name').focus(); return; }
+  enterDisplay();
+});
+$('btn-back-edit').addEventListener('click', exitDisplay);
+
+$('btn-reset').addEventListener('click', () => {
+  ['inp-org', 'inp-name', 'inp-title', 'inp-host'].forEach(id => { $(id).value = ''; });
+  readInputs();
+});
+
+$('btn-copy-url').addEventListener('click', () => {
+  const params = new URLSearchParams({
+    org: state.org, name: state.name, title: state.title, host: state.host, theme: state.theme, auto: '1',
+  });
+  const url = `${location.origin}${location.pathname}?${params.toString()}`;
+  navigator.clipboard.writeText(url).then(() => {
+    alert('✓ URL 복사 완료!\n\nTV 브라우저에 붙여넣으면 자동으로 환영 화면이 표시됩니다.\n\n' + url);
+  }).catch(() => {
+    prompt('URL을 복사하세요:', url);
+  });
+});
+
+$('btn-fullscreen').addEventListener('click', () => {
+  if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+  else document.exitFullscreen();
+});
+
+// ===== Keyboard shortcuts =====
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && document.body.classList.contains('display-active')) {
+    exitDisplay();
+  } else if (e.key === 'f' || e.key === 'F') {
+    if (document.body.classList.contains('display-active')) {
+      if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+      else document.exitFullscreen();
+    }
+  }
+});
+
+// ===== Load from URL params =====
+function loadFromURL() {
+  const params = new URLSearchParams(location.search);
+  if (params.has('org') || params.has('name') || params.has('title')) {
+    state.org = params.get('org') || '';
+    state.name = params.get('name') || '';
+    state.title = params.get('title') || '';
+    state.host = params.get('host') || '';
+    state.theme = params.get('theme') || 'classic';
+    $('inp-org').value = state.org;
+    $('inp-name').value = state.name;
+    $('inp-title').value = state.title;
+    $('inp-host').value = state.host;
+    document.querySelectorAll('.theme-btn').forEach(b => b.classList.toggle('active', b.dataset.theme === state.theme));
+    renderDisplay();
+    // 자동 풀스크린 (TV 모드)
+    if (params.get('auto') === '1' || location.hash === '#display') {
+      enterDisplay();
+    }
+    // 미리보기 모드 (iframe 내부)
+    if (params.get('preview') === '1') {
+      document.body.classList.add('display-active');
+      spawnParticles();
+      document.querySelector('.display-controls').style.display = 'none';
+      document.querySelector('.esc-hint').style.display = 'none';
+    }
+  }
+}
+
+// ===== INIT =====
+(function init() {
+  readInputs();
+  loadFromURL();
+})();
+</script>
+</body>
+</html>
