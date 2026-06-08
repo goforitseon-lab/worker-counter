@@ -532,6 +532,83 @@
   }
   .gear-btn:hover { opacity: 1; }
 </style>
+<style id="tv-readability">
+/* ===== 공장 TV 가독성 강화 v3: 크게 + 4공정/매트릭스 전부 한 화면 ===== */
+html, body { font-size: 17px; }
+body { grid-template-rows: 84px 146px 1fr 256px; gap: 11px; padding: 12px; }
+
+/* 헤더 */
+.logo { width: 220px; height: 42px; }
+.title { font-size: 38px; }
+.subtitle { font-size: 17px; }
+.clock { font-size: 50px; }
+.date-text { font-size: 16px; }
+.conn-pill { font-size: 17px; padding: 8px 15px; }
+.conn-dot { width: 12px; height: 12px; }
+.last-update { font-size: 16px; }
+
+/* KPI — 헤드라인 숫자 크게 */
+.kpi-card { padding: 15px 22px; }
+.kpi-card::before { height: 5px; }
+.kpi-label { font-size: 18px; }
+.kpi-num { font-size: 72px; }
+.kpi-unit { font-size: 25px; }
+.kpi-sub { font-size: 17px; margin-top: 4px; }
+.worktime-now { padding: 8px 15px; }
+.worktime-now-label { font-size: 13px; }
+.worktime-now-val { font-size: 32px; }
+.wt-bar { height: 84px; }
+.wt-label-row { font-size: 13px; }
+.wt-val-row { font-size: 17px; }
+
+/* 패널 공통 */
+.panel { padding: 14px 18px; }
+.panel-head { margin-bottom: 9px; padding-bottom: 8px; }
+.panel-title { font-size: 24px; }
+.panel-sub { font-size: 15px; }
+
+/* 차종×공정 매트릭스 */
+.matrix th, .matrix td { padding: 9px 8px; }
+.matrix th { font-size: 19px; }
+.matrix th.car-col { width: 150px; }
+.matrix th.proc-col { width: 142px; }
+.matrix th.total-col { width: 142px; }
+.matrix td.car-name { font-size: 24px; }
+.matrix td.cell { font-size: 28px; }
+.matrix td.cell .defect-tag { font-size: 13px; padding: 1px 7px; }
+.matrix td.total { font-size: 28px; }
+.matrix tr.total-row td { font-size: 28px; }
+.matrix tr.total-row td.car-name { font-size: 21px; }
+
+/* 공정별 — 4개 전부 보이게 컴팩트 */
+.main-grid { grid-template-columns: 1fr 510px; }
+.proc-donut-list { gap: 9px; }
+.proc-row { padding: 9px 16px; gap: 16px; }
+.proc-info { gap: 3px; }
+.proc-donut-rate { font-size: 22px; }
+.proc-donut-rate-label { font-size: 11px; }
+.proc-name { font-size: 22px; }
+.proc-prod { font-size: 32px; }
+.proc-defect { font-size: 18px; }
+.proc-meta { font-size: 14px; }
+
+/* 작업자 랭킹 */
+.ranking-list { gap: 5px; }
+.rank-item { grid-template-columns: 48px 1fr auto auto; padding: 8px 16px; gap: 13px; }
+.rank-num { font-size: 26px; }
+.rank-name { font-size: 22px; }
+.rank-bar-wrap { width: 175px; height: 11px; }
+.rank-val { font-size: 26px; min-width: 76px; }
+
+/* 실시간 피드 */
+.feed-list { gap: 5px; }
+.feed-item { padding: 8px 15px; gap: 14px; }
+.feed-time { font-size: 16px; min-width: 54px; }
+.feed-line1 { font-size: 19px; }
+.feed-line2 { font-size: 14px; }
+.feed-proc-tag { font-size: 14px; padding: 3px 10px; }
+.feed-qty { font-size: 26px; min-width: 58px; }
+</style>
 </head>
 <body>
 
@@ -802,7 +879,7 @@ async function loadPartsMaster() {
     }
     state.partsMap = {};
     allParts.forEach(r => { if (r.part_number) state.partsMap[r.part_number] = r; });
-    console.log(`[parts] ${allParts.length}건 로드`);
+    console.log(`[parts] 총 ${allParts.length}건 로드`);
   } catch (e) {
     console.warn('parts_master 로드 실패:', e.message);
   }
