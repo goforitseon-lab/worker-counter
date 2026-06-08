@@ -1456,16 +1456,31 @@
       const cfg = state.serverConfig;
       if (!cfg.url || !cfg.key) return;
       try {
-        const url = `${cfg.url.replace(/\/$/,'')}/rest/v1/parts_master?order=part_number.asc`;
-        const res = await fetch(url, { headers: { 'apikey': cfg.key, 'Authorization': 'Bearer ' + cfg.key } });
-        if (!res.ok) return;
-        const list = await res.json();
-        state.partsList = list;  // 전체 리스트 (picker에서 사용)
+        // 페이지네이션으로 전체 가져오기 (Supabase 기본 limit 1000 우회)
+        let allParts = [];
+        let offset = 0;
+        const pageSize = 1000;
+        while (true) {
+          const url = `${cfg.url.replace(/\/$/,'')}/rest/v1/parts_master?order=part_number.asc&limit=${pageSize}&offset=${offset}`;
+          const res = await fetch(url, { headers: { 'apikey': cfg.key, 'Authorization': 'Bearer ' + cfg.key } });
+          if (!res.ok) {
+            console.warn('parts_master fetch failed:', res.status, res.statusText);
+            return;
+          }
+          const page = await res.json();
+          if (!Array.isArray(page) || page.length === 0) break;
+          allParts = allParts.concat(page);
+          if (page.length < pageSize) break;  // 마지막 페이지
+          offset += pageSize;
+          if (offset > 50000) break;  // 안전장치
+        }
+        console.log(`[parts_master] 총 ${allParts.length}건 로드`);
+        state.partsList = allParts;
         const newMaster = {};
-        list.forEach(m => { newMaster[m.part_number] = m; });
+        allParts.forEach(m => { newMaster[m.part_number] = m; });
         state.partsMaster = newMaster;
         storage.set('parts:master', state.partsMaster);
-        storage.set('parts:list', list);
+        storage.set('parts:list', allParts);
         updateFooter();
         renderPicker();
         renderInfoCard();

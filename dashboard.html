@@ -782,12 +782,27 @@ async function sbFetch(path, params = {}) {
 }
 
 async function loadPartsMaster() {
-  // 한 번만 가져오면 됨 (실시간 변동 적음, 5분마다 갱신)
+  // 페이지네이션으로 전체 가져오기 (Supabase 기본 1000 limit 우회)
   try {
-    const rows = await sbFetch('parts_master', { select: 'part_number,car_model,process,name', limit: '5000' });
+    let allParts = [];
+    let offset = 0;
+    const pageSize = 1000;
+    while (true) {
+      const rows = await sbFetch('parts_master', { 
+        select: 'part_number,car_model,process,name', 
+        limit: pageSize, 
+        offset: offset,
+        order: 'part_number.asc'
+      });
+      if (!Array.isArray(rows) || rows.length === 0) break;
+      allParts = allParts.concat(rows);
+      if (rows.length < pageSize) break;
+      offset += pageSize;
+      if (offset > 50000) break;  // 안전장치
+    }
     state.partsMap = {};
-    rows.forEach(r => { if (r.part_number) state.partsMap[r.part_number] = r; });
-    console.log(`[parts] ${rows.length}건 로드`);
+    allParts.forEach(r => { if (r.part_number) state.partsMap[r.part_number] = r; });
+    console.log(`[parts] ${allParts.length}건 로드`);
   } catch (e) {
     console.warn('parts_master 로드 실패:', e.message);
   }
