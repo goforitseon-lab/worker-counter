@@ -2622,12 +2622,14 @@
         ? `${t('toast.sub_prod')} ${state.quantity} · ${t('toast.sub_defect')} ${totalDefect} (${defectsToSave.length}${t('unit.kind')}) · ${t('toast.sub_pending')} ${state.pending.length}${t('unit.count')}`
         : `${t('toast.sub_good')} ${state.quantity} · ${t('toast.sub_pending')} ${state.pending.length}${t('unit.count')}`;
       showToast('success', t('toast.added_to_pending'), sub);
-      // 입력 초기화 (picker는 같은 작업 반복 가능하도록 유지, 수량/불량만 리셋)
+      // 입력 완전 초기화 (대표님 요청: 추가 후 처음부터)
       state.partNumber = ''; state.quantity = 1;
       state.isDefect = false; state.defects = []; state.editingDefectIndex = -1;
       // 원단M 입력 비우기
       const fmInput = document.getElementById('fabric-m-input');
       if (fmInput) fmInput.value = '';
+      // picker도 완전 초기화 (공정/차종/칼라/원단/라벨/LH-RH/사양 모두 리셋)
+      resetPicker();
       renderInput();
       updateBadges();
     }
