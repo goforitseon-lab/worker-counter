@@ -1908,13 +1908,15 @@
       });
       if (!state.pick.fabric) return;
 
-      // ====== STEP 5: 라벨 (감싸기/뒤집기/미싱은 스킵, 후보 1개면 자동) ======
+      // ====== STEP 5: 라벨 (감싸기/뒤집기/미싱은 스킵, 데이터에 라벨 없으면 자동 스킵) ======
       if (!shortFlow) {
         const labelCandidates = list.filter(p =>
           p.process === state.pick.process && p.car_model === state.pick.car 
           && p.color === state.pick.color && p.fabric === state.pick.fabric && p.label
         );
         const labels = uniq(labelCandidates.map(p => p.label));
+        const hasLabelData = labels.length > 0;
+        
         if (labels.length === 1) {
           if (state.pick.label !== labels[0]) {
             state.pick.label = labels[0];
@@ -1929,9 +1931,12 @@
             renderPicker(); decidePart();
           }, true);
         } else {
+          // 데이터에 라벨 없음 (재단 등) → 단계 자동 스킵, LH/RH로 진행
           document.getElementById('pick-step-label').style.display = 'none';
+          state.pick.label = '';
         }
-        if (!state.pick.label) {
+        // 라벨 데이터가 있는데 사용자가 아직 선택 안 했으면 종료
+        if (hasLabelData && !state.pick.label) {
           document.getElementById('pick-step-side').style.display = 'none';
           document.getElementById('pick-step-spec').style.display = 'none';
           return;
@@ -1945,7 +1950,9 @@
         document.getElementById('pick-step-side').style.display = 'block';
         const sides = uniq(list.filter(p =>
           p.process === state.pick.process && p.car_model === state.pick.car && p.color === state.pick.color 
-          && p.fabric === state.pick.fabric && p.label === state.pick.label && p.side
+          && p.fabric === state.pick.fabric 
+          && (p.label || null) === (state.pick.label || null)  // null 매칭 보정 (재단 등 라벨 없는 데이터)
+          && p.side
         ).map(p => p.side));
         if (sides.length === 0) {
           document.getElementById('pick-step-side').style.display = 'none';
@@ -2012,40 +2019,17 @@
         return;
       }
 
-      // 감싸기/뒤집기/미싱이 아니면 color/label/side 필요
-      if (!isShortFlow(p.process)) {
-        if (!p.color || !p.label || (!p.side && uniq(list.filter(x => 
-          x.process === p.process && x.car_model === p.car && x.color === p.color 
-          && x.fabric === p.fabric && x.label === p.label && x.side
-        ).map(x => x.side)).length > 0)) {
-          state.pickedPart = null;
-          renderInfoCard();
-          updateAddButton();
-          return;
-        }
-      }
-
-      // 매칭 + specification 필터
+      // 매칭 - matchPart가 NULL/빈값 매칭 처리
       let candidates = list.filter(x => matchPart(x, p));
       if (p.specification) {
         candidates = candidates.filter(c => c.specification === p.specification);
-      } else if (candidates.length > 1) {
-        // 사양이 있어야 결정 가능 - 사양 단계 표시 중
-        const specs = uniq(candidates.map(c => c.specification).filter(Boolean));
-        if (specs.length >= 1) {
-          // 사용자가 아직 사양을 선택 안 한 상태
-          state.pickedPart = null;
-          renderInfoCard();
-          updateAddButton();
-          return;
-        }
       }
 
-      if (candidates.length === 0) {
-        state.pickedPart = null;
-        showToast('error', t('picker.no_data'));
-      } else {
+      if (candidates.length === 1) {
         state.pickedPart = candidates[0];
+      } else {
+        // 0개 또는 여러 개 - 더 좁혀야 함 (사양 단계 표시 중일 수 있음)
+        state.pickedPart = null;
       }
       renderInfoCard();
       updateAddButton();
