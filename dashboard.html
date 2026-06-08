@@ -1,0 +1,1132 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1920, initial-scale=1.0">
+<title>우주특수산업 생산현황 대시보드</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-deep: #0a0c10;
+    --bg-card: #14181f;
+    --bg-elev: #1c222c;
+    --border: rgba(255,255,255,0.06);
+    --border-strong: rgba(255,255,255,0.12);
+    --text-pri: #f0f2f6;
+    --text-sec: #8a93a4;
+    --text-dim: #4a5160;
+    --amber: #f5b800;
+    --amber-soft: rgba(245,184,0,0.12);
+    --green: #22c55e;
+    --green-soft: rgba(34,197,94,0.12);
+    --red: #ef4444;
+    --red-soft: rgba(239,68,68,0.12);
+    --blue: #3b82f6;
+    --purple: #a855f7;
+    --orange: #ff8c42;
+    /* 공정별 컬러 */
+    --proc-cut: #22c55e;
+    --proc-hot: #ff8c42;
+    --proc-sew: #3b82f6;
+    --proc-assy: #a855f7;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100vw; height: 100vh; overflow: hidden;
+    font-family: 'Pretendard', -apple-system, sans-serif;
+    background: var(--bg-deep); color: var(--text-pri);
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    display: grid;
+    grid-template-rows: 88px 130px 1fr 280px;
+    gap: 12px;
+    padding: 12px;
+  }
+  /* === HEADER === */
+  header {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    background: linear-gradient(135deg, var(--bg-card), var(--bg-elev));
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 0 28px;
+  }
+  .title-block { display: flex; align-items: baseline; gap: 14px; }
+  .logo {
+    width: 44px; height: 44px;
+    background: linear-gradient(135deg, var(--amber), #ff8c42);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    color: #0f0f10; font-weight: 900; font-size: 22px;
+  }
+  .title { font-size: 28px; font-weight: 800; letter-spacing: -0.02em; }
+  .subtitle { font-size: 13px; color: var(--text-sec); font-weight: 500; }
+  .clock-block {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+  }
+  .clock {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 40px; font-weight: 700; letter-spacing: 0.04em;
+    color: var(--amber);
+    line-height: 1;
+  }
+  .date-text { font-size: 13px; color: var(--text-sec); }
+  .status-block {
+    display: flex; align-items: center; justify-content: flex-end; gap: 18px;
+  }
+  .conn-pill {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 12px; border-radius: 999px;
+    background: var(--bg-elev); border: 1px solid var(--border);
+    font-size: 12px; font-weight: 600;
+  }
+  .conn-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 10px rgba(34,197,94,0.6);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.7; transform: scale(0.9); }
+  }
+  .conn-dot.error { background: var(--red); box-shadow: 0 0 10px rgba(239,68,68,0.6); }
+  .last-update { font-size: 12px; color: var(--text-dim); }
+
+  /* === KPI ROW === */
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr) 1.6fr;
+    gap: 12px;
+  }
+  .kpi-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 22px;
+    display: flex; flex-direction: column; justify-content: space-between;
+    position: relative; overflow: hidden;
+  }
+  .kpi-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: var(--amber);
+  }
+  .kpi-card.prod::before { background: var(--green); }
+  .kpi-card.defect::before { background: var(--red); }
+  .kpi-card.worker::before { background: var(--blue); }
+  .kpi-card.fabric::before { background: var(--amber); }
+  .kpi-label {
+    font-size: 12px; font-weight: 700; letter-spacing: 0.08em;
+    color: var(--text-sec); text-transform: uppercase;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .kpi-value {
+    display: flex; align-items: baseline; gap: 8px;
+  }
+  .kpi-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 54px; font-weight: 800;
+    color: var(--text-pri); line-height: 1;
+    letter-spacing: -0.02em;
+  }
+  .kpi-card.prod .kpi-num { color: var(--green); }
+  .kpi-card.defect .kpi-num { color: var(--red); }
+  .kpi-card.worker .kpi-num { color: var(--blue); }
+  .kpi-card.fabric .kpi-num { color: var(--amber); }
+  .kpi-unit { font-size: 16px; color: var(--text-sec); font-weight: 600; }
+  .kpi-sub { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+
+  /* 작업타임 카드 (KPI 5번째) */
+  .worktime-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px 18px;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 14px;
+    align-items: center;
+  }
+  .worktime-now {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 4px; padding: 8px 16px;
+    background: var(--amber-soft);
+    border-radius: 12px;
+    border: 1px solid rgba(245,184,0,0.3);
+  }
+  .worktime-now-label { font-size: 10px; color: var(--text-sec); font-weight: 700; letter-spacing: 0.1em; }
+  .worktime-now-val { font-size: 22px; font-weight: 800; color: var(--amber); line-height: 1; }
+  .worktime-bars { display: flex; gap: 6px; }
+  .wt-bar {
+    flex: 1; height: 80px;
+    background: var(--bg-elev);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    display: flex; flex-direction: column; justify-content: flex-end;
+    position: relative; overflow: hidden;
+  }
+  .wt-bar-fill {
+    background: linear-gradient(180deg, var(--amber), #ff8c42);
+    width: 100%;
+    transition: height 0.8s cubic-bezier(0.4,0,0.2,1);
+    min-height: 2px;
+  }
+  .wt-bar.current { border-color: var(--amber); }
+  .wt-bar.current .wt-bar-fill {
+    background: linear-gradient(180deg, var(--amber), var(--amber));
+    box-shadow: 0 0 14px rgba(245,184,0,0.4);
+  }
+  .wt-label-row {
+    position: absolute; bottom: 4px; left: 0; right: 0;
+    text-align: center; font-size: 10px; font-weight: 700;
+    color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.7);
+  }
+  .wt-val-row {
+    position: absolute; top: 4px; left: 0; right: 0;
+    text-align: center; font-size: 13px; font-weight: 800;
+    color: var(--text-pri);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* === MAIN GRID (matrix + chart) === */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 1fr 480px;
+    gap: 12px;
+    min-height: 0;
+  }
+  .panel {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+    display: flex; flex-direction: column;
+    min-height: 0;
+  }
+  .panel-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px; padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .panel-title { font-size: 16px; font-weight: 800; letter-spacing: -0.01em; }
+  .panel-sub { font-size: 12px; color: var(--text-sec); }
+
+  /* 차종×공정 매트릭스 */
+  .matrix-wrap { overflow: auto; flex: 1; }
+  .matrix {
+    width: 100%; border-collapse: separate; border-spacing: 4px;
+    table-layout: fixed;
+  }
+  .matrix th, .matrix td {
+    padding: 10px 8px;
+    text-align: center;
+    border-radius: 8px;
+    font-weight: 700;
+    transition: background 0.3s;
+  }
+  .matrix th {
+    background: var(--bg-elev);
+    color: var(--text-sec);
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    position: sticky; top: 0; z-index: 2;
+  }
+  .matrix th.car-col { text-align: left; padding-left: 14px; width: 110px; }
+  .matrix th.proc-col { width: 110px; }
+  .matrix th.proc-cut { color: var(--proc-cut); border-bottom: 2px solid var(--proc-cut); }
+  .matrix th.proc-hot { color: var(--proc-hot); border-bottom: 2px solid var(--proc-hot); }
+  .matrix th.proc-sew { color: var(--proc-sew); border-bottom: 2px solid var(--proc-sew); }
+  .matrix th.proc-assy { color: var(--proc-assy); border-bottom: 2px solid var(--proc-assy); }
+  .matrix th.total-col { width: 110px; color: var(--amber); border-bottom: 2px solid var(--amber); }
+
+  .matrix td.car-name {
+    text-align: left; padding-left: 14px;
+    background: var(--bg-elev); color: var(--text-pri);
+    font-size: 15px; font-weight: 800;
+    letter-spacing: -0.01em;
+  }
+  .matrix td.cell {
+    background: var(--bg-elev);
+    color: var(--text-pri);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 18px; font-weight: 700;
+    position: relative;
+  }
+  .matrix td.cell.zero { color: var(--text-dim); font-weight: 500; }
+  .matrix td.cell .qty { display: block; line-height: 1.15; }
+  .matrix td.cell .defect-tag {
+    display: inline-block;
+    font-size: 10px; font-weight: 700;
+    color: var(--red); background: var(--red-soft);
+    padding: 1px 6px; border-radius: 999px;
+    margin-top: 2px;
+    font-family: 'Pretendard', sans-serif;
+  }
+  /* 히트맵 색상 */
+  .matrix td.cell.h1 { background: rgba(34,197,94,0.10); }
+  .matrix td.cell.h2 { background: rgba(34,197,94,0.20); }
+  .matrix td.cell.h3 { background: rgba(34,197,94,0.32); color: #d4ffe7; }
+  .matrix td.cell.h4 { background: rgba(34,197,94,0.45); color: #e8ffef; }
+  .matrix td.cell.has-defect { background: rgba(239,68,68,0.12); }
+  .matrix td.total {
+    background: var(--amber-soft);
+    color: var(--amber);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 19px; font-weight: 800;
+  }
+  .matrix tr.total-row td {
+    background: rgba(245,184,0,0.16);
+    color: var(--amber);
+    font-size: 19px;
+  }
+  .matrix tr.total-row td.car-name { letter-spacing: 0.05em; font-size: 14px; }
+
+  /* 공정별 도넛 패널 */
+  .proc-donut-list {
+    display: flex; flex-direction: column; gap: 14px;
+    overflow: auto; padding-right: 4px;
+  }
+  .proc-row {
+    background: var(--bg-elev);
+    border-radius: 12px;
+    padding: 14px 16px;
+    display: grid;
+    grid-template-columns: 80px 1fr;
+    gap: 16px;
+    align-items: center;
+    border-left: 4px solid var(--text-dim);
+  }
+  .proc-row.cut { border-left-color: var(--proc-cut); }
+  .proc-row.hot { border-left-color: var(--proc-hot); }
+  .proc-row.sew { border-left-color: var(--proc-sew); }
+  .proc-row.assy { border-left-color: var(--proc-assy); }
+  .proc-donut {
+    position: relative; width: 80px; height: 80px;
+  }
+  .proc-donut svg { transform: rotate(-90deg); }
+  .proc-donut-text {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    text-align: center;
+  }
+  .proc-donut-rate {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 18px; font-weight: 800; color: var(--text-pri);
+    line-height: 1;
+  }
+  .proc-donut-rate-label {
+    font-size: 9px; color: var(--text-dim);
+    letter-spacing: 0.08em; font-weight: 700;
+  }
+  .proc-info { display: flex; flex-direction: column; gap: 6px; }
+  .proc-name { font-size: 16px; font-weight: 800; }
+  .proc-numbers {
+    display: flex; gap: 14px; align-items: baseline;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .proc-prod { font-size: 24px; font-weight: 800; color: var(--text-pri); }
+  .proc-defect { font-size: 14px; color: var(--red); font-weight: 700; }
+  .proc-meta { font-size: 11px; color: var(--text-sec); }
+
+  /* === BOTTOM ROW === */
+  .bottom-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    min-height: 0;
+  }
+
+  /* 작업자 랭킹 / 작업타임별 */
+  .ranking-list {
+    display: flex; flex-direction: column; gap: 6px;
+    overflow: auto; flex: 1; padding-right: 4px;
+  }
+  .rank-item {
+    display: grid;
+    grid-template-columns: 44px 1fr auto auto;
+    align-items: center;
+    gap: 14px;
+    padding: 10px 14px;
+    background: var(--bg-elev);
+    border-radius: 10px;
+    border-left: 3px solid var(--text-dim);
+  }
+  .rank-item.top1 { border-left-color: var(--amber); background: rgba(245,184,0,0.08); }
+  .rank-item.top2 { border-left-color: #c0c0c0; }
+  .rank-item.top3 { border-left-color: #cd7f32; }
+  .rank-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 20px; font-weight: 800; color: var(--text-dim);
+    text-align: center;
+  }
+  .rank-item.top1 .rank-num { color: var(--amber); }
+  .rank-name { font-size: 15px; font-weight: 700; }
+  .rank-bar-wrap {
+    width: 160px; height: 8px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 4px; overflow: hidden;
+  }
+  .rank-bar {
+    height: 100%; background: linear-gradient(90deg, var(--green), #84cc16);
+    border-radius: 4px;
+    transition: width 0.6s cubic-bezier(0.4,0,0.2,1);
+  }
+  .rank-item.top1 .rank-bar { background: linear-gradient(90deg, var(--amber), #ff8c42); }
+  .rank-val {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 18px; font-weight: 800; color: var(--text-pri);
+    min-width: 60px; text-align: right;
+  }
+
+  /* 실시간 피드 */
+  .feed-list {
+    display: flex; flex-direction: column; gap: 6px;
+    overflow: hidden; flex: 1;
+    position: relative;
+    mask-image: linear-gradient(to bottom, transparent, black 8%, black 92%, transparent);
+    -webkit-mask-image: linear-gradient(to bottom, transparent, black 8%, black 92%, transparent);
+  }
+  .feed-item {
+    display: grid;
+    grid-template-columns: auto 1fr auto auto;
+    gap: 12px;
+    align-items: center;
+    padding: 8px 12px;
+    background: var(--bg-elev);
+    border-radius: 8px;
+    border-left: 3px solid var(--text-dim);
+    animation: feedIn 0.5s ease;
+  }
+  @keyframes feedIn {
+    from { opacity: 0; transform: translateX(-12px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  .feed-item.cut { border-left-color: var(--proc-cut); }
+  .feed-item.hot { border-left-color: var(--proc-hot); }
+  .feed-item.sew { border-left-color: var(--proc-sew); }
+  .feed-item.assy { border-left-color: var(--proc-assy); }
+  .feed-item.has-defect { background: rgba(239,68,68,0.08); }
+  .feed-time {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; color: var(--text-sec); font-weight: 700;
+    min-width: 50px;
+  }
+  .feed-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .feed-line1 {
+    font-size: 13px; font-weight: 700;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .feed-line2 { font-size: 11px; color: var(--text-sec); font-weight: 500; }
+  .feed-proc-tag {
+    font-size: 10px; font-weight: 800;
+    padding: 2px 8px; border-radius: 999px;
+    color: #fff;
+  }
+  .feed-proc-tag.cut { background: var(--proc-cut); }
+  .feed-proc-tag.hot { background: var(--proc-hot); }
+  .feed-proc-tag.sew { background: var(--proc-sew); }
+  .feed-proc-tag.assy { background: var(--proc-assy); }
+  .feed-qty {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 18px; font-weight: 800; color: var(--text-pri);
+    min-width: 50px; text-align: right;
+  }
+  .feed-qty.with-defect { color: var(--red); }
+
+  /* 설정/에러 */
+  .setup-overlay {
+    position: fixed; inset: 0;
+    background: rgba(10,12,16,0.96);
+    backdrop-filter: blur(8px);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100;
+  }
+  .setup-box {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 40px;
+    width: 540px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+  .setup-title { font-size: 24px; font-weight: 800; margin-bottom: 8px; }
+  .setup-sub { font-size: 14px; color: var(--text-sec); margin-bottom: 24px; }
+  .setup-label { font-size: 12px; color: var(--text-sec); font-weight: 700; letter-spacing: 0.08em; margin-bottom: 6px; }
+  .setup-input {
+    width: 100%;
+    padding: 12px 16px;
+    background: var(--bg-elev);
+    border: 1px solid var(--border-strong);
+    border-radius: 10px;
+    color: var(--text-pri);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    margin-bottom: 16px;
+  }
+  .setup-textarea { min-height: 90px; font-size: 12px; word-break: break-all; }
+  .setup-btn {
+    width: 100%;
+    padding: 14px;
+    background: var(--amber);
+    color: #0f0f10;
+    border: none; border-radius: 10px;
+    font-size: 16px; font-weight: 800;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  .setup-btn:hover { opacity: 0.9; }
+  .setup-status { font-size: 13px; margin-top: 12px; min-height: 18px; }
+  .setup-status.ok { color: var(--green); }
+  .setup-status.err { color: var(--red); }
+
+  .empty-state {
+    display: flex; align-items: center; justify-content: center;
+    flex: 1; color: var(--text-dim); font-size: 14px;
+    font-weight: 600;
+  }
+
+  /* 풀스크린 버튼 */
+  .fs-btn {
+    position: fixed; bottom: 16px; right: 16px;
+    width: 36px; height: 36px;
+    background: var(--bg-elev);
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    cursor: pointer;
+    color: var(--text-sec);
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0.4;
+    transition: opacity 0.2s;
+    z-index: 50;
+  }
+  .fs-btn:hover { opacity: 1; }
+  .gear-btn {
+    position: fixed; bottom: 16px; right: 60px;
+    width: 36px; height: 36px;
+    background: var(--bg-elev);
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    cursor: pointer;
+    color: var(--text-sec);
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0.4;
+    transition: opacity 0.2s;
+    z-index: 50;
+  }
+  .gear-btn:hover { opacity: 1; }
+</style>
+</head>
+<body>
+
+<!-- ========== HEADER ========== -->
+<header>
+  <div class="title-block">
+    <div class="logo">우</div>
+    <div>
+      <div class="title">우주특수산업 생산현황</div>
+      <div class="subtitle" id="header-sub">오늘 — <span id="header-date">2026-05-26 (월)</span></div>
+    </div>
+  </div>
+  <div class="clock-block">
+    <div class="clock" id="clock">00:00:00</div>
+    <div class="date-text" id="weekday">자동 갱신 30초</div>
+  </div>
+  <div class="status-block">
+    <div class="conn-pill">
+      <span class="conn-dot" id="conn-dot"></span>
+      <span id="conn-text">연결됨</span>
+    </div>
+    <div class="last-update">업데이트 <span id="last-update">-</span></div>
+  </div>
+</header>
+
+<!-- ========== KPI ROW ========== -->
+<div class="kpi-row">
+  <div class="kpi-card prod">
+    <div class="kpi-label">📈 오늘 총 생산</div>
+    <div>
+      <div class="kpi-value">
+        <span class="kpi-num" id="kpi-prod">0</span>
+        <span class="kpi-unit">EA</span>
+      </div>
+      <div class="kpi-sub" id="kpi-prod-sub">활성 작업 0건</div>
+    </div>
+  </div>
+  <div class="kpi-card defect">
+    <div class="kpi-label">⚠ 오늘 총 불량</div>
+    <div>
+      <div class="kpi-value">
+        <span class="kpi-num" id="kpi-defect">0</span>
+        <span class="kpi-unit" id="kpi-defect-rate">0.0%</span>
+      </div>
+      <div class="kpi-sub" id="kpi-defect-sub">불량 유형 0종</div>
+    </div>
+  </div>
+  <div class="kpi-card worker">
+    <div class="kpi-label">👷 가동 작업자</div>
+    <div>
+      <div class="kpi-value">
+        <span class="kpi-num" id="kpi-worker">0</span>
+        <span class="kpi-unit">명</span>
+      </div>
+      <div class="kpi-sub" id="kpi-worker-sub">평균 작업 0 EA/명</div>
+    </div>
+  </div>
+  <div class="kpi-card fabric">
+    <div class="kpi-label">🧵 원단 사용</div>
+    <div>
+      <div class="kpi-value">
+        <span class="kpi-num" id="kpi-fabric">0</span>
+        <span class="kpi-unit">M</span>
+      </div>
+      <div class="kpi-sub" id="kpi-fabric-sub">재단 작업 0건</div>
+    </div>
+  </div>
+  <div class="worktime-card">
+    <div class="worktime-now">
+      <div class="worktime-now-label">현재 타임</div>
+      <div class="worktime-now-val" id="wt-now">-</div>
+    </div>
+    <div class="worktime-bars" id="wt-bars">
+      <!-- JS로 채움 -->
+    </div>
+  </div>
+</div>
+
+<!-- ========== MAIN GRID ========== -->
+<div class="main-grid">
+  <div class="panel">
+    <div class="panel-head">
+      <div>
+        <div class="panel-title">🔥 차종 × 공정 생산 매트릭스</div>
+        <div class="panel-sub">셀 진하기 = 생산량 / 빨간 배경 = 불량 발생 / 작은 빨간 뱃지 = 불량 수</div>
+      </div>
+    </div>
+    <div class="matrix-wrap">
+      <table class="matrix" id="matrix">
+        <thead><tr>
+          <th class="car-col">차종</th>
+          <th class="proc-col proc-cut">재단</th>
+          <th class="proc-col proc-hot">핫스템핑</th>
+          <th class="proc-col proc-sew">봉제</th>
+          <th class="proc-col proc-assy">ASSY</th>
+          <th class="proc-col total-col">차종 합계</th>
+        </tr></thead>
+        <tbody id="matrix-body"><tr><td colspan="6" class="empty-state">데이터 대기 중...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <div>
+        <div class="panel-title">⚙ 공정별 현황</div>
+        <div class="panel-sub">생산 + 불량률 도넛</div>
+      </div>
+    </div>
+    <div class="proc-donut-list" id="proc-donuts">
+      <div class="empty-state">데이터 대기 중...</div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== BOTTOM ROW ========== -->
+<div class="bottom-row">
+  <div class="panel">
+    <div class="panel-head">
+      <div>
+        <div class="panel-title">🏆 작업자 TOP 8</div>
+        <div class="panel-sub">오늘 생산량 기준</div>
+      </div>
+    </div>
+    <div class="ranking-list" id="ranking-list">
+      <div class="empty-state">데이터 대기 중...</div>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel-head">
+      <div>
+        <div class="panel-title">⚡ 실시간 작업 피드</div>
+        <div class="panel-sub">최근 10건 (자동 갱신)</div>
+      </div>
+    </div>
+    <div class="feed-list" id="feed-list">
+      <div class="empty-state">데이터 대기 중...</div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== SETUP MODAL ========== -->
+<div class="setup-overlay" id="setup-overlay" style="display:none;">
+  <div class="setup-box">
+    <div class="setup-title">🔌 서버 연결 설정</div>
+    <div class="setup-sub">Supabase URL과 anon public 키를 입력하세요. 한 번 저장하면 이 TV에서는 자동 연결됩니다.</div>
+    <div class="setup-label">SUPABASE URL</div>
+    <input type="text" id="setup-url" class="setup-input" placeholder="https://xxxxxxx.supabase.co" autocomplete="off">
+    <div class="setup-label">ANON PUBLIC KEY</div>
+    <textarea id="setup-key" class="setup-input setup-textarea" placeholder="eyJhbGc..."></textarea>
+    <button class="setup-btn" id="setup-save">연결 시작</button>
+    <div class="setup-status" id="setup-status"></div>
+  </div>
+</div>
+
+<button class="gear-btn" id="gear-btn" title="설정">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+</button>
+<button class="fs-btn" id="fs-btn" title="전체화면">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+</button>
+
+<script>
+// =====================================================
+// 우주특수산업 생산현황 대시보드
+// - 30초 자동 새로고침
+// - 작업일자: 오늘 (자정 기준 자동 갱신)
+// - submissions + parts_master 조인하여 공정/차종 매핑
+// =====================================================
+
+const SK_URL = 'dashboard:supabase_url';
+const SK_KEY = 'dashboard:supabase_key';
+const REFRESH_INTERVAL_MS = 30000;
+const PROCESS_ORDER = ['재단', '핫스템핑', '봉제', 'ASSY'];
+const PROC_CLASS = { '재단': 'cut', '핫스템핑': 'hot', '봉제': 'sew', 'ASSY': 'assy' };
+
+let state = {
+  url: localStorage.getItem(SK_URL) || '',
+  key: localStorage.getItem(SK_KEY) || '',
+  partsMap: {},  // part_number -> parts_master row
+  submissions: [],
+  lastFetchAt: null,
+  fetchTimer: null,
+};
+
+// ===== Utilities =====
+function pad(n) { return String(n).padStart(2, '0'); }
+function nowKST() {
+  // 환경의 로컬 시간을 KST로 가정 (보통 한국에서 운용)
+  return new Date();
+}
+function todayKST() {
+  const d = nowKST();
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+function fmtTime(d) {
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+function fmtHM(d) {
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function fmtDate(d) {
+  const dows = ['일','월','화','수','목','금','토'];
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} (${dows[d.getDay()]})`;
+}
+function escapeHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// 현재 작업타임 자동 판단 (1타임 6-10, 2타임 11-14, 3타임 15-18, 4타임 19-22, 잔업 23-5)
+function getCurrentWorkTime() {
+  const h = nowKST().getHours();
+  if (h >= 6 && h < 11) return '1타임';
+  if (h >= 11 && h < 15) return '2타임';
+  if (h >= 15 && h < 19) return '3타임';
+  if (h >= 19 && h < 23) return '4타임';
+  return '잔업';
+}
+
+// ===== Clock =====
+function tickClock() {
+  const d = nowKST();
+  document.getElementById('clock').textContent = fmtTime(d);
+  document.getElementById('header-date').textContent = fmtDate(d);
+  document.getElementById('wt-now').textContent = getCurrentWorkTime();
+}
+setInterval(tickClock, 1000);
+tickClock();
+
+// ===== Supabase fetch =====
+async function sbFetch(path, params = {}) {
+  if (!state.url || !state.key) throw new Error('서버 미설정');
+  const url = new URL(`${state.url.replace(/\/$/,'')}/rest/v1/${path}`);
+  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+  const res = await fetch(url.toString(), {
+    headers: { 'apikey': state.key, 'Authorization': 'Bearer ' + state.key }
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+  return res.json();
+}
+
+async function loadPartsMaster() {
+  // 한 번만 가져오면 됨 (실시간 변동 적음, 5분마다 갱신)
+  try {
+    const rows = await sbFetch('parts_master', { select: 'part_number,car_model,process,name', limit: '5000' });
+    state.partsMap = {};
+    rows.forEach(r => { if (r.part_number) state.partsMap[r.part_number] = r; });
+    console.log(`[parts] ${rows.length}건 로드`);
+  } catch (e) {
+    console.warn('parts_master 로드 실패:', e.message);
+  }
+}
+
+async function loadSubmissions() {
+  // 오늘 작업분만 가져오기 (work_date 기준)
+  const today = todayKST();
+  try {
+    const rows = await sbFetch('submissions', {
+      select: '*',
+      'work_date': `eq.${today}`,
+      'order': 'created_at.desc',
+      'limit': '2000',
+    });
+    state.submissions = rows;
+    state.lastFetchAt = new Date();
+    return true;
+  } catch (e) {
+    console.error('submissions 로드 실패:', e.message);
+    return false;
+  }
+}
+
+// ===== 데이터 전처리 =====
+function enrichSubmission(s) {
+  // process / car_model 보강: submissions에 없으면 parts_master에서 lookup
+  const p = state.partsMap[s.part_number];
+  return {
+    ...s,
+    car_model: s.car_model || (p ? p.car_model : null),
+    process: s.process || (p ? p.process : null),
+    part_name: s.part_name || (p ? p.name : s.part_number),
+  };
+}
+
+// ===== Render =====
+function renderAll() {
+  const subs = state.submissions.map(enrichSubmission);
+  renderKPI(subs);
+  renderWorktimeBars(subs);
+  renderMatrix(subs);
+  renderProcDonuts(subs);
+  renderRanking(subs);
+  renderFeed(subs);
+  // 마지막 업데이트
+  if (state.lastFetchAt) document.getElementById('last-update').textContent = fmtHM(state.lastFetchAt) + ':' + pad(state.lastFetchAt.getSeconds());
+}
+
+function renderKPI(subs) {
+  let totalProd = 0, totalDefect = 0, totalFabric = 0;
+  const workers = new Set();
+  const defectTypes = new Set();
+  let cuttingCount = 0;
+  for (const s of subs) {
+    totalProd += s.quantity || 0;
+    totalDefect += s.defect_quantity || 0;
+    if (s.worker_name) workers.add(s.worker_name);
+    if (typeof s.fabric_m === 'number' && s.fabric_m > 0) totalFabric += s.fabric_m;
+    if (s.process === '재단') cuttingCount++;
+    const defects = s.defects || (s.defect_code ? [{code: s.defect_code}] : []);
+    for (const d of defects) if (d.code) defectTypes.add(d.code);
+  }
+  const defectRate = totalProd > 0 ? (totalDefect / totalProd * 100) : 0;
+  const avgPerWorker = workers.size > 0 ? Math.round(totalProd / workers.size) : 0;
+
+  document.getElementById('kpi-prod').textContent = totalProd.toLocaleString();
+  document.getElementById('kpi-prod-sub').textContent = `활성 작업 ${subs.length}건`;
+  document.getElementById('kpi-defect').textContent = totalDefect.toLocaleString();
+  document.getElementById('kpi-defect-rate').textContent = defectRate.toFixed(1) + '%';
+  document.getElementById('kpi-defect-sub').textContent = `불량 유형 ${defectTypes.size}종`;
+  document.getElementById('kpi-worker').textContent = workers.size;
+  document.getElementById('kpi-worker-sub').textContent = `평균 작업 ${avgPerWorker.toLocaleString()} EA/명`;
+  document.getElementById('kpi-fabric').textContent = totalFabric.toFixed(1);
+  document.getElementById('kpi-fabric-sub').textContent = `재단 작업 ${cuttingCount}건`;
+}
+
+function renderWorktimeBars(subs) {
+  const TIMES = ['1타임','2타임','3타임','4타임','잔업'];
+  const counts = {};
+  for (const t of TIMES) counts[t] = 0;
+  for (const s of subs) {
+    if (s.work_time && counts[s.work_time] != null) counts[s.work_time] += (s.quantity || 0);
+  }
+  const max = Math.max(...Object.values(counts), 1);
+  const current = getCurrentWorkTime();
+  const bars = TIMES.map(t => {
+    const v = counts[t];
+    const h = (v / max) * 100;
+    const isCur = t === current ? 'current' : '';
+    const shortLabel = t.replace('타임', 'T').replace('잔업', '잔');
+    return `<div class="wt-bar ${isCur}">
+      <div class="wt-val-row">${v.toLocaleString()}</div>
+      <div class="wt-bar-fill" style="height:${h}%;"></div>
+      <div class="wt-label-row">${shortLabel}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('wt-bars').innerHTML = bars;
+}
+
+function renderMatrix(subs) {
+  // 차종 × 공정 피벗 (생산량, 불량 수)
+  const grid = {}; // car -> proc -> {qty, defect}
+  const carSet = new Set();
+  for (const s of subs) {
+    if (!s.car_model || !s.process) continue;
+    if (!grid[s.car_model]) grid[s.car_model] = {};
+    if (!grid[s.car_model][s.process]) grid[s.car_model][s.process] = { qty: 0, defect: 0 };
+    grid[s.car_model][s.process].qty += s.quantity || 0;
+    grid[s.car_model][s.process].defect += s.defect_quantity || 0;
+    carSet.add(s.car_model);
+  }
+
+  const cars = [...carSet].sort();
+  if (cars.length === 0) {
+    document.getElementById('matrix-body').innerHTML = '<tr><td colspan="6" class="empty-state">오늘 작업 데이터 대기 중...</td></tr>';
+    return;
+  }
+
+  // 히트맵 max 계산
+  let maxQty = 0;
+  for (const c of cars) for (const p of PROCESS_ORDER) {
+    const v = (grid[c]?.[p]?.qty) || 0;
+    if (v > maxQty) maxQty = v;
+  }
+
+  // 합계 행
+  const colTotals = { qty: {}, defect: {} };
+  for (const p of PROCESS_ORDER) { colTotals.qty[p] = 0; colTotals.defect[p] = 0; }
+  let grandQty = 0, grandDefect = 0;
+
+  const rows = cars.map(c => {
+    let rowQty = 0, rowDefect = 0;
+    const cells = PROCESS_ORDER.map(p => {
+      const cell = grid[c]?.[p];
+      const qty = cell?.qty || 0;
+      const defect = cell?.defect || 0;
+      rowQty += qty; rowDefect += defect;
+      colTotals.qty[p] += qty; colTotals.defect[p] += defect;
+      const heat = qty === 0 ? 'zero' : (qty > maxQty * 0.75 ? 'h4' : qty > maxQty * 0.5 ? 'h3' : qty > maxQty * 0.25 ? 'h2' : 'h1');
+      const defectCls = defect > 0 ? 'has-defect' : '';
+      const defectTag = defect > 0 ? `<span class="defect-tag">불량 ${defect}</span>` : '';
+      return `<td class="cell ${heat} ${defectCls}">
+        <span class="qty">${qty.toLocaleString()}</span>
+        ${defectTag}
+      </td>`;
+    }).join('');
+    grandQty += rowQty; grandDefect += rowDefect;
+    const rowTotalDef = rowDefect > 0 ? `<span class="defect-tag">불량 ${rowDefect}</span>` : '';
+    return `<tr>
+      <td class="car-name">${escapeHtml(c)}</td>
+      ${cells}
+      <td class="total"><span class="qty">${rowQty.toLocaleString()}</span>${rowTotalDef}</td>
+    </tr>`;
+  }).join('');
+
+  // 합계 행
+  const totalRowCells = PROCESS_ORDER.map(p => {
+    const q = colTotals.qty[p];
+    const d = colTotals.defect[p];
+    const dt = d > 0 ? `<span class="defect-tag">${d}</span>` : '';
+    return `<td>${q.toLocaleString()} ${dt}</td>`;
+  }).join('');
+  const grandDef = grandDefect > 0 ? `<span class="defect-tag">${grandDefect}</span>` : '';
+  const totalRow = `<tr class="total-row">
+    <td class="car-name">공정 합계</td>
+    ${totalRowCells}
+    <td>${grandQty.toLocaleString()} ${grandDef}</td>
+  </tr>`;
+
+  document.getElementById('matrix-body').innerHTML = rows + totalRow;
+}
+
+function renderProcDonuts(subs) {
+  // 공정별 생산/불량 집계
+  const stats = {};
+  for (const p of PROCESS_ORDER) stats[p] = { qty: 0, defect: 0, parts: new Set() };
+  for (const s of subs) {
+    if (!s.process || stats[s.process] == null) continue;
+    stats[s.process].qty += s.quantity || 0;
+    stats[s.process].defect += s.defect_quantity || 0;
+    if (s.part_number) stats[s.process].parts.add(s.part_number);
+  }
+  const html = PROCESS_ORDER.map(p => {
+    const st = stats[p];
+    const rate = st.qty > 0 ? (st.defect / st.qty * 100) : 0;
+    const goodPct = st.qty > 0 ? Math.min(100, 100 - rate) : 0;
+    const radius = 32;
+    const circ = 2 * Math.PI * radius;
+    const dashOffset = circ * (1 - goodPct / 100);
+    const cls = PROC_CLASS[p];
+    const colorVar = `var(--proc-${cls})`;
+    return `<div class="proc-row ${cls}">
+      <div class="proc-donut">
+        <svg width="80" height="80" viewBox="0 0 80 80">
+          <circle cx="40" cy="40" r="${radius}" stroke="rgba(255,255,255,0.08)" stroke-width="8" fill="none"/>
+          <circle cx="40" cy="40" r="${radius}" stroke="${colorVar}" stroke-width="8" fill="none"
+                  stroke-dasharray="${circ}" stroke-dashoffset="${dashOffset}" stroke-linecap="round"
+                  style="transition: stroke-dashoffset 0.8s ease;"/>
+        </svg>
+        <div class="proc-donut-text">
+          <div class="proc-donut-rate">${st.qty > 0 ? goodPct.toFixed(0) + '%' : '–'}</div>
+          <div class="proc-donut-rate-label">양품률</div>
+        </div>
+      </div>
+      <div class="proc-info">
+        <div class="proc-name">${p}</div>
+        <div class="proc-numbers">
+          <span class="proc-prod">${st.qty.toLocaleString()} <span style="font-size:11px;color:var(--text-sec);">EA</span></span>
+          ${st.defect > 0 ? `<span class="proc-defect">불량 ${st.defect}</span>` : ''}
+        </div>
+        <div class="proc-meta">품번 ${st.parts.size}종 · 불량률 ${rate.toFixed(1)}%</div>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('proc-donuts').innerHTML = html;
+}
+
+function renderRanking(subs) {
+  // 작업자별 생산량 집계
+  const wm = {};
+  for (const s of subs) {
+    if (!s.worker_name) continue;
+    if (!wm[s.worker_name]) wm[s.worker_name] = { qty: 0, defect: 0, count: 0 };
+    wm[s.worker_name].qty += s.quantity || 0;
+    wm[s.worker_name].defect += s.defect_quantity || 0;
+    wm[s.worker_name].count++;
+  }
+  const ranked = Object.entries(wm).map(([name, v]) => ({ name, ...v }))
+    .sort((a, b) => b.qty - a.qty).slice(0, 8);
+  if (ranked.length === 0) {
+    document.getElementById('ranking-list').innerHTML = '<div class="empty-state">오늘 작업한 작업자 없음</div>';
+    return;
+  }
+  const max = ranked[0].qty;
+  const html = ranked.map((w, i) => {
+    const cls = i === 0 ? 'top1' : i === 1 ? 'top2' : i === 2 ? 'top3' : '';
+    const pct = max > 0 ? (w.qty / max * 100) : 0;
+    return `<div class="rank-item ${cls}">
+      <div class="rank-num">${i + 1}</div>
+      <div>
+        <div class="rank-name">${escapeHtml(w.name)}</div>
+        <div style="font-size:11px;color:var(--text-sec);">작업 ${w.count}건${w.defect > 0 ? ` · 불량 ${w.defect}` : ''}</div>
+      </div>
+      <div class="rank-bar-wrap"><div class="rank-bar" style="width:${pct}%;"></div></div>
+      <div class="rank-val">${w.qty.toLocaleString()}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('ranking-list').innerHTML = html;
+}
+
+function renderFeed(subs) {
+  // 최근 10건 (created_at 내림차순 - 이미 그렇게 fetch)
+  const recent = subs.slice(0, 10);
+  if (recent.length === 0) {
+    document.getElementById('feed-list').innerHTML = '<div class="empty-state">최근 작업 없음</div>';
+    return;
+  }
+  const html = recent.map(s => {
+    const t = new Date(s.created_at);
+    const tStr = `${pad(t.getHours())}:${pad(t.getMinutes())}`;
+    const cls = PROC_CLASS[s.process] || '';
+    const hasDef = (s.defect_quantity || 0) > 0;
+    const tag = s.process ? `<span class="feed-proc-tag ${cls}">${s.process}</span>` : '';
+    return `<div class="feed-item ${cls} ${hasDef ? 'has-defect' : ''}">
+      <div class="feed-time">${tStr}</div>
+      <div class="feed-main">
+        <div class="feed-line1">${escapeHtml(s.worker_name || '?')} · ${escapeHtml(s.car_model || '?')} · ${escapeHtml(s.part_number || '')}</div>
+        <div class="feed-line2">${escapeHtml(s.part_name || '')} ${s.work_time ? `· ${s.work_time}` : ''}</div>
+      </div>
+      ${tag}
+      <div class="feed-qty ${hasDef ? 'with-defect' : ''}">${(s.quantity || 0).toLocaleString()}${hasDef ? ` <span style="font-size:11px;">(불량 ${s.defect_quantity})</span>` : ''}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('feed-list').innerHTML = html;
+}
+
+// ===== Connection / Tick =====
+function setConn(ok, msg) {
+  const dot = document.getElementById('conn-dot');
+  const txt = document.getElementById('conn-text');
+  if (ok) { dot.classList.remove('error'); txt.textContent = '연결됨'; }
+  else { dot.classList.add('error'); txt.textContent = msg || '오류'; }
+}
+
+async function refresh() {
+  const ok = await loadSubmissions();
+  setConn(ok, ok ? null : '서버 오류');
+  if (ok) renderAll();
+}
+
+// ===== Setup =====
+function showSetup() {
+  document.getElementById('setup-overlay').style.display = 'flex';
+  document.getElementById('setup-url').value = state.url;
+  document.getElementById('setup-key').value = state.key;
+}
+function hideSetup() {
+  document.getElementById('setup-overlay').style.display = 'none';
+}
+
+document.getElementById('setup-save').addEventListener('click', async () => {
+  const url = document.getElementById('setup-url').value.trim();
+  const key = document.getElementById('setup-key').value.trim();
+  const status = document.getElementById('setup-status');
+  if (!url || !key) { status.className = 'setup-status err'; status.textContent = 'URL과 키를 모두 입력하세요'; return; }
+  status.className = 'setup-status'; status.textContent = '연결 테스트 중...';
+  // 테스트
+  state.url = url; state.key = key;
+  try {
+    await sbFetch('submissions', { select: 'id', limit: '1' });
+    localStorage.setItem(SK_URL, url);
+    localStorage.setItem(SK_KEY, key);
+    status.className = 'setup-status ok';
+    status.textContent = '✓ 연결 성공! 대시보드 시작...';
+    setTimeout(async () => {
+      hideSetup();
+      await loadPartsMaster();
+      await refresh();
+      startTimer();
+    }, 600);
+  } catch (e) {
+    status.className = 'setup-status err';
+    status.textContent = '연결 실패: ' + e.message;
+  }
+});
+
+document.getElementById('gear-btn').addEventListener('click', showSetup);
+
+// 풀스크린 토글
+document.getElementById('fs-btn').addEventListener('click', () => {
+  if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+  else document.exitFullscreen();
+});
+
+function startTimer() {
+  if (state.fetchTimer) clearInterval(state.fetchTimer);
+  state.fetchTimer = setInterval(refresh, REFRESH_INTERVAL_MS);
+}
+
+// ===== INIT =====
+(async function init() {
+  if (!state.url || !state.key) {
+    showSetup();
+    return;
+  }
+  await loadPartsMaster();
+  await refresh();
+  startTimer();
+  // 매시간 parts_master 다시 로드 (마스터 변경 반영)
+  setInterval(loadPartsMaster, 3600 * 1000);
+  // 자정에 자동 새로고침 (날짜 바뀜)
+  function scheduleMidnightReload() {
+    const now = new Date();
+    const mid = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 10);
+    setTimeout(() => location.reload(), mid - now);
+  }
+  scheduleMidnightReload();
+})();
+</script>
+</body>
+</html>
