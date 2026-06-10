@@ -539,7 +539,7 @@
 <style id="tv-readability">
 /* ===== 공장 TV 가독성 강화 v3: 크게 + 4공정/매트릭스 전부 한 화면 ===== */
 html, body { font-size: 17px; }
-body { grid-template-rows: 84px 146px 1fr 256px; gap: 11px; padding: 12px; }
+body { grid-template-rows: 84px 146px minmax(500px, 1fr) minmax(300px, 2fr); gap: 11px; padding: 12px; }
 
 /* 헤더 */
 .logo { width: 220px; height: 42px; }
@@ -574,9 +574,9 @@ body { grid-template-rows: 84px 146px 1fr 256px; gap: 11px; padding: 12px; }
 /* 차종×공정 매트릭스 */
 .matrix th, .matrix td { padding: 9px 8px; }
 .matrix th { font-size: 19px; }
-.matrix th.car-col { width: 150px; }
+.matrix th.car-col { width: 132px; }
 .matrix th.proc-col { width: auto; }
-.matrix th.total-col { width: 142px; }
+.matrix th.total-col { width: 132px; }
 .matrix td.car-name { font-size: 24px; }
 .matrix td.cell { font-size: 28px; }
 .matrix .defect-tag { font-size: 13px; padding: 1px 7px; }
@@ -584,17 +584,19 @@ body { grid-template-rows: 84px 146px 1fr 256px; gap: 11px; padding: 12px; }
 .matrix tr.total-row td { font-size: 28px; }
 .matrix tr.total-row td.car-name { font-size: 21px; }
 
-/* 공정별 — 4개 전부 보이게 컴팩트 */
-.main-grid { grid-template-columns: 1fr 510px; }
-.proc-donut-list { gap: 9px; }
-.proc-row { padding: 9px 16px; gap: 16px; }
-.proc-info { gap: 3px; }
-.proc-donut-rate { font-size: 22px; }
-.proc-donut-rate-label { font-size: 11px; }
-.proc-name { font-size: 22px; }
-.proc-prod { font-size: 32px; }
-.proc-defect { font-size: 18px; }
-.proc-meta { font-size: 14px; }
+/* 공정별 — 공정 전부(최대 7개) 2열로 다 보이게 */
+.main-grid { grid-template-columns: 1fr 560px; }
+.proc-donut-list { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-content: start; overflow: hidden; }
+.proc-donut { width: 64px; height: 64px; flex: 0 0 64px; }
+.proc-row { padding: 10px 14px; gap: 12px; }
+.proc-info { gap: 2px; min-width: 0; }
+.proc-donut-rate { font-size: 17px; }
+.proc-donut-rate-label { font-size: 9px; }
+.proc-name { font-size: 20px; }
+.proc-numbers { flex-wrap: wrap; gap: 4px 10px; }
+.proc-prod { font-size: 26px; }
+.proc-defect { font-size: 15px; }
+.proc-meta { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* 작업자 랭킹 */
 .ranking-list { gap: 5px; }
@@ -733,7 +735,7 @@ body { grid-template-rows: 84px 146px 1fr 256px; gap: 11px; padding: 12px; }
   <div class="panel">
     <div class="panel-head">
       <div>
-        <div class="panel-title">🏆 작업자 TOP 8</div>
+        <div class="panel-title">🏆 작업자 TOP 10</div>
         <div class="panel-sub">오늘 생산량 기준</div>
       </div>
     </div>
@@ -788,10 +790,8 @@ const SK_URL = 'dashboard:supabase_url';
 const SK_KEY = 'dashboard:supabase_key';
 const REFRESH_INTERVAL_MS = 30000;
 const PROCESS_ORDER = ['재단', '핫스템핑', '봉제', 'ASSY'];
-// 매트릭스 공정 컬럼 정렬 선호 순서(제조 흐름). 데이터에 없는 공정도 자동 컬럼 생성됨.
-const PROCESS_PREF = ['재단', '핫스템핑', '감싸기', '뒤집기', '미싱', '봉제', 'ASSY'];
-// 공정별 도넛 패널에서 봉제반 서브공정은 '봉제'로 묶음
-const SEW_GROUP = ['감싸기', '뒤집기', '미싱', '봉제'];
+// 매트릭스/도넛에 항상 표시할 고정 공정 (데이터 없으면 0). 순서 = 제조 흐름.
+const PROCESS_FULL = ['재단', '핫스템핑', '봉제', '뒤집기', '감싸기', '미싱', 'ASSY'];
 const PROC_CLASS = { '재단': 'cut', '핫스템핑': 'hot', '봉제': 'sew', 'ASSY': 'assy' };
 
 let state = {
@@ -1006,9 +1006,10 @@ function renderMatrix(subs) {
     carSet.add(car); procSet.add(proc);
   }
 
-  // 공정 컬럼 정렬: 선호 순서 우선 → 그 외 가나다 → 미분류 맨 끝
-  const procKey = p => { const i = PROCESS_PREF.indexOf(p); return i >= 0 ? i : (p === '미분류' ? 9999 : 500); };
-  const procs = [...procSet].sort((a, b) => (procKey(a) - procKey(b)) || a.localeCompare(b));
+  // 고정 공정 컬럼은 항상 표시(없으면 0), 그 외 공정(미분류 포함)은 뒤에 추가
+  const extra = [...procSet].filter(p => !PROCESS_FULL.includes(p))
+    .sort((a, b) => ((a === '미분류') - (b === '미분류')) || a.localeCompare(b));
+  const procs = [...PROCESS_FULL, ...extra];
   const cars = [...carSet].sort((a, b) => ((a === '미분류') - (b === '미분류')) || a.localeCompare(b));
   const colspan = procs.length + 2;
   if (cars.length === 0) {
@@ -1073,31 +1074,33 @@ function renderMatrix(subs) {
 }
 
 function renderProcDonuts(subs) {
-  // 공정별 생산/불량 집계
+  // 공정별 생산/불량 — 합산 없이 공정별로 각각 표시
   const stats = {};
-  for (const p of PROCESS_ORDER) stats[p] = { qty: 0, defect: 0, parts: new Set() };
   for (const s of subs) {
-    let g = s.process;
-    if (SEW_GROUP.includes(g)) g = '봉제';  // 감싸기/뒤집기/미싱 → 봉제로 합산
-    if (!g || stats[g] == null) continue;
-    stats[g].qty += s.quantity || 0;
-    stats[g].defect += s.defect_quantity || 0;
-    if (s.part_number) stats[g].parts.add(s.part_number);
+    const p = (s.process && String(s.process).trim()) ? s.process : '미분류';
+    if (!stats[p]) stats[p] = { qty: 0, defect: 0, parts: new Set() };
+    stats[p].qty += s.quantity || 0;
+    stats[p].defect += s.defect_quantity || 0;
+    if (s.part_number) stats[p].parts.add(s.part_number);
   }
-  const html = PROCESS_ORDER.map(p => {
+  const prefKey = p => { const i = PROCESS_FULL.indexOf(p); return i >= 0 ? i : (p === '미분류' ? 9999 : 500); };
+  const procList = Object.keys(stats).sort((a, b) => (prefKey(a) - prefKey(b)) || a.localeCompare(b));
+  if (procList.length === 0) { document.getElementById('proc-donuts').innerHTML = '<div class="empty-state">공정 데이터 대기 중...</div>'; return; }
+  const SEW = ['감싸기', '뒤집기', '미싱', '봉제'];
+  const html = procList.map(p => {
     const st = stats[p];
     const rate = st.qty > 0 ? (st.defect / st.qty * 100) : 0;
     const goodPct = st.qty > 0 ? Math.min(100, 100 - rate) : 0;
-    const radius = 32;
+    const radius = 26;
     const circ = 2 * Math.PI * radius;
     const dashOffset = circ * (1 - goodPct / 100);
-    const cls = PROC_CLASS[p];
-    const colorVar = `var(--proc-${cls})`;
+    const cls = PROC_CLASS[p] || (SEW.includes(p) ? 'sew' : 'etc');
+    const colorVar = (p === '미분류') ? 'var(--text-dim)' : `var(--proc-${cls})`;
     return `<div class="proc-row ${cls}">
       <div class="proc-donut">
-        <svg width="80" height="80" viewBox="0 0 80 80">
-          <circle cx="40" cy="40" r="${radius}" stroke="rgba(15,23,42,0.08)" stroke-width="8" fill="none"/>
-          <circle cx="40" cy="40" r="${radius}" stroke="${colorVar}" stroke-width="8" fill="none"
+        <svg width="64" height="64" viewBox="0 0 64 64">
+          <circle cx="32" cy="32" r="${radius}" stroke="rgba(15,23,42,0.08)" stroke-width="7" fill="none"/>
+          <circle cx="32" cy="32" r="${radius}" stroke="${colorVar}" stroke-width="7" fill="none"
                   stroke-dasharray="${circ}" stroke-dashoffset="${dashOffset}" stroke-linecap="round"
                   style="transition: stroke-dashoffset 0.8s ease;"/>
         </svg>
@@ -1130,7 +1133,7 @@ function renderRanking(subs) {
     wm[s.worker_name].count++;
   }
   const ranked = Object.entries(wm).map(([name, v]) => ({ name, ...v }))
-    .sort((a, b) => b.qty - a.qty).slice(0, 8);
+    .sort((a, b) => b.qty - a.qty).slice(0, 10);
   if (ranked.length === 0) {
     document.getElementById('ranking-list').innerHTML = '<div class="empty-state">오늘 작업한 작업자 없음</div>';
     return;
