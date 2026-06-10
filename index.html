@@ -371,7 +371,7 @@
     .meal-week-bar-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.15em; color: var(--text-muted); font-weight: 700; }
     .meal-week-bar-btn { padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; background: rgba(245,184,0,0.15); color: #a07a00; border: 1px solid rgba(245,184,0,0.3); }
     .meal-week-grid-mini { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
-    .meal-mini-card { padding: 8px 4px; border: 1px solid var(--border); border-radius: 8px; background: #ffffff; cursor: pointer; transition: all 0.15s; min-height: 70px; display: flex; flex-direction: column; }
+    .meal-mini-card { padding: 8px 4px; border: 1px solid var(--border); border-radius: 8px; background: #ffffff; cursor: pointer; transition: all 0.15s; min-height: 100px; display: flex; flex-direction: column; }
     .meal-mini-card:active { transform: scale(0.96); }
     .meal-mini-card.today { background: linear-gradient(180deg, rgba(245,184,0,0.15), rgba(245,184,0,0.04)); border-color: var(--amber); border-width: 2px; }
     .meal-mini-card.past { opacity: 0.5; }
@@ -384,6 +384,9 @@
     .meal-mini-today { font-size: 8px; padding: 1px 4px; background: var(--amber); color: #0f0f10; border-radius: 999px; font-weight: 700; }
     .meal-mini-menu { font-size: 10px; color: var(--text); line-height: 1.3; flex: 1; overflow: hidden; word-break: keep-all; }
     .meal-mini-more { font-size: 9px; color: var(--text-muted); margin-top: 2px; }
+    /* 전체 메뉴 표시 (클릭 없이 다 보임) */
+    .meal-mini-menu-full { font-size: 10px; color: var(--text); line-height: 1.4; flex: 1; display: flex; flex-direction: column; gap: 2px; word-break: keep-all; }
+    .meal-mini-line { font-size: 10px; color: var(--text); }
     .meal-mini-empty { font-size: 11px; color: var(--text-muted); text-align: center; padding-top: 8px; }
 
     /* 식단 상세 모달 */
@@ -535,7 +538,6 @@
 
       <!-- 식단표 (있을 때만 표시) -->
       <div class="notice-section" id="meal-section" style="display:none;">
-        <div class="label">🍱 <span data-i18n="meal.week_title">이번 주 식단</span></div>
         <div id="meal-list"></div>
       </div>
 
@@ -1150,6 +1152,19 @@
       });
     }
 
+    // 현재 시간 기반 작업타임 자동 선택
+    // 휴식/점심도 직전 타임에 포함시켜 매핑 (작업자가 자연스럽게 직전 타임에 입력 가능)
+    function getAutoWorkTime() {
+      const d = new Date();
+      const mins = d.getHours() * 60 + d.getMinutes();
+      if (mins >= 510 && mins <= 640) return '1타임';      // 08:30~10:40 (휴식 포함)
+      if (mins >= 641 && mins <= 810) return '2타임';      // 10:41~13:30 (점심 포함)
+      if (mins >= 811 && mins <= 940) return '3타임';      // 13:31~15:40 (휴식 포함)
+      if (mins >= 941 && mins <= 1050) return '4타임';     // 15:41~17:30
+      if (mins >= 1051 && mins <= 1170) return '잔업/특근'; // 17:31~19:30
+      return '';  // 19:31~08:29 작업전 (자동 선택 안 함, 사용자가 직접 선택)
+    }
+
     const state = {
       worker: null, tab: 'input', partNumber: '', quantity: 1,
       isDefect: false, defects: [], editingDefectIndex: -1,
@@ -1228,7 +1243,7 @@
       state.partsList = storage.get('parts:list') || Object.entries(state.partsMaster).map(([pn, m]) => ({ part_number: pn, ...m }));
       state.warehouses = storage.get('warehouses') || [];
       state.currentWarehouse = storage.get('current:warehouse') || '';
-      state.currentWorkTime = storage.get('current:worktime') || '';
+      state.currentWorkTime = getAutoWorkTime();  // 현재 시간에 맞게 자동 선택 (수동 변경도 가능)
       state.carModels = storage.get('car_models') || [];
       updateFooter();
       updateConnStatus();
@@ -1323,16 +1338,16 @@
         const meal = state.meals.find(m => m.meal_date === date);
         const dowClass = dow === 0 ? 'sun' : (dow === 6 ? 'sat' : '');
         const cls = `meal-mini-card${isToday ? ' today' : ''}${isPast ? ' past' : ''}${!meal ? ' empty' : ''}`;
-        const firstLine = meal ? (meal.menu.split('\n')[0] || '') : '';
-        const lineCount = meal ? meal.menu.split('\n').filter(s => s.trim()).length : 0;
+        // 전체 메뉴 다 표시 (각 줄을 div로)
+        const menuLines = meal ? meal.menu.split('\n').filter(s => s.trim()) : [];
         html += `<div class="${cls}" data-meal-date="${date}">
           <div class="meal-mini-head">
             <span class="meal-mini-dow ${dowClass}">${t(dowKeys[dow])}</span>
             <span class="meal-mini-date">${date.slice(5)}</span>
             ${isToday ? `<span class="meal-mini-today">${t('meal.today_label')}</span>` : ''}
           </div>
-          ${meal
-            ? `<div class="meal-mini-menu">${escapeHtml(firstLine)}${lineCount > 1 ? `<div class="meal-mini-more">+${lineCount - 1}</div>` : ''}</div>`
+          ${menuLines.length > 0
+            ? `<div class="meal-mini-menu-full">${menuLines.map(l => `<div class="meal-mini-line">${escapeHtml(l)}</div>`).join('')}</div>`
             : '<div class="meal-mini-empty">-</div>'}
         </div>`;
       }
@@ -3063,10 +3078,9 @@
 
       document.getElementById('btn-add').addEventListener('click', addToPending);
 
-      // 작업 타임 버튼
+      // 작업 타임 버튼 (수동 변경 가능 - 페이지 새로고침하면 다시 자동 선택)
       document.querySelectorAll('[data-time]').forEach(b => b.addEventListener('click', () => {
         state.currentWorkTime = b.dataset.time;
-        storage.set('current:worktime', state.currentWorkTime);
         renderTimeButtons();
       }));
       document.getElementById('btn-send-all').addEventListener('click', sendAllToServer);
