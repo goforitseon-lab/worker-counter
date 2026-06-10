@@ -293,6 +293,10 @@
   }
   .matrix tr.total-row td.car-name { letter-spacing: 0.05em; font-size: 14px; }
 
+  .matrix th.proc-etc { color: #b45309; border-bottom: 2px solid #f59e0b; }
+  .matrix tr.unclassified td.car-name { color: #b45309; }
+  .matrix tr.unclassified td.cell:not(.zero) { background: rgba(245,184,0,0.12); }
+
   /* 공정별 도넛 패널 */
   .proc-donut-list {
     display: flex; flex-direction: column; gap: 14px;
@@ -571,7 +575,7 @@ body { grid-template-rows: 84px 146px 1fr 256px; gap: 11px; padding: 12px; }
 .matrix th, .matrix td { padding: 9px 8px; }
 .matrix th { font-size: 19px; }
 .matrix th.car-col { width: 150px; }
-.matrix th.proc-col { width: 142px; }
+.matrix th.proc-col { width: auto; }
 .matrix th.total-col { width: 142px; }
 .matrix td.car-name { font-size: 24px; }
 .matrix td.cell { font-size: 28px; }
@@ -784,6 +788,10 @@ const SK_URL = 'dashboard:supabase_url';
 const SK_KEY = 'dashboard:supabase_key';
 const REFRESH_INTERVAL_MS = 30000;
 const PROCESS_ORDER = ['재단', '핫스템핑', '봉제', 'ASSY'];
+// 매트릭스 공정 컬럼 정렬 선호 순서(제조 흐름). 데이터에 없는 공정도 자동 컬럼 생성됨.
+const PROCESS_PREF = ['재단', '핫스템핑', '감싸기', '뒤집기', '미싱', '봉제', 'ASSY'];
+// 공정별 도넛 패널에서 봉제반 서브공정은 '봉제'로 묶음
+const SEW_GROUP = ['감싸기', '뒤집기', '미싱', '봉제'];
 const PROC_CLASS = { '재단': 'cut', '핫스템핑': 'hot', '봉제': 'sew', 'ASSY': 'assy' };
 
 let state = {
@@ -984,39 +992,50 @@ function renderWorktimeBars(subs) {
 }
 
 function renderMatrix(subs) {
-  // 차종 × 공정 피벗 (생산량, 불량 수)
+  // 차종 × 공정 피벗 — 데이터에 나오는 공정을 전부 자동 컬럼으로 표시 (감싸기/뒤집기/미싱 등)
   const grid = {}; // car -> proc -> {qty, defect}
   const carSet = new Set();
+  const procSet = new Set();
   for (const s of subs) {
-    if (!s.car_model || !s.process) continue;
-    if (!grid[s.car_model]) grid[s.car_model] = {};
-    if (!grid[s.car_model][s.process]) grid[s.car_model][s.process] = { qty: 0, defect: 0 };
-    grid[s.car_model][s.process].qty += s.quantity || 0;
-    grid[s.car_model][s.process].defect += s.defect_quantity || 0;
-    carSet.add(s.car_model);
+    const car = s.car_model || '미분류';
+    const proc = (s.process && String(s.process).trim()) ? s.process : '미분류';
+    if (!grid[car]) grid[car] = {};
+    if (!grid[car][proc]) grid[car][proc] = { qty: 0, defect: 0 };
+    grid[car][proc].qty += s.quantity || 0;
+    grid[car][proc].defect += s.defect_quantity || 0;
+    carSet.add(car); procSet.add(proc);
   }
 
-  const cars = [...carSet].sort();
+  // 공정 컬럼 정렬: 선호 순서 우선 → 그 외 가나다 → 미분류 맨 끝
+  const procKey = p => { const i = PROCESS_PREF.indexOf(p); return i >= 0 ? i : (p === '미분류' ? 9999 : 500); };
+  const procs = [...procSet].sort((a, b) => (procKey(a) - procKey(b)) || a.localeCompare(b));
+  const cars = [...carSet].sort((a, b) => ((a === '미분류') - (b === '미분류')) || a.localeCompare(b));
+  const colspan = procs.length + 2;
   if (cars.length === 0) {
-    document.getElementById('matrix-body').innerHTML = '<tr><td colspan="6" class="empty-state">오늘 작업 데이터 대기 중...</td></tr>';
+    document.getElementById('matrix').innerHTML = `<tbody><tr><td colspan="${colspan}" class="empty-state">오늘 작업 데이터 대기 중...</td></tr></tbody>`;
     return;
   }
 
-  // 히트맵 max 계산
+  const headCls = { '재단': 'proc-cut', '핫스템핑': 'proc-hot', '감싸기': 'proc-sew', '뒤집기': 'proc-sew', '미싱': 'proc-sew', '봉제': 'proc-sew', 'ASSY': 'proc-assy', '미분류': 'proc-etc' };
+  const thead = `<thead><tr>
+    <th class="car-col">차종</th>
+    ${procs.map(p => `<th class="proc-col ${headCls[p] || ''}">${escapeHtml(p)}</th>`).join('')}
+    <th class="proc-col total-col">차종 합계</th>
+  </tr></thead>`;
+
   let maxQty = 0;
-  for (const c of cars) for (const p of PROCESS_ORDER) {
+  for (const c of cars) for (const p of procs) {
     const v = (grid[c]?.[p]?.qty) || 0;
     if (v > maxQty) maxQty = v;
   }
 
-  // 합계 행
   const colTotals = { qty: {}, defect: {} };
-  for (const p of PROCESS_ORDER) { colTotals.qty[p] = 0; colTotals.defect[p] = 0; }
+  for (const p of procs) { colTotals.qty[p] = 0; colTotals.defect[p] = 0; }
   let grandQty = 0, grandDefect = 0;
 
   const rows = cars.map(c => {
     let rowQty = 0, rowDefect = 0;
-    const cells = PROCESS_ORDER.map(p => {
+    const cells = procs.map(p => {
       const cell = grid[c]?.[p];
       const qty = cell?.qty || 0;
       const defect = cell?.defect || 0;
@@ -1025,22 +1044,19 @@ function renderMatrix(subs) {
       const heat = qty === 0 ? 'zero' : (qty > maxQty * 0.75 ? 'h4' : qty > maxQty * 0.5 ? 'h3' : qty > maxQty * 0.25 ? 'h2' : 'h1');
       const defectCls = defect > 0 ? 'has-defect' : '';
       const defectTag = defect > 0 ? `<span class="defect-tag">불량 ${defect}</span>` : '';
-      return `<td class="cell ${heat} ${defectCls}">
-        <span class="qty">${qty.toLocaleString()}</span>
-        ${defectTag}
-      </td>`;
+      return `<td class="cell ${heat} ${defectCls}"><span class="qty">${qty.toLocaleString()}</span>${defectTag}</td>`;
     }).join('');
     grandQty += rowQty; grandDefect += rowDefect;
     const rowTotalDef = rowDefect > 0 ? `<span class="defect-tag">불량 ${rowDefect}</span>` : '';
-    return `<tr>
+    const rowCls = c === '미분류' ? ' class="unclassified"' : '';
+    return `<tr${rowCls}>
       <td class="car-name">${escapeHtml(c)}</td>
       ${cells}
       <td class="total"><span class="qty">${rowQty.toLocaleString()}</span>${rowTotalDef}</td>
     </tr>`;
   }).join('');
 
-  // 합계 행
-  const totalRowCells = PROCESS_ORDER.map(p => {
+  const totalRowCells = procs.map(p => {
     const q = colTotals.qty[p];
     const d = colTotals.defect[p];
     const dt = d > 0 ? `<span class="defect-tag">불량 ${d}</span>` : '';
@@ -1053,7 +1069,7 @@ function renderMatrix(subs) {
     <td><span class="qty">${grandQty.toLocaleString()}</span>${grandDef}</td>
   </tr>`;
 
-  document.getElementById('matrix-body').innerHTML = rows + totalRow;
+  document.getElementById('matrix').innerHTML = thead + `<tbody>${rows + totalRow}</tbody>`;
 }
 
 function renderProcDonuts(subs) {
@@ -1061,10 +1077,12 @@ function renderProcDonuts(subs) {
   const stats = {};
   for (const p of PROCESS_ORDER) stats[p] = { qty: 0, defect: 0, parts: new Set() };
   for (const s of subs) {
-    if (!s.process || stats[s.process] == null) continue;
-    stats[s.process].qty += s.quantity || 0;
-    stats[s.process].defect += s.defect_quantity || 0;
-    if (s.part_number) stats[s.process].parts.add(s.part_number);
+    let g = s.process;
+    if (SEW_GROUP.includes(g)) g = '봉제';  // 감싸기/뒤집기/미싱 → 봉제로 합산
+    if (!g || stats[g] == null) continue;
+    stats[g].qty += s.quantity || 0;
+    stats[g].defect += s.defect_quantity || 0;
+    if (s.part_number) stats[g].parts.add(s.part_number);
   }
   const html = PROCESS_ORDER.map(p => {
     const st = stats[p];
