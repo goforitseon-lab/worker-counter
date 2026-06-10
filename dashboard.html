@@ -785,6 +785,12 @@ const SK_KEY = 'dashboard:supabase_key';
 const REFRESH_INTERVAL_MS = 30000;
 const PROCESS_ORDER = ['재단', '핫스템핑', '봉제', 'ASSY'];
 const PROC_CLASS = { '재단': 'cut', '핫스템핑': 'hot', '봉제': 'sew', 'ASSY': 'assy' };
+// 봉제반 세부공정 (감싸기/뒤집기/미싱)은 "봉제"로 통합 집계
+const SEWING_DETAIL_PROCS = ['감싸기', '뒤집기', '미싱'];
+function normalizeProcess(p) {
+  if (!p) return p;
+  return SEWING_DETAIL_PROCS.includes(p) ? '봉제' : p;
+}
 
 let state = {
   url: localStorage.getItem(SK_URL) || '',
@@ -819,14 +825,22 @@ function escapeHtml(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
-// 현재 작업타임 자동 판단 (1타임 6-10, 2타임 11-14, 3타임 15-18, 4타임 19-22, 잔업 23-5)
+// 현재 작업타임 자동 판단 (분 단위 정밀)
+// 08:30~10:30 1타임 / 10:31~10:40 휴식 / 10:41~12:30 2타임 / 12:31~13:30 점심
+// 13:31~15:30 3타임 / 15:31~15:40 휴식 / 15:41~17:30 4타임
+// 17:31~19:30 잔업/특근 / 19:31~08:29 작업전
 function getCurrentWorkTime() {
-  const h = nowKST().getHours();
-  if (h >= 6 && h < 11) return '1타임';
-  if (h >= 11 && h < 15) return '2타임';
-  if (h >= 15 && h < 19) return '3타임';
-  if (h >= 19 && h < 23) return '4타임';
-  return '잔업';
+  const d = nowKST();
+  const mins = d.getHours() * 60 + d.getMinutes();  // 0~1439
+  if (mins >= 510 && mins <= 630) return '1타임';     // 08:30~10:30
+  if (mins >= 631 && mins <= 640) return '휴식';      // 10:31~10:40
+  if (mins >= 641 && mins <= 750) return '2타임';     // 10:41~12:30
+  if (mins >= 751 && mins <= 810) return '점심';      // 12:31~13:30
+  if (mins >= 811 && mins <= 930) return '3타임';     // 13:31~15:30
+  if (mins >= 931 && mins <= 940) return '휴식';      // 15:31~15:40
+  if (mins >= 941 && mins <= 1050) return '4타임';    // 15:41~17:30
+  if (mins >= 1051 && mins <= 1170) return '잔업/특근'; // 17:31~19:30
+  return '작업전';                                     // 19:31~08:29 (다음날)
 }
 
 // ===== Clock =====
@@ -926,10 +940,12 @@ async function loadSubmissions() {
 function enrichSubmission(s) {
   // process / car_model 보강: submissions에 없으면 parts_master에서 lookup
   const p = state.partsMap[s.part_number];
+  const rawProcess = s.process || (p ? p.process : null);
   return {
     ...s,
     car_model: s.car_model || (p ? p.car_model : null),
-    process: s.process || (p ? p.process : null),
+    process: normalizeProcess(rawProcess),  // 봉제반 세부공정은 '봉제'로 통합
+    process_detail: rawProcess,             // 원본 (피드에서 감싸기/뒤집기/미싱 그대로 표시)
     part_name: s.part_name || (p ? p.name : s.part_number),
   };
 }
@@ -976,11 +992,14 @@ function renderKPI(subs) {
 }
 
 function renderWorktimeBars(subs) {
-  const TIMES = ['1타임','2타임','3타임','4타임','잔업'];
+  const TIMES = ['1타임','2타임','3타임','4타임','잔업/특근'];
   const counts = {};
   for (const t of TIMES) counts[t] = 0;
   for (const s of subs) {
-    if (s.work_time && counts[s.work_time] != null) counts[s.work_time] += (s.quantity || 0);
+    if (!s.work_time) continue;
+    // 기존 '잔업' 데이터도 '잔업/특근'으로 매핑
+    const wt = s.work_time === '잔업' ? '잔업/특근' : s.work_time;
+    if (counts[wt] != null) counts[wt] += (s.quantity || 0);
   }
   const max = Math.max(...Object.values(counts), 1);
   const current = getCurrentWorkTime();
@@ -988,7 +1007,7 @@ function renderWorktimeBars(subs) {
     const v = counts[t];
     const h = (v / max) * 100;
     const isCur = t === current ? 'current' : '';
-    const shortLabel = t.replace('타임', 'T').replace('잔업', '잔');
+    const shortLabel = t.replace('타임', 'T').replace('잔업/특근', '잔');
     return `<div class="wt-bar ${isCur}">
       <div class="wt-val-row">${v.toLocaleString()}</div>
       <div class="wt-bar-fill" style="height:${h}%;"></div>
@@ -1161,7 +1180,8 @@ function renderFeed(subs) {
     const tStr = `${pad(t.getHours())}:${pad(t.getMinutes())}`;
     const cls = PROC_CLASS[s.process] || '';
     const hasDef = (s.defect_quantity || 0) > 0;
-    const tag = s.process ? `<span class="feed-proc-tag ${cls}">${s.process}</span>` : '';
+    const procName = s.process_detail || s.process;  // 봉제반 세부공정 원본 표시
+    const tag = procName ? `<span class="feed-proc-tag ${cls}">${procName}</span>` : '';
     return `<div class="feed-item ${cls} ${hasDef ? 'has-defect' : ''}">
       <div class="feed-time">${tStr}</div>
       <div class="feed-main">

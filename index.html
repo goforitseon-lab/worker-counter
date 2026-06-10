@@ -617,7 +617,7 @@
             <button class="time-btn" data-time="2타임" data-i18n="input.worktime_2">2타임</button>
             <button class="time-btn" data-time="3타임" data-i18n="input.worktime_3">3타임</button>
             <button class="time-btn" data-time="4타임" data-i18n="input.worktime_4">4타임</button>
-            <button class="time-btn" data-time="잔업" data-i18n="input.worktime_5">잔업</button>
+            <button class="time-btn" data-time="잔업/특근" data-i18n="input.worktime_5">잔업/특근</button>
           </div>
         </div>
 
@@ -925,7 +925,7 @@
         'input.field_name': '품명', 'input.field_spec': '규격', 'input.field_warehouse': '창고',
         'input.warehouse_label': '공정 선택 (실제 작업 공정)', 'input.warehouse_placeholder': '공정 선택...',
         'input.worktime_label': '작업 타임',
-        'input.worktime_1': '1타임', 'input.worktime_2': '2타임', 'input.worktime_3': '3타임', 'input.worktime_4': '4타임', 'input.worktime_5': '잔업',
+        'input.worktime_1': '1타임', 'input.worktime_2': '2타임', 'input.worktime_3': '3타임', 'input.worktime_4': '4타임', 'input.worktime_5': '잔업/특근',
         'input.fabric_label': '원단 사용량 (M)', 'input.fabric_placeholder': '예: 12.5',
         'picker.car': '차종', 'picker.color': '칼라', 'picker.fabric': '원단사양', 'picker.label': '라벨',
         'picker.side': 'LH/RH', 'picker.process': '공정', 'picker.process_step': '공정 (반)', 'picker.reset': '처음부터 다시',
@@ -1763,7 +1763,11 @@
       if ((pick.fabric || null) !== (p.fabric || null)) return false;
       if (!isShortFlow(pick.process)) {
         if ((pick.color || null) !== (p.color || null)) return false;
-        if ((pick.label || null) !== (p.label || null)) return false;
+        // 라벨 매칭: 'X' = 라벨 없음 (NULL과 매칭)
+        const labelMatch = pick.label === 'X' 
+          ? !p.label 
+          : (pick.label || null) === (p.label || null);
+        if (!labelMatch) return false;
         if ((pick.side || null) !== (p.side || null)) return false;
       }
       return true;
@@ -1908,13 +1912,21 @@
       });
       if (!state.pick.fabric) return;
 
-      // ====== STEP 5: 라벨 (감싸기/뒤집기/미싱은 스킵, 데이터에 라벨 없으면 자동 스킵) ======
+      // ====== STEP 5: 라벨 (감싸기/뒤집기/미싱은 스킵, 라벨 없는 옵션 'X' 포함) ======
       if (!shortFlow) {
-        const labelCandidates = list.filter(p =>
+        // 동일 (공정+차종+칼라+원단) 조합의 모든 데이터 (라벨 NULL 포함)
+        const allCandidates = list.filter(p =>
           p.process === state.pick.process && p.car_model === state.pick.car 
-          && p.color === state.pick.color && p.fabric === state.pick.fabric && p.label
+          && p.color === state.pick.color && p.fabric === state.pick.fabric
         );
-        const labels = uniq(labelCandidates.map(p => p.label));
+        const nonNullLabels = uniq(allCandidates.filter(p => p.label).map(p => p.label));
+        const hasNullLabel = allCandidates.some(p => !p.label);
+        
+        // 라벨 옵션 구성: 실제 라벨 + 라벨 없음('X') 옵션
+        let labels = [...nonNullLabels];
+        if (hasNullLabel && nonNullLabels.length > 0) {
+          labels.push('X');  // 'X' = 라벨 없음 옵션
+        }
         const hasLabelData = labels.length > 0;
         
         if (labels.length === 1) {
@@ -1931,7 +1943,7 @@
             renderPicker(); decidePart();
           }, true);
         } else {
-          // 데이터에 라벨 없음 (재단 등) → 단계 자동 스킵, LH/RH로 진행
+          // 데이터에 라벨 없음 (재단 등 + 라벨 NULL 데이터만) → 단계 자동 스킵
           document.getElementById('pick-step-label').style.display = 'none';
           state.pick.label = '';
         }
