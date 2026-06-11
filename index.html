@@ -2630,6 +2630,8 @@
         worker: state.worker.name, workerId: state.worker.id,
         partNumber: p.part_number,
         partName: p.name || '', spec: p.spec || '', warehouse: p.warehouse || '',
+        carModel: p.car_model || '',     // 차종 (dashboard 매트릭스용)
+        process: p.process || '',         // 공정 (dashboard 매트릭스용)
         workTime: state.currentWorkTime,
         fabricM: fabricM,
         quantity: state.quantity,
@@ -2761,6 +2763,8 @@
           part_name: p.partName,
           spec: p.spec,
           warehouse: p.warehouse,
+          car_model: p.carModel || null,   // 차종 (dashboard 매트릭스용)
+          process: p.process || null,       // 공정 (dashboard 매트릭스용)
           work_time: p.workTime || null,
           fabric_m: (typeof p.fabricM === 'number' && p.fabricM > 0) ? p.fabricM : null,
           quantity: p.quantity,
