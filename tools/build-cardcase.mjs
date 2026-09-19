@@ -36,26 +36,29 @@ const CFG = {
   stopDrop: 0.6,        // 스토퍼 윗면을 뚜껑 자리보다 이만큼 낮춤 (열림각 조절)
   pinR: 1.0, pinFit: 0.2, pinLen: 2.6, armLen: 5.0, armW: 9.0,
   earT: 2.6, earGap: 0.35,
-  /* 각인 — 노즐 굵기 기준으로 크기를 잡는다.
-     한글은 획이 많아 라틴/숫자보다 커야 뭉치지 않는다. */
-  embossH: 0.8, logoSize: 12,
-  nozzle: 0.2,          // 이 굵기보다 얇은 획은 슬라이서가 버린다
-  koSize: 4.4,          // 한글 줄
-  enSize: 3.1,          // 영문·숫자 줄
-  strokeExtra: 0.12,    // 작은 글자 획을 이만큼 더 두껍게 (외곽선 덧그림)
-  strokeSizeMax: 4.2,   // 이 크기 미만 글자에만 덧그림 적용
+  /* 각인 — 0.2mm 노즐 기준. 획이 가늘어도 살아나므로
+     억지로 키우지 않고 명함처럼 짜임새 있게 잡는다. */
+  embossH: 0.8, logoSize: 13.5,
+  frameW: 0.7, frameIn: 2.4,      // 바깥 테두리 프레임
+  nozzle: 0.2,                    // 이 굵기보다 얇은 획은 슬라이서가 버린다
+  lidRes: 0.08,                   // 뚜껑(글자) 격자 — 0.2 노즐이면 곱게
+  strokeExtra: 0.05,              // 0.2 노즐이면 덧그림이 거의 필요 없다
+  strokeSizeMax: 2.8,
+  /* 글자 크기 mm */
+  sCoEn: 2.5, sCoKo: 4.9, sTitle: 2.5, sName: 6.8,
+  sLabel: 2.6, sBody: 2.75, sFoot: 2.5, sWeb: 3.0,
+  gutter: 15.5,                   // 라벨 칸 폭 (본사 / 경주공장)
   card: {
     coKo: '(주)우주특수산업', coEn: 'WooJoo Special Industry',
     title: '대표이사', name: '백용선',
-    /* [문구, 굵기, 크기종류] */
-    lines: [
-      ['본사 · 울산광역시 중구 성안8길 55', 700, 'ko'],
-      ['TEL. 070-5154-4146    FAX. 052) 943-6446', 700, 'en'],
-      ['경주공장 · 경주시 외동읍 구어2산단로1길 114', 700, 'ko'],
-      ['TEL. 052) 243-6441    FAX. 052) 243-6446', 700, 'en'],
-      ['M. 010-2827-7649    goforitseon@gwoojoo.co.kr', 700, 'en'],
+    blocks: [
+      { label: '본사',     lines: ['울산광역시 중구 성안8길 55',
+                                   'T. 070-5154-4146      F. 052) 943-6446'] },
+      { label: '경주공장', lines: ['경주시 외동읍 구어2산단로1길 114',
+                                   'T. 052) 243-6441      F. 052) 243-6446'] },
     ],
-    web: 'http://www.gwoojoo.com'
+    foot: 'M. 010-2827-7649    goforitseon@gwoojoo.co.kr',
+    web: 'gwoojoo.co.kr'
   }
 };
 
@@ -320,8 +323,9 @@ const result = await page.evaluate(async ({ CFG, LOGO_SVG, LOGO_NAVY, LOGO_GREEN
     let minText = 99;
     const bands = [];                                  // 줄별 세로 범위 (출력 가능 여부 판정용)
     const setF = (px,w) => { ctx.font = `${w} ${px}px 'Noto Sans KR', system-ui, sans-serif`; };
-    const T = (txt, xmm, tymm, size, weight, align, maxW) => {
+    const T = (txt, xmm, tymm, size, weight, align, maxW, lsMm) => {
       if (!txt) return;
+      ctx.letterSpacing = ((lsMm || 0)/res).toFixed(2) + 'px';
       let px = size/res; setF(px, weight);
       if (maxW) { const mp = maxW/res, w = ctx.measureText(txt).width;
         if (w > mp) { px *= mp/w; setF(px, weight); } }
@@ -340,33 +344,48 @@ const result = await page.evaluate(async ({ CFG, LOGO_SVG, LOGO_NAVY, LOGO_GREEN
         ctx.strokeText(txt, px0, py0);
         ctx.restore();
       }
+      ctx.letterSpacing = '0px';
     };
-    const K = CFG.card, M = Math.max(3.5, W*0.05);
-    const sKo = CFG.koSize, sEn = CFG.enSize;
-    const sName = sKo*1.5, sCoKo = sKo*1.15, sCoEn = sEn, sTitle = sEn;
-    const half = (W - 2*M - 3)/2;
-    const sizeOf = kind => kind === 'ko' ? sKo : sEn;
-    const pitchOf = kind => sizeOf(kind)*1.30;
-    const top = M*0.9, logoS = Math.min(CFG.logoSize, H*0.34, W*0.28);
-    const tx = M + logoS + 2.5, rightMax = W - M - tx - 2;
-    T(K.coEn, tx, top + logoS*0.14, sCoEn, 600, 'left', rightMax*0.62);
-    T(K.coKo, tx, top + logoS*0.14 + sCoEn*1.45, sCoKo, 800, 'left', rightMax*0.7);
-    T(K.title, W-M, top + logoS*0.08, sTitle, 600, 'right', half*0.7);
-    T(K.name, W-M, top + logoS*0.08 + sTitle*1.6, sName, 800, 'right', half*0.8);
-    const ruleTy = top + logoS + 2.4;
-    ctx.fillRect(X(M), Y(ruleTy), S(W-2*M), Math.max(1, S(0.35)));
-    const webH = K.web ? pitchOf('en') : 0;
-    const aT = ruleTy + 2.0, aB = H - M*0.6 - webH;
-    const blockH = K.lines.reduce((a, [,,k]) => a + pitchOf(k), 0);
-    let ty = aT + Math.max(0, (aB - aT - blockH)/2);
-    K.lines.forEach(([t,w,k]) => { T(t, M, ty, sizeOf(k), w, 'left', W-2*M); ty += pitchOf(k); });
-    if (K.web) T(K.web, W/2, H - M*0.55 - sEn*1.15, sEn, 700, 'center', W-2*M);
+    const K = CFG.card;
+    const M = 4.6, full = W - 2*M;
+    const C2 = CFG;
+
+    /* ── 헤더 : 로고 + 회사명  |  직함 + 이름 ── */
+    const top = 4.2, logoS = C2.logoSize;
+    const tx = M + logoS + 3.2;
+    T(K.coEn, tx, top + 1.5, C2.sCoEn, 600, 'left', full*0.50, 0.10);
+    T(K.coKo, tx, top + 1.5 + C2.sCoEn*1.65, C2.sCoKo, 800, 'left', full*0.50);
+    T(K.title, W - M, top + 0.9, C2.sTitle, 600, 'right', full*0.26);
+    T(K.name,  W - M, top + 0.9 + C2.sTitle*1.75, C2.sName, 800, 'right', full*0.30, 0.09);
+
+    /* ── 굵은 구분선 ── */
+    const rule1 = top + logoS + 2.6;
+    ctx.fillRect(X(M), Y(rule1), S(full), Math.max(1, S(0.32)));
+
+    /* ── 연락처 : 라벨 칸 | 값 칸 (세로줄 맞춤) ── */
+    let ty = rule1 + 3.4;
+    const vx = M + C2.gutter, vw = W - M - vx;
+    K.blocks.forEach((b, bi) => {
+      T(b.label, M, ty + 0.2, C2.sLabel, 800, 'left', C2.gutter - 1.6);
+      b.lines.forEach((l, li) => {
+        T(l, vx, ty, C2.sBody, li === 0 ? 700 : 500, 'left', vw);
+        ty += C2.sBody * 1.42;
+      });
+      if (bi < K.blocks.length - 1) ty += 1.6;
+    });
+
+    /* ── 가는 구분선 + 하단 ── */
+    const rule2 = H - M - C2.sWeb*1.30 - 2.7;
+    ctx.fillRect(X(M), Y(rule2), S(full), Math.max(1, S(0.22)));
+    const footY = rule2 + 2.4;
+    T(K.foot, M, footY + (C2.sWeb - C2.sFoot)*0.5, C2.sFoot, 500, 'left', full*0.63);
+    T(K.web,  W - M, footY, C2.sWeb, 800, 'right', full*0.26, 0.03);
 
     /* 테두리 프레임 — 밋밋함을 잡아주는 얇은 사각 테두리 */
     if (CFG.frameW > 0) {
       const fi = CFG.frameIn, fw = CFG.frameW;
       ctx.save(); ctx.strokeStyle = '#fff'; ctx.lineWidth = S(fw); ctx.lineJoin = 'round';
-      const rr = S(Math.max(0, 6 - fi));
+      const rr = S(Math.max(0, CFG.corner - fi));
       const x0 = X(fi), y0 = Y(fi), ww = S(W - 2*fi), hh = S(H - 2*fi);
       ctx.beginPath();
       ctx.moveTo(x0+rr, y0); ctx.lineTo(x0+ww-rr, y0); ctx.quadraticCurveTo(x0+ww, y0, x0+ww, y0+rr);
@@ -379,23 +398,35 @@ const result = await page.evaluate(async ({ CFG, LOGO_SVG, LOGO_NAVY, LOGO_GREEN
     const img = ctx.getImageData(0,0,cols,rows).data, mask = new Uint8Array(cols*rows);
     for (let i = 0; i < cols*rows; i++) if (img[i*4] > 127) mask[i] = 1;
 
-    /* 출력 가능 여부 — 노즐 반지름만큼 침식해서 살아남는 살을 센다.
-       노즐보다 얇은 획은 슬라이서가 버리므로 여기서 먼저 사라진다. */
-    const k = Math.max(1, Math.round(CFG.nozzle/res/2 - 0.5));
-    const er = new Uint8Array(cols*rows);
-    for (let r=k;r<rows-k;r++) for (let c=k;c<cols-k;c++) {
-      let all = 1;
-      for (let dr=-k; dr<=k && all; dr++) for (let dc=-k; dc<=k; dc++)
-        if (!mask[(r+dr)*cols + (c+dc)]) { all = 0; break; }
-      if (all) er[r*cols+c] = 1;
+    /* 출력 가능 여부 — 침식 반경을 1칸씩 키워가며 줄이 사라지는 지점을 찾아
+       실제 최소 획 굵기를 잰다. 그 굵기가 노즐보다 가늘면 슬라이서가 버린다. */
+    function erode(k) {
+      const er = new Uint8Array(cols*rows);
+      for (let r=k;r<rows-k;r++) for (let c=k;c<cols-k;c++) {
+        let all = 1;
+        for (let dr=-k; dr<=k && all; dr++) for (let dc=-k; dc<=k; dc++)
+          if (!mask[(r+dr)*cols + (c+dc)]) { all = 0; break; }
+        if (all) er[r*cols+c] = 1;
+      }
+      return er;
     }
+    const maxK = Math.max(2, Math.ceil(0.6/res));
+    const ers = []; for (let k=1;k<=maxK;k++) ers.push(erode(k));
     const report = bands.map(b => {
-      let ink = 0, kept = 0;
-      for (let r=Math.max(0,b.r0); r<Math.min(rows,b.r1); r++)
-        for (let c=0;c<cols;c++) { const i=r*cols+c; if (mask[i]) { ink++; if (er[i]) kept++; } }
-      return { 문구: b.txt.slice(0, 26), 크기: b.size,
-               살아남음: ink ? +(kept/ink).toFixed(2) : 0,
-               판정: !ink ? '-' : (kept/ink >= 0.45 ? 'OK' : (kept/ink >= 0.32 ? '아슬' : '끊김')) };
+      const r0 = Math.max(0,b.r0), r1 = Math.min(rows,b.r1);
+      let ink = 0;
+      for (let r=r0;r<r1;r++) for (let c=0;c<cols;c++) if (mask[r*cols+c]) ink++;
+      if (!ink) return { 문구: b.txt.slice(0,26), 크기: b.size, 획: 0, 판정: '-' };
+      let lastK = 0;
+      for (let k=1;k<=maxK;k++) {
+        let kept = 0; const er = ers[k-1];
+        for (let r=r0;r<r1;r++) for (let c=0;c<cols;c++) { const i=r*cols+c; if (mask[i] && er[i]) kept++; }
+        if (kept/ink >= 0.05) lastK = k; else break;
+      }
+      const stroke = (2*lastK + 1) * res;
+      return { 문구: b.txt.slice(0,26), 크기: b.size, 획: +stroke.toFixed(2),
+               판정: stroke >= CFG.nozzle*1.25 ? 'OK'
+                   : stroke >= CFG.nozzle    ? '아슬' : '끊김' };
     });
 
     /* 로고는 색을 따로 주기 위해 남색·초록 두 장으로 나눠 찍는다 */
@@ -419,7 +450,7 @@ const result = await page.evaluate(async ({ CFG, LOGO_SVG, LOGO_NAVY, LOGO_GREEN
   async function buildLid() {
     const pinOut = pinLen;
     const armEnd = armBack - lidY0;                       // 뚜껑 기준 팔 끝
-    const g = newSolid(low + 2*pinOut, Math.max(lod, armEnd) + 0.6, C.res);
+    const g = newSolid(low + 2*pinOut, Math.max(lod, armEnd) + 0.6, C.lidRes);
     const { cols, rows, res } = g;
     const lidR = Math.max(0, C.corner - rimW - C.lidFit);
     const notchDepth = C.catchLip - 0.2;                  // 걸림턱과 0.2mm 간섭 → 딸깍
@@ -803,7 +834,7 @@ fs.writeFileSync(path.join(OUT, 'preview_section.png'), Buffer.from(result.secti
 console.log('치수      ', JSON.stringify(result.dims));
 console.log('글자 출력 가능 여부 (노즐 ' + CFG.nozzle + 'mm 기준)');
 for (const t of result.textReport)
-  console.log('   ', String(t.판정).padEnd(5), String(t.크기).padStart(5)+'mm', String(t.살아남음).padStart(5), ' ', t.문구);
+  console.log('   ', String(t.판정).padEnd(5), String(t.크기).padStart(5)+'mm  획', String(t.획).padStart(5)+'mm  ', t.문구);
 console.log('단면 실측 (z 구간, mm)');
 for (const [k,v] of Object.entries(result.probes)) console.log('   ', k.padEnd(26), v);
 console.log('맞물림    ');
