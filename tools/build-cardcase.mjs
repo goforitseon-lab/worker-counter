@@ -21,9 +21,9 @@ fs.mkdirSync(OUT, { recursive: true });
 
 const CFG = {
   /* 명함 · 수납 */
-  cardW: 90, cardD: 50, tol: 0.4, cards: 30, cardT: 0.28,
+  cardW: 90, cardD: 52, tol: 0.7, cards: 30, cardT: 0.28,   // 세로 여유를 늘림(명함 50~52 다 들어감)
   /* 케이스 */
-  wall: 1.6, floor: 1.2, corner: 3, res: 0.12,
+  wall: 1.6, floor: 1.2, corner: 6, res: 0.12,             // 바깥 모서리 라운드 키움
   guardH: 3.6,        // 카드 스택 위로 벽이 더 올라가는 높이
   guardLip: 1.3,      // 앞벽 안쪽으로 내민 가드 턱
   scoopR: 11,         // 옆벽 손가락 홈 반폭
@@ -31,12 +31,15 @@ const CFG = {
   lidT: 2.0, lidFit: 0.3,
   catchLip: 0.6,      // 앞쪽 걸림턱이 뚜껑 위로 덮는 양 (딸깍)
   /* 경첩 */
+  stopChamfer: 1.1,     // 팔 뒤쪽 아래를 45°로 깎아 면으로 닿게 한다
+  stopBack: 2.6,        // 스토퍼 블록이 뒤로 나온 길이
+  stopDrop: 0.6,        // 스토퍼 윗면을 뚜껑 자리보다 이만큼 낮춤 (열림각 조절)
   pinR: 1.0, pinFit: 0.2, pinLen: 2.6, armLen: 5.0, armW: 9.0,
   earT: 2.6, earGap: 0.35,
   /* 각인 — 노즐 굵기 기준으로 크기를 잡는다.
      한글은 획이 많아 라틴/숫자보다 커야 뭉치지 않는다. */
   embossH: 0.8, logoSize: 12,
-  nozzle: 0.4,          // 이 굵기보다 얇은 획은 슬라이서가 버린다
+  nozzle: 0.2,          // 이 굵기보다 얇은 획은 슬라이서가 버린다
   koSize: 4.4,          // 한글 줄
   enSize: 3.1,          // 영문·숫자 줄
   strokeExtra: 0.12,    // 작은 글자 획을 이만큼 더 두껍게 (외곽선 덧그림)
@@ -59,6 +62,16 @@ const CFG = {
 const LOGO_SVG = fs.readFileSync(
   path.join(path.dirname(new URL(import.meta.url).pathname), '..', 'woojoo-logo.svg'), 'utf8');
 
+/* 공식 로고는 위쪽 남색 / 아래쪽 초록 두 덩어리다.
+   벡터 패스를 그대로 나눠 3MF 파트로 내보내면 색을 따로 지정할 수 있다. */
+const LOGO_PATHS = LOGO_SVG.match(/<path[^>]*\/>/g) || [];
+const VIEWBOX = (LOGO_SVG.match(/viewBox="([^"]+)"/) || [,'0 0 50.552 50.55'])[1];
+const logoPart = idxs =>
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${VIEWBOX}">`
+  + idxs.map(i => LOGO_PATHS[i]).join('') + '</svg>';
+const LOGO_NAVY  = logoPart([0]);        // 눈·J·상부 셰브런
+const LOGO_GREEN = logoPart([1, 2]);     // 하부
+
 const browser = await chromium.launch();
 const page = await browser.newPage();
 page.on('pageerror', e => { console.error('[pageerror]', e.message); });
@@ -68,7 +81,7 @@ await page.setContent(`<html><head><meta charset="utf-8">
 try { await page.evaluate(() => document.fonts.ready); } catch {}
 await page.waitForTimeout(1500);
 
-const result = await page.evaluate(async ({ CFG, LOGO_SVG }) => {
+const result = await page.evaluate(async ({ CFG, LOGO_SVG, LOGO_NAVY, LOGO_GREEN }) => {
   const F = Math.fround, KMAX = 3;
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 
@@ -254,6 +267,13 @@ const result = await page.evaluate(async ({ CFG, LOGO_SVG }) => {
         }
         /* 귀를 트레이에 잇는 뒤판 */
         if (y > earY0 && y < od + 1.0 && dx > 0 && dx < C.earGap + C.earT) addSpan(g, i, 0, ledgeZ);
+
+        /* 열림 스토퍼 — 뚜껑 팔이 여기 얹혀 약 95°에서 멈춘다.
+           이게 없으면 뚜껑이 끝까지 젖혀져 경첩 핀에 무리가 간다. */
+        const armL = x > lidX0 && x < lidX0 + C.armW;
+        const armR = x > ow - lidX0 - C.armW && x < ow - lidX0;
+        if ((armL || armR) && y >= od - 0.01 && y < od + C.stopBack)
+          addSpan(g, i, 0, ledgeZ - C.stopDrop);
       }
     }
 
@@ -275,8 +295,8 @@ const result = await page.evaluate(async ({ CFG, LOGO_SVG }) => {
   }
 
   /* ---------- 명함 각인 마스크 ---------- */
-  async function loadLogo(px) {
-    const svg = LOGO_SVG.replace('<svg ', '<svg width="640" height="640" ').replace(/currentColor/g, '#000');
+  async function loadLogo(px, src) {
+    const svg = (src || LOGO_SVG).replace('<svg ', '<svg width="640" height="640" ').replace(/currentColor/g, '#000');
     const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
     const img = new Image();
     await new Promise((ok, no) => { img.onload = ok; img.onerror = no; img.src = url; });
@@ -342,6 +362,20 @@ const result = await page.evaluate(async ({ CFG, LOGO_SVG }) => {
     K.lines.forEach(([t,w,k]) => { T(t, M, ty, sizeOf(k), w, 'left', W-2*M); ty += pitchOf(k); });
     if (K.web) T(K.web, W/2, H - M*0.55 - sEn*1.15, sEn, 700, 'center', W-2*M);
 
+    /* 테두리 프레임 — 밋밋함을 잡아주는 얇은 사각 테두리 */
+    if (CFG.frameW > 0) {
+      const fi = CFG.frameIn, fw = CFG.frameW;
+      ctx.save(); ctx.strokeStyle = '#fff'; ctx.lineWidth = S(fw); ctx.lineJoin = 'round';
+      const rr = S(Math.max(0, 6 - fi));
+      const x0 = X(fi), y0 = Y(fi), ww = S(W - 2*fi), hh = S(H - 2*fi);
+      ctx.beginPath();
+      ctx.moveTo(x0+rr, y0); ctx.lineTo(x0+ww-rr, y0); ctx.quadraticCurveTo(x0+ww, y0, x0+ww, y0+rr);
+      ctx.lineTo(x0+ww, y0+hh-rr); ctx.quadraticCurveTo(x0+ww, y0+hh, x0+ww-rr, y0+hh);
+      ctx.lineTo(x0+rr, y0+hh); ctx.quadraticCurveTo(x0, y0+hh, x0, y0+hh-rr);
+      ctx.lineTo(x0, y0+rr); ctx.quadraticCurveTo(x0, y0, x0+rr, y0);
+      ctx.closePath(); ctx.stroke(); ctx.restore();
+    }
+
     const img = ctx.getImageData(0,0,cols,rows).data, mask = new Uint8Array(cols*rows);
     for (let i = 0; i < cols*rows; i++) if (img[i*4] > 127) mask[i] = 1;
 
@@ -364,13 +398,21 @@ const result = await page.evaluate(async ({ CFG, LOGO_SVG }) => {
                판정: !ink ? '-' : (kept/ink >= 0.45 ? 'OK' : (kept/ink >= 0.32 ? '아슬' : '끊김')) };
     });
 
+    /* 로고는 색을 따로 주기 위해 남색·초록 두 장으로 나눠 찍는다 */
     const lp = Math.max(8, Math.round(logoS/res));
-    const lm = await loadLogo(lp);
     const ox = Math.round(X(M)), oy = Math.round(Y(top));
-    for (let yy = 0; yy < lp; yy++) { const t2 = oy+yy; if (t2<0||t2>=rows) continue;
-      for (let xx = 0; xx < lp; xx++) { if (!lm[yy*lp+xx]) continue;
-        const t3 = ox+xx; if (t3<0||t3>=cols) continue; mask[t2*cols+t3] = 1; } }
-    return { mask, minText, report };
+    async function stamp(src) {
+      const out = new Uint8Array(cols*rows);
+      const lm = await loadLogo(lp, src);
+      for (let yy = 0; yy < lp; yy++) { const t2 = oy+yy; if (t2<0||t2>=rows) continue;
+        for (let xx = 0; xx < lp; xx++) { if (!lm[yy*lp+xx]) continue;
+          const t3 = ox+xx; if (t3<0||t3>=cols) continue; out[t2*cols+t3] = 1; } }
+      return out;
+    }
+    const navy  = await stamp(LOGO_NAVY);
+    const green = await stamp(LOGO_GREEN);
+    for (let i = 0; i < cols*rows; i++) if (navy[i] && green[i]) green[i] = 0;   // 겹침 방지
+    return { mask, navy, green, minText, report };
   }
 
   /* ---------- 뚜껑 (평판 + 명함 직각인 + 경첩 팔) ---------- */
@@ -393,7 +435,11 @@ const result = await page.evaluate(async ({ CFG, LOGO_SVG }) => {
         if (inRR(x, y, low, lod, lidR)) {
           addSpan(g, i, 0, y < notchY ? C.lidT - notchDepth : C.lidT);
         } else if (y >= lod && y < armEnd && (x < armX || x > low - armX) && x > 0 && x < low) {
-          addSpan(g, i, 0, C.lidT);                        // 경첩 팔
+          /* 경첩 팔. 뒤쪽 아래를 45°로 깎아 두면 뚜껑이 약 95°에서
+             트레이 뒷면에 면으로 닿아 멈춘다 (모서리로 콕 찍히지 않음) */
+          const back = armEnd - y;
+          const lo = (back < C.stopChamfer) ? (C.stopChamfer - back) : 0;
+          addSpan(g, i, lo, C.lidT);
         }
       }
     }
@@ -413,18 +459,23 @@ const result = await page.evaluate(async ({ CFG, LOGO_SVG }) => {
 
     /* 명함 각인 — 뚜껑 윗면에 바로.
        색을 따로 지정할 수 있도록 글자는 별도 덩어리로 만든다 (3MF 파트 분리) */
-    const { mask, minText, report } = await cardMask(cols, rows, res, pinOut, g.H - lod, low, lod);
-    const ink = newSolid(g.W, g.H, res);
+    const { mask, navy, green, minText, report } =
+      await cardMask(cols, rows, res, pinOut, g.H - lod, low, lod);
+    const ink   = newSolid(g.W, g.H, res);   // 검정 (문구 + 테두리)
+    const inkN  = newSolid(g.W, g.H, res);   // 남색 (로고 상부)
+    const inkG  = newSolid(g.W, g.H, res);   // 초록 (로고 하부)
     let inkCells = 0;
     for (let r=0;r<rows;r++) for (let c=0;c<cols;c++) {
       const i = r*cols+c;
-      if (!mask[i] || !g.cnt[i]) continue;
+      if (!g.cnt[i]) continue;
       const x = (c+0.5)*res - pinOut, y = (rows-1-r+0.5)*res;
       if (!inRR(x, y, low, lod, lidR) || y < notchY) continue;
-      addSpan(ink, i, C.lidT, C.lidT + C.embossH);
-      inkCells++;
+      const z0 = C.lidT, z1 = C.lidT + C.embossH;
+      if (navy[i])       addSpan(inkN, i, z0, z1);
+      else if (green[i]) addSpan(inkG, i, z0, z1);
+      else if (mask[i])  { addSpan(ink, i, z0, z1); inkCells++; }
     }
-    return { g, ink, minText, inkCells, report };
+    return { g, ink, inkN, inkG, minText, inkCells, report };
   }
 
   /* ---------- STL ---------- */
@@ -468,15 +519,25 @@ const result = await page.evaluate(async ({ CFG, LOGO_SVG }) => {
   }
 
   /* 위에서 내려다본 음영 미리보기 */
-  function render(g, scale, extra) {
+  /* layers = [{ solid, rgb }] · 파트별 색을 입혀 실제 출력 모습에 가깝게 */
+  function render(g, scale, layers) {
     const { cols, rows, res } = g;
     const topZ = new Float32Array(cols*rows);
+    const col = new Uint8Array(cols*rows*3);
     let zmax = 0;
+    const base = [232, 230, 224];
     for (let i=0;i<cols*rows;i++) {
       let t = 0;
       for (let k=0;k<g.cnt[i];k++) t = Math.max(t, g.sp[i*KMAX*2+k*2+1]);
-      if (extra) for (let k=0;k<extra.cnt[i];k++) t = Math.max(t, extra.sp[i*KMAX*2+k*2+1]);
+      let rgb = base;
+      (layers||[]).forEach(L => {
+        for (let k=0;k<L.solid.cnt[i];k++) {
+          const z = L.solid.sp[i*KMAX*2+k*2+1];
+          if (z > t) { t = z; rgb = L.rgb; }
+        }
+      });
       topZ[i] = t; if (t > zmax) zmax = t;
+      col[i*3]=rgb[0]; col[i*3+1]=rgb[1]; col[i*3+2]=rgb[2];
     }
     const cv = document.createElement('canvas');
     cv.width = Math.round(cols*scale); cv.height = Math.round(rows*scale);
@@ -488,9 +549,10 @@ const result = await page.evaluate(async ({ CFG, LOGO_SVG }) => {
       const hx = (c>0?topZ[i-1]:h) - (c<cols-1?topZ[i+1]:h);
       const hy = (r>0?topZ[i-cols]:h) - (r<rows-1?topZ[i+cols]:h);
       const sh = Math.max(-1, Math.min(1, (hx*0.8 + hy*0.6)/res));
-      const base = 0.42 + 0.46*(h/zmax);
-      const v = Math.max(0, Math.min(1, base + sh*0.34));
-      img.data[k]=Math.round(232*v); img.data[k+1]=Math.round(178*v+12); img.data[k+2]=Math.round(38*v+8);
+      const v = Math.max(0.25, Math.min(1.25, 0.88 + sh*0.5));
+      img.data[k]=Math.min(255,Math.round(col[i*3]*v));
+      img.data[k+1]=Math.min(255,Math.round(col[i*3+1]*v));
+      img.data[k+2]=Math.min(255,Math.round(col[i*3+2]*v));
       img.data[k+3]=255;
     }
     const tmp = document.createElement('canvas'); tmp.width=cols; tmp.height=rows;
@@ -527,6 +589,41 @@ const result = await page.evaluate(async ({ CFG, LOGO_SVG }) => {
   const tray = buildTray();
   const lid  = await buildLid();
 
+  /* 뚜껑을 실제로 회전시켜 트레이에 부딪히는 각도를 찾는다 (열림 스토퍼 검증) */
+  function openAngle() {
+    const xArm = lidX0 + C.armW/2;                 // 팔 한가운데
+    const tc = Math.round((xArm + tray.padX)/tray.g.res - 0.5);
+    const lc = Math.round((xArm - lidX0 + pinLen)/lid.g.res - 0.5);
+    const dz = 0.15;
+    /* 트레이 단면을 (y,z) 격자 집합으로 */
+    const tray2 = new Set();
+    for (let r=0;r<tray.g.rows;r++) {
+      const i = r*tray.g.cols + tc, y = (tray.g.rows-1-r+0.5)*tray.g.res;
+      for (let k=0;k<tray.g.cnt[i];k++)
+        for (let z=tray.g.sp[i*KMAX*2+k*2]; z<tray.g.sp[i*KMAX*2+k*2+1]; z+=dz)
+          tray2.add(Math.round(y/dz)+','+Math.round(z/dz));
+    }
+    /* 뚜껑 단면 점들 (조립 좌표로 옮김) */
+    const pts = [];
+    for (let r=0;r<lid.g.rows;r++) {
+      const i = r*lid.g.cols + lc, y = (lid.g.rows-1-r+0.5)*lid.g.res + lidY0;
+      for (let k=0;k<lid.g.cnt[i];k++)
+        for (let z=lid.g.sp[i*KMAX*2+k*2]; z<lid.g.sp[i*KMAX*2+k*2+1]; z+=dz)
+          pts.push([y, z + ledgeZ]);
+    }
+    const hit = th => {
+      const a = -th*Math.PI/180, ca = Math.cos(a), sa = Math.sin(a);
+      for (const [y,z] of pts) {
+        const dy = y - pivotY, dz2 = z - pivotZ;
+        const ry = pivotY + dy*ca - dz2*sa, rz = pivotZ + dy*sa + dz2*ca;
+        if (tray2.has(Math.round(ry/dz)+','+Math.round(rz/dz))) return true;
+      }
+      return false;
+    };
+    for (let th=2; th<=150; th++) if (hit(th)) return th;
+    return null;
+  }
+
   /* 특정 지점의 고체 구간을 그대로 찍어본다 (가드·걸림턱이 실제로 있는지) */
   function probe(g, offX, offY, xmm, ymm) {
     const c = Math.round((xmm + offX)/g.res - 0.5);
@@ -536,6 +633,7 @@ const result = await page.evaluate(async ({ CFG, LOGO_SVG }) => {
     for (let k=0;k<g.cnt[i];k++) o.push([+g.sp[i*KMAX*2+k*2].toFixed(2), +g.sp[i*KMAX*2+k*2+1].toFixed(2)]);
     return o.length ? o.map(v=>`${v[0]}~${v[1]}`).join(' + ') : '빈칸';
   }
+  const stopAt = openAngle();
   const px = tray.padX, py = 0;
   const probes = {
     '카드 바닥 (한가운데)':        probe(tray.g, px, py, ow/2, od/2),
@@ -551,9 +649,13 @@ const result = await page.evaluate(async ({ CFG, LOGO_SVG }) => {
   const Pt = new Float32Array(meshOf(tray.g));
   const Pl = new Float32Array(meshOf(lid.g));
   const Pi = new Float32Array(meshOf(lid.ink));
+  const Pn = new Float32Array(meshOf(lid.inkN));
+  const Pg = new Float32Array(meshOf(lid.inkG));
 
   /* ---------- 맞물림 검증 ---------- */
   const fit = {
+    '열림 스토퍼 각도': stopAt === null ? '없음(끝까지 젖혀짐)' : stopAt + '°',
+    '스토퍼 있음': stopAt !== null && stopAt >= 80 && stopAt <= 130,
     '뚜껑 여유(편측)': +(((recW - low)/2)).toFixed(3),
     '핀 끝 x(트레이좌표)': +((lidX0 - pinLen)).toFixed(3),
     '소켓 안쪽 끝 x': +((lidX0 - C.earGap - socketDepth)).toFixed(3),
@@ -580,12 +682,19 @@ const result = await page.evaluate(async ({ CFG, LOGO_SVG }) => {
             closedH:+(trayTop + C.embossH).toFixed(2), minText:+lid.minText.toFixed(2) },
     trayAudit: audit(Pt, tray.g), lidAudit: audit(Pl, lid.g),
     inkAudit: audit(Pi, lid.ink), inkCells: lid.inkCells,
-    trayStl: toSTL(Pt, 'tray'), lidStl: toSTL(new Float32Array([...Pl, ...Pi]), 'lid'),
+    navyAudit: audit(Pn, lid.inkN), greenAudit: audit(Pg, lid.inkG),
+    trayStl: toSTL(Pt, 'tray'), lidStl: toSTL(new Float32Array([...Pl, ...Pi, ...Pn, ...Pg]), 'lid'),
     trayMesh: Array.from(Pt), lidMesh: Array.from(Pl), inkMesh: Array.from(Pi),
-    trayPng: render(tray.g, 1.6), lidPng: render(lid.g, 1.4, lid.ink),
+    navyMesh: Array.from(Pn), greenMesh: Array.from(Pg),
+    trayPng: render(tray.g, 1.6),
+    lidPng: render(lid.g, 1.4, [
+      { solid: lid.ink,  rgb: [26, 26, 28] },
+      { solid: lid.inkN, rgb: [27, 63, 143] },
+      { solid: lid.inkG, rgb: [108, 179, 63] },
+    ]),
     sectionPng: section(tray.g, ow/2, tray.padX, 5)
   };
-}, { CFG, LOGO_SVG });
+}, { CFG, LOGO_SVG, LOGO_NAVY, LOGO_GREEN });
 
 /* ============================================================
    3MF 쓰기
@@ -683,8 +792,10 @@ fs.writeFileSync(path.join(OUT, 'woojoo_case_tray.stl'), Buffer.from(result.tray
 fs.writeFileSync(path.join(OUT, 'woojoo_case_lid.stl'),  Buffer.from(result.lidStl));
 write3mf(path.join(OUT, 'woojoo_case_tray.3mf'), [{ name: '트레이', mesh: result.trayMesh }]);
 write3mf(path.join(OUT, 'woojoo_case_lid.3mf'), [
-  { name: '뚜껑 몸체 (흰색)', mesh: result.lidMesh },
-  { name: '명함 글자 (검정)', mesh: result.inkMesh }
+  { name: '1 뚜껑 몸체 (흰색)', mesh: result.lidMesh },
+  { name: '2 문구·테두리 (검정)', mesh: result.inkMesh },
+  { name: '3 로고 상부 (남색)', mesh: result.navyMesh },
+  { name: '4 로고 하부 (초록)', mesh: result.greenMesh }
 ]);
 fs.writeFileSync(path.join(OUT, 'preview_tray.png'), Buffer.from(result.trayPng, 'base64'));
 fs.writeFileSync(path.join(OUT, 'preview_lid.png'),  Buffer.from(result.lidPng, 'base64'));
@@ -700,8 +811,14 @@ for (const [k,v] of Object.entries(result.fit)) console.log('   ', k.padEnd(22),
 console.log('트레이    ', JSON.stringify(result.trayAudit));
 console.log('뚜껑      ', JSON.stringify(result.lidAudit));
 console.log('글자      ', JSON.stringify(result.inkAudit), '셀', result.inkCells);
-const fitOk = result.fit['핀이 귀를 안뚫음'] && result.fit['핀이 소켓에 닿음']
+console.log('로고 남색 ', JSON.stringify(result.navyAudit));
+console.log('로고 초록 ', JSON.stringify(result.greenAudit));
+const fitOk = result.fit['스토퍼 있음'] && result.fit['핀이 귀를 안뚫음'] && result.fit['핀이 소켓에 닿음']
   && result.fit['입구가 핀보다 좁음'] && result.fit['축 일치'] && result.fit['가드턱이 카드위'];
-const ok = [result.trayAudit, result.lidAudit].every(a => a.relErr < 1e-6 && a.normSum < 1e-5 && a.z0 === 0) && fitOk;
+/* 잉크 파트는 뚜껑 위에 얹히므로 z0 가 0 이 아닌 게 정상 */
+const closedOk = [result.trayAudit, result.lidAudit, result.inkAudit, result.navyAudit, result.greenAudit]
+  .every(a => a.relErr < 1e-6 && a.normSum < 1e-5);
+const bedOk = result.trayAudit.z0 === 0 && result.lidAudit.z0 === 0;
+const ok = closedOk && bedOk && fitOk;
 console.log(ok ? '✅ 두 파트 모두 닫힌 메시 · 베드에 밀착' : '❌ 검증 실패');
 await browser.close();
