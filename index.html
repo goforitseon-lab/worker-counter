@@ -808,6 +808,10 @@
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           <span data-i18n="settings.export_master">품번 마스터 내보내기 (CSV)</span>
         </button>
+        <button class="modal-btn" id="btn-print3d">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+          <span data-i18n="settings.print3d">3D프린터 출력 (라벨 STL)</span>
+        </button>
         <button class="modal-btn" id="btn-change-worker">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
           <span data-i18n="settings.change_worker">작업자 변경</span>
@@ -963,7 +967,7 @@
         'leave.submit_success': '연차 신청 완료', 'leave.submit_success_sub': '관리자 승인 대기 중',
         'leave.submit_failed': '신청 실패', 'leave.confirm_cancel': '신청을 취소하시겠습니까?',
         'leave.cancel_success': '취소됨', 'leave.cancel_failed': '취소 실패',
-        'settings.sub': '서버 연결, 마스터 관리, 작업자 변경', 'settings.server_cfg': '서버 연결 설정', 'settings.import_master': '품번 마스터 가져오기 (CSV)', 'settings.export_master': '품번 마스터 내보내기 (CSV)', 'settings.change_worker': '작업자 변경',
+        'settings.sub': '서버 연결, 마스터 관리, 작업자 변경', 'settings.server_cfg': '서버 연결 설정', 'settings.import_master': '품번 마스터 가져오기 (CSV)', 'settings.export_master': '품번 마스터 내보내기 (CSV)', 'settings.change_worker': '작업자 변경', 'settings.print3d': '3D프린터 출력 (라벨 STL)',
         'server.sub': 'Supabase URL과 anon public 키를 입력하세요', 'server.test': '연결 테스트', 'server.save': '저장',
         'meal.week_title': '이번 주 식단', 'meal.view_all': '전체 보기', 'meal.today_label': '오늘', 'meal.empty': '등록 안 됨', 'meal.modal_title': '🍱 이번 주 식단', 'meal.close': '닫기',
         'notice.title': '공지사항',
@@ -1029,7 +1033,7 @@
         'leave.submit_success': 'Leave request submitted', 'leave.submit_success_sub': 'Awaiting admin approval',
         'leave.submit_failed': 'Submission failed', 'leave.confirm_cancel': 'Cancel this request?',
         'leave.cancel_success': 'Cancelled', 'leave.cancel_failed': 'Cancel failed',
-        'settings.sub': 'Server, Master, Change Worker', 'settings.server_cfg': 'Server Configuration', 'settings.import_master': 'Import Part Master (CSV)', 'settings.export_master': 'Export Part Master (CSV)', 'settings.change_worker': 'Change Worker',
+        'settings.sub': 'Server, Master, Change Worker', 'settings.server_cfg': 'Server Configuration', 'settings.import_master': 'Import Part Master (CSV)', 'settings.export_master': 'Export Part Master (CSV)', 'settings.change_worker': 'Change Worker', 'settings.print3d': '3D Print Export (Label STL)',
         'server.sub': 'Enter Supabase URL and anon public key', 'server.test': 'Test Connection', 'server.save': 'Save',
         'meal.week_title': "This Week's Meals", 'meal.view_all': 'View All', 'meal.today_label': 'Today', 'meal.empty': 'Not registered', 'meal.modal_title': "🍱 This Week's Meals", 'meal.close': 'Close',
         'notice.title': 'Announcements',
@@ -1095,7 +1099,7 @@
         'leave.submit_success': 'Запрос отпуска отправлен', 'leave.submit_success_sub': 'Ожидает одобрения админа',
         'leave.submit_failed': 'Ошибка отправки', 'leave.confirm_cancel': 'Отменить этот запрос?',
         'leave.cancel_success': 'Отменено', 'leave.cancel_failed': 'Ошибка отмены',
-        'settings.sub': 'Сервер, База, Сменить работника', 'settings.server_cfg': 'Настройки сервера', 'settings.import_master': 'Импорт базы артикулов (CSV)', 'settings.export_master': 'Экспорт базы артикулов (CSV)', 'settings.change_worker': 'Сменить работника',
+        'settings.sub': 'Сервер, База, Сменить работника', 'settings.server_cfg': 'Настройки сервера', 'settings.import_master': 'Импорт базы артикулов (CSV)', 'settings.export_master': 'Экспорт базы артикулов (CSV)', 'settings.change_worker': 'Сменить работника', 'settings.print3d': '3D-печать: экспорт STL',
         'server.sub': 'Введите Supabase URL и anon public ключ', 'server.test': 'Тест соединения', 'server.save': 'Сохранить',
         'meal.week_title': 'Меню недели', 'meal.view_all': 'Показать всё', 'meal.today_label': 'Сегодня', 'meal.empty': 'Не зарегистрировано', 'meal.modal_title': '🍱 Меню недели', 'meal.close': 'Закрыть',
         'notice.title': 'Объявления',
@@ -3108,6 +3112,7 @@
       document.querySelectorAll('[data-lang]').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang)));
       document.getElementById('btn-modal-close').addEventListener('click', () => closeModal('modal-settings'));
       document.getElementById('btn-server-config').addEventListener('click', openServerModal);
+      document.getElementById('btn-print3d').addEventListener('click', () => { window.location.href = 'print3d.html'; });
       document.getElementById('btn-change-worker').addEventListener('click', changeWorker);
       document.getElementById('btn-export-master').addEventListener('click', exportMaster);
       document.getElementById('btn-import-master').addEventListener('click', () => { closeModal('modal-settings'); openModal('modal-import'); });

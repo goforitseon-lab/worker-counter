@@ -1,0 +1,1436 @@
+<!DOCTYPE html>
+<!--
+  ============================================================
+  Worker counter · 3D프린터 출력
+  배포: https://goforitseon-lab.github.io/worker-counter/print3d.html
+  백엔드: Supabase (parts_master 읽기 전용)
+  ============================================================
+  부품 마스터 / 자유 문구를 3D 프린팅용 메시로 변환해
+  STL(바이너리·ASCII) · OBJ 파일로 내보내는 페이지.
+
+  · 외부 3D 라이브러리 없음 (하이트맵 메시 생성 + WebGL 미리보기 자체 구현)
+  · 한글 각인 지원 (캔버스 래스터라이즈 → 복셀 컬럼 압출)
+  · 낱개 ZIP / 베드 한 판 배치 STL 지원
+  ============================================================
+  REVISION
+  ============================================================
+  print3d 0001 · 최초 버전
+                 - 품번 마스터 선택 / 직접 입력
+                 - 양각·음각, 테두리, 걸이구멍, 라운드 모서리
+                 - STL(binary/ascii) · OBJ · ZIP · 베드배치 내보내기
+                 - WebGL 실시간 미리보기 (회전/확대)
+  ============================================================
+-->
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f0f10">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <meta name="version" content="print3d-0001">
+  <title>3D프린터 출력 · Worker Counter</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@500;700&family=Noto+Sans+KR:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    :root {
+      --bg: #f7f7f5;
+      --surface: #ffffff;
+      --surface-2: #f0f0ee;
+      --border: rgba(0,0,0,0.1);
+      --text: #1a1a1a;
+      --text-dim: #555;
+      --text-muted: #999;
+      --amber: #f5b800;
+      --emerald: #00a865;
+      --red: #d92847;
+      --blue: #0080c7;
+      --purple: #8b5cf6;
+    }
+    html, body {
+      background: var(--bg); color: var(--text);
+      font-family: 'Noto Sans KR', system-ui, -apple-system, sans-serif;
+      min-height: 100vh; -webkit-font-smoothing: antialiased;
+    }
+    body {
+      background-image:
+        linear-gradient(rgba(0,0,0,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,0,0,0.025) 1px, transparent 1px);
+      background-size: 32px 32px;
+    }
+    button { background: none; border: none; color: inherit; font: inherit; cursor: pointer; }
+    input, textarea, select { background: none; border: none; color: inherit; font: inherit; outline: none; }
+
+    /* ---------- HEADER ---------- */
+    .topbar {
+      position: sticky; top: 0; z-index: 30;
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px 20px;
+      background: rgba(247,247,245,0.92); backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+    .topbar-icon {
+      width: 38px; height: 38px; border-radius: 11px; flex: none;
+      background: linear-gradient(135deg, rgba(245,184,0,0.25), rgba(245,184,0,0.08));
+      border: 1px solid rgba(245,184,0,0.4);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .topbar-tag { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.25em; color: #b58900; }
+    .topbar-title { font-size: 18px; font-weight: 800; margin-top: 1px; line-height: 1.1; }
+    .topbar-spacer { flex: 1; }
+    .link-btn {
+      padding: 9px 14px; border-radius: 10px; border: 1px solid var(--border);
+      background: var(--surface); font-size: 13px; font-weight: 600; color: var(--text-dim);
+      display: inline-flex; align-items: center; gap: 6px; text-decoration: none;
+    }
+    .link-btn:hover { border-color: rgba(245,184,0,0.6); color: var(--text); }
+
+    /* ---------- LAYOUT ---------- */
+    .layout {
+      display: grid; grid-template-columns: 430px minmax(0, 1fr);
+      gap: 18px; padding: 18px 20px 40px; align-items: start;
+      max-width: 1500px; margin: 0 auto;
+    }
+    @media (max-width: 1040px) { .layout { grid-template-columns: 1fr; } }
+
+    .panel { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 16px; overflow: hidden;
+    }
+    .card-head {
+      display: flex; align-items: center; gap: 9px;
+      padding: 13px 16px; border-bottom: 1px solid var(--border);
+    }
+    .card-num {
+      width: 20px; height: 20px; border-radius: 6px; flex: none;
+      background: var(--amber); color: #0f0f10;
+      font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .card-title { font-size: 14px; font-weight: 700; }
+    .card-sub { font-size: 11px; color: var(--text-muted); margin-left: auto; }
+    .card-body { padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; }
+
+    /* ---------- FORM BITS ---------- */
+    .seg { display: flex; padding: 3px; background: var(--surface-2); border-radius: 10px; gap: 3px; }
+    .seg button {
+      flex: 1; padding: 8px 6px; border-radius: 8px;
+      font-size: 12.5px; font-weight: 600; color: var(--text-dim);
+    }
+    .seg button.on { background: var(--amber); color: #0f0f10; }
+
+    .field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+    .field-label { font-size: 11px; font-weight: 600; color: var(--text-dim); letter-spacing: 0.02em; }
+    .txt {
+      width: 100%; padding: 9px 11px; background: var(--surface-2);
+      border: 1px solid transparent; border-radius: 9px;
+      font-size: 13px; font-weight: 500;
+    }
+    .txt:focus { border-color: rgba(245,184,0,0.7); background: #fff; }
+    .txt.mono { font-family: 'JetBrains Mono', monospace; }
+    .txt::placeholder { color: var(--text-muted); font-weight: 400; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+
+    .num-row { display: flex; align-items: center; gap: 8px; }
+    .num-row input[type=range] { flex: 1; accent-color: var(--amber); }
+    .num-row .num-val {
+      width: 62px; flex: none; text-align: right;
+      font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700;
+      padding: 6px 8px; background: var(--surface-2); border-radius: 7px;
+    }
+
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chip {
+      padding: 6px 11px; border-radius: 999px; border: 1px solid var(--border);
+      font-size: 12px; font-weight: 600; color: var(--text-dim); background: var(--surface);
+    }
+    .chip.on { background: var(--amber); border-color: var(--amber); color: #0f0f10; }
+
+    .switch { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .switch-label { font-size: 13px; font-weight: 600; }
+    .switch-hint { font-size: 11px; color: var(--text-muted); font-weight: 400; margin-top: 2px; }
+    .toggle {
+      width: 44px; height: 26px; border-radius: 999px; background: #ddd;
+      position: relative; flex: none; transition: background .15s;
+    }
+    .toggle::after {
+      content: ''; position: absolute; top: 3px; left: 3px;
+      width: 20px; height: 20px; border-radius: 50%; background: #fff;
+      box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform .15s;
+    }
+    .toggle.on { background: var(--amber); }
+    .toggle.on::after { transform: translateX(18px); }
+
+    .hint { font-size: 11px; color: var(--text-muted); line-height: 1.5; }
+    .token { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--blue); }
+
+    /* ---------- PARTS LIST ---------- */
+    .parts-box {
+      border: 1px solid var(--border); border-radius: 11px;
+      max-height: 260px; overflow-y: auto; background: var(--surface-2);
+    }
+    .part-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 11px; border-bottom: 1px solid var(--border); cursor: pointer;
+    }
+    .part-row:last-child { border-bottom: none; }
+    .part-row:hover { background: #fff; }
+    .part-row.on { background: rgba(245,184,0,0.14); }
+    .part-check {
+      width: 17px; height: 17px; border-radius: 5px; flex: none;
+      border: 1.5px solid var(--text-muted); display: flex; align-items: center; justify-content: center;
+    }
+    .part-row.on .part-check { background: var(--amber); border-color: var(--amber); }
+    .part-main { min-width: 0; flex: 1; }
+    .part-pn { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; }
+    .part-meta { font-size: 10.5px; color: var(--text-muted); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .parts-empty { padding: 24px 12px; text-align: center; font-size: 12px; color: var(--text-muted); }
+
+    /* ---------- BUTTONS ---------- */
+    .btn {
+      width: 100%; padding: 12px; border-radius: 11px;
+      font-size: 14px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center; gap: 7px;
+    }
+    .btn-amber { background: var(--amber); color: #0f0f10; }
+    .btn-amber:active { transform: scale(0.99); }
+    .btn-ghost { background: var(--surface-2); color: var(--text-dim); font-size: 13px; font-weight: 600; padding: 10px; }
+    .btn-ghost:hover { background: #e7e7e4; color: var(--text); }
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
+
+    /* ---------- PREVIEW ---------- */
+    .viewer {
+      position: sticky; top: 76px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 16px; overflow: hidden;
+    }
+    @media (max-width: 1040px) { .viewer { position: static; } }
+    .viewer-canvas-wrap { position: relative; background: #1a1a1c; }
+    #gl { display: block; width: 100%; height: 460px; touch-action: none; cursor: grab; }
+    #gl:active { cursor: grabbing; }
+    .viewer-badge {
+      position: absolute; top: 12px; left: 12px;
+      font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: .18em;
+      color: rgba(255,255,255,.45);
+    }
+    .viewer-nav {
+      position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
+      display: flex; align-items: center; gap: 4px;
+      background: rgba(0,0,0,.55); border-radius: 999px; padding: 4px;
+      backdrop-filter: blur(6px);
+    }
+    .viewer-nav button { width: 30px; height: 30px; border-radius: 50%; color: #fff; display: flex; align-items: center; justify-content: center; }
+    .viewer-nav button:hover { background: rgba(255,255,255,.15); }
+    .viewer-nav .navlbl {
+      font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700;
+      color: #fff; padding: 0 10px; white-space: nowrap;
+    }
+    .viewer-err {
+      position: absolute; inset: 0; display: none;
+      align-items: center; justify-content: center; text-align: center;
+      color: rgba(255,255,255,.6); font-size: 13px; padding: 24px; line-height: 1.6;
+    }
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--border); }
+    .stat { padding: 11px 8px; text-align: center; border-right: 1px solid var(--border); }
+    .stat:last-child { border-right: none; }
+    .stat-val { font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 700; }
+    .stat-key { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+
+    /* ---------- TOAST ---------- */
+    #toast {
+      position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(20px);
+      background: #1a1a1c; color: #fff; padding: 12px 20px; border-radius: 999px;
+      font-size: 13px; font-weight: 600; opacity: 0; pointer-events: none;
+      transition: opacity .18s, transform .18s; z-index: 100; max-width: 90vw; text-align: center;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    #toast.err { background: var(--red); }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-icon">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#b58900" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+      <polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>
+    </svg>
+  </div>
+  <div>
+    <div class="topbar-tag">3D PRINT · STL</div>
+    <div class="topbar-title">3D프린터 출력</div>
+  </div>
+  <div class="topbar-spacer"></div>
+  <a class="link-btn" href="index.html">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+    작업량 입력
+  </a>
+</div>
+
+<div class="layout">
+  <!-- ===================== LEFT PANEL ===================== -->
+  <div class="panel">
+
+    <!-- 1. 라벨 내용 -->
+    <div class="card">
+      <div class="card-head">
+        <div class="card-num">1</div><div class="card-title">라벨 내용</div>
+        <div class="card-sub" id="src-count">—</div>
+      </div>
+      <div class="card-body">
+        <div class="seg" id="src-seg">
+          <button data-src="master" class="on">품번 마스터에서 선택</button>
+          <button data-src="free">직접 입력</button>
+        </div>
+
+        <!-- 마스터 모드 -->
+        <div id="src-master">
+          <div class="field" style="margin-bottom:10px">
+            <input id="part-search" class="txt mono" type="text" placeholder="품번 · 차종 · 품명 검색">
+          </div>
+          <div class="chips" id="proc-chips" style="margin-bottom:10px"></div>
+          <div class="parts-box" id="parts-box"><div class="parts-empty">부품 마스터를 불러오는 중…</div></div>
+          <div style="display:flex;gap:8px;margin-top:10px">
+            <button class="btn btn-ghost" id="btn-sel-page">보이는 항목 전체 선택</button>
+            <button class="btn btn-ghost" id="btn-sel-clear">선택 해제</button>
+          </div>
+        </div>
+
+        <!-- 자유 입력 모드 -->
+        <div id="src-free" style="display:none">
+          <div class="field">
+            <div class="field-label">한 줄에 라벨 하나 · 세로줄( | )로 줄바꿈</div>
+            <textarea id="free-text" class="txt mono" rows="5" placeholder="93500-AA100|GL3|재단&#10;93500-AA200|GL3|봉제"></textarea>
+          </div>
+        </div>
+
+        <!-- 템플릿 -->
+        <div id="tpl-box">
+          <div class="field-label" style="margin-bottom:6px">각인 문구 (줄별)</div>
+          <div class="field" style="gap:7px">
+            <input id="tpl1" class="txt mono" type="text" value="{품번}">
+            <input id="tpl2" class="txt mono" type="text" value="{차종} {칼라}">
+            <input id="tpl3" class="txt mono" type="text" value="{공정}">
+          </div>
+          <div class="hint" style="margin-top:7px">
+            사용 가능 항목:
+            <span class="token">{품번} {품명} {규격} {사양} {차종} {칼라} {원단} {라벨} {LR} {공정} {창고}</span>
+            · 빈 줄은 자동으로 건너뜁니다.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. 플레이트 -->
+    <div class="card">
+      <div class="card-head">
+        <div class="card-num">2</div><div class="card-title">플레이트</div>
+        <div class="card-sub" id="plate-dim">—</div>
+      </div>
+      <div class="card-body">
+        <div class="chips" id="preset-chips">
+          <button class="chip" data-preset="tag">소형 태그 40×20</button>
+          <button class="chip on" data-preset="label">표준 라벨 60×25</button>
+          <button class="chip" data-preset="big">대형 60×40</button>
+          <button class="chip" data-preset="shelf">선반 100×35</button>
+        </div>
+        <div class="grid3">
+          <div class="field"><div class="field-label">가로 mm</div><input id="p-w" class="txt mono" type="number" min="10" max="250" step="1" value="60"></div>
+          <div class="field"><div class="field-label">세로 mm</div><input id="p-h" class="txt mono" type="number" min="8" max="250" step="1" value="25"></div>
+          <div class="field"><div class="field-label">두께 mm</div><input id="p-t" class="txt mono" type="number" min="0.6" max="10" step="0.2" value="2"></div>
+        </div>
+        <div class="grid2">
+          <div class="field"><div class="field-label">모서리 R mm</div><input id="p-r" class="txt mono" type="number" min="0" max="30" step="0.5" value="3"></div>
+          <div class="field"><div class="field-label">격자 해상도 mm</div><input id="p-res" class="txt mono" type="number" min="0.1" max="1" step="0.05" value="0.25"></div>
+        </div>
+        <div class="switch">
+          <div><div class="switch-label">테두리 턱</div><div class="switch-hint">가장자리를 한 단 올려 글자를 보호합니다</div></div>
+          <div class="toggle" id="tg-frame"></div>
+        </div>
+        <div class="grid2" id="frame-opts" style="display:none">
+          <div class="field"><div class="field-label">테두리 폭 mm</div><input id="f-w" class="txt mono" type="number" min="0.4" max="10" step="0.2" value="1.6"></div>
+          <div class="field"><div class="field-label">테두리 높이 mm</div><input id="f-h" class="txt mono" type="number" min="0.2" max="5" step="0.1" value="0.8"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. 글자 -->
+    <div class="card">
+      <div class="card-head">
+        <div class="card-num">3</div><div class="card-title">글자</div>
+      </div>
+      <div class="card-body">
+        <div class="seg" id="mode-seg">
+          <button data-mode="emboss" class="on">양각 (튀어나옴)</button>
+          <button data-mode="engrave">음각 (파임)</button>
+        </div>
+        <div class="grid2">
+          <div class="field"><div class="field-label" id="lbl-depth">각인 높이 mm</div><input id="t-depth" class="txt mono" type="number" min="0.2" max="5" step="0.1" value="0.8"></div>
+          <div class="field"><div class="field-label">글자 크기 mm</div><input id="t-size" class="txt mono" type="number" min="2" max="40" step="0.5" value="6"></div>
+        </div>
+        <div class="grid2">
+          <div class="field"><div class="field-label">좌우 여백 mm</div><input id="t-pad" class="txt mono" type="number" min="0" max="20" step="0.5" value="4"></div>
+          <div class="field"><div class="field-label">굵기</div>
+            <select id="t-weight" class="txt">
+              <option value="500">보통</option>
+              <option value="700" selected>굵게</option>
+              <option value="900">아주 굵게</option>
+            </select>
+          </div>
+        </div>
+        <div class="switch">
+          <div><div class="switch-label">폭 자동 맞춤</div><div class="switch-hint">긴 문구는 플레이트 폭에 맞춰 자동 축소</div></div>
+          <div class="toggle on" id="tg-fit"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. 구멍 -->
+    <div class="card">
+      <div class="card-head">
+        <div class="card-num">4</div><div class="card-title">걸이 구멍</div>
+      </div>
+      <div class="card-body">
+        <div class="chips" id="hole-chips">
+          <button class="chip on" data-hole="none">없음</button>
+          <button class="chip" data-hole="left">좌측 1개</button>
+          <button class="chip" data-hole="both">좌우 2개</button>
+          <button class="chip" data-hole="top">상단 2개</button>
+        </div>
+        <div class="grid2" id="hole-opts" style="display:none">
+          <div class="field"><div class="field-label">구멍 지름 mm</div><input id="h-d" class="txt mono" type="number" min="1" max="20" step="0.5" value="4"></div>
+          <div class="field"><div class="field-label">가장자리 여백 mm</div><input id="h-m" class="txt mono" type="number" min="1" max="20" step="0.5" value="4"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. 내보내기 -->
+    <div class="card">
+      <div class="card-head">
+        <div class="card-num">5</div><div class="card-title">내보내기</div>
+        <div class="card-sub" id="exp-count">—</div>
+      </div>
+      <div class="card-body">
+        <button class="btn btn-amber" id="btn-stl">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          STL 내려받기
+        </button>
+        <div class="grid2">
+          <button class="btn btn-ghost" id="btn-zip">낱개 ZIP</button>
+          <button class="btn btn-ghost" id="btn-bed">베드 한 판</button>
+        </div>
+        <div class="grid2">
+          <button class="btn btn-ghost" id="btn-ascii">ASCII STL</button>
+          <button class="btn btn-ghost" id="btn-obj">OBJ</button>
+        </div>
+        <div class="field">
+          <div class="field-label">베드 크기 mm (한 판 배치용)</div>
+          <div class="grid2">
+            <input id="bed-w" class="txt mono" type="number" min="50" max="1000" step="10" value="220">
+            <input id="bed-h" class="txt mono" type="number" min="50" max="1000" step="10" value="220">
+          </div>
+        </div>
+        <div class="hint">
+          단위는 밀리미터(mm)입니다. 슬라이서에서 그대로 불러오면 실제 크기로 열립니다.
+          양각 글자는 노즐 0.4mm 기준 <b>글자 크기 5mm 이상</b>을 권장합니다.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== RIGHT: PREVIEW ===================== -->
+  <div class="viewer">
+    <div class="viewer-canvas-wrap">
+      <canvas id="gl"></canvas>
+      <div class="viewer-badge">PREVIEW · 드래그 회전 / 휠 확대</div>
+      <div class="viewer-err" id="gl-err"></div>
+      <div class="viewer-nav">
+        <button id="nav-prev" title="이전">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <div class="navlbl" id="nav-label">0 / 0</div>
+        <button id="nav-next" title="다음">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="stat-val" id="st-size">—</div><div class="stat-key">크기 mm</div></div>
+      <div class="stat"><div class="stat-val" id="st-tri">—</div><div class="stat-key">삼각형</div></div>
+      <div class="stat"><div class="stat-val" id="st-vol">—</div><div class="stat-key">부피 cm³</div></div>
+      <div class="stat"><div class="stat-val" id="st-weight">—</div><div class="stat-key">PLA g</div></div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ==========================================================
+   STORAGE / CONFIG  (index.html 과 동일한 localStorage 키 사용)
+   ========================================================== */
+const memStore = {};
+const storage = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : (d ?? null); } catch { return memStore[k] ?? d ?? null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { memStore[k] = v; } }
+};
+
+const DEFAULT_SERVER_CONFIG = {
+  url: 'https://dkdnqbkulaweoiypwdih.supabase.co',
+  key: 'sb_publishable_DIJzW9_tjUytnnV643KROQ_OIDk5n-w'
+};
+
+const state = {
+  src: 'master',
+  parts: [],
+  filtered: [],
+  selected: new Set(),   // part_number
+  procFilter: '',
+  search: '',
+  jobs: [],              // [{ id, lines:[], name }]
+  cursor: 0,
+  meshCache: null        // 현재 커서 항목의 메시
+};
+
+/* ==========================================================
+   UTIL
+   ========================================================== */
+function $(id) { return document.getElementById(id); }
+function escapeHtml(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function uniq(a) { return [...new Set(a.filter(v => v !== null && v !== undefined && v !== ''))]; }
+function clamp(v, lo, hi) { return Math.min(hi, Math.max(lo, v)); }
+function numOf(id, def) { const v = parseFloat($(id).value); return Number.isFinite(v) ? v : def; }
+
+let toastTimer = null;
+function toast(msg, isErr) {
+  const el = $('toast');
+  el.textContent = msg;
+  el.className = 'show' + (isErr ? ' err' : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.className = ''; }, 2600);
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
+}
+
+/* 파일명으로 못 쓰는 문자 정리 */
+function safeName(s) {
+  return String(s || 'label').replace(/[\\/:*?"<>|]+/g, '_').replace(/\s+/g, '_').slice(0, 60) || 'label';
+}
+
+/* ==========================================================
+   부품 마스터 로드 (localStorage → 서버 순)
+   ========================================================== */
+async function loadParts() {
+  const cached = storage.get('parts:list');
+  if (Array.isArray(cached) && cached.length) {
+    state.parts = cached;
+    renderProcChips(); applyFilter();
+  }
+  const cfg = storage.get('config:server') || DEFAULT_SERVER_CONFIG;
+  if (!cfg.url || !cfg.key) { if (!state.parts.length) renderParts(); return; }
+  try {
+    let all = [], offset = 0;
+    const pageSize = 1000;
+    while (true) {
+      const url = `${cfg.url.replace(/\/$/, '')}/rest/v1/parts_master?order=part_number.asc&limit=${pageSize}&offset=${offset}`;
+      const res = await fetch(url, { headers: { apikey: cfg.key, Authorization: 'Bearer ' + cfg.key } });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const page = await res.json();
+      if (!Array.isArray(page) || !page.length) break;
+      all = all.concat(page);
+      if (page.length < pageSize) break;
+      offset += pageSize;
+      if (offset > 50000) break;
+    }
+    if (all.length) {
+      state.parts = all;
+      storage.set('parts:list', all);
+    }
+  } catch (e) {
+    if (!state.parts.length) toast('부품 마스터를 불러오지 못했습니다 · 직접 입력을 사용하세요', true);
+  }
+  renderProcChips(); applyFilter();
+}
+
+/* ==========================================================
+   문구 템플릿
+   ========================================================== */
+const TOKENS = {
+  '품번': 'part_number', '품명': 'name', '규격': 'spec', '사양': 'specification',
+  '차종': 'car_model', '칼라': 'color', '원단': 'fabric', '라벨': 'label',
+  'LR': 'side', '공정': 'process', '창고': 'warehouse'
+};
+
+function applyTemplate(tpl, part) {
+  return tpl.replace(/\{([^}]+)\}/g, (m, key) => {
+    const f = TOKENS[key.trim()];
+    if (!f) return '';
+    return String(part[f] ?? '').trim();
+  }).replace(/\s+/g, ' ').trim();
+}
+
+/* 현재 설정으로 출력할 라벨 목록을 만든다 */
+function buildJobs() {
+  const tpls = [$('tpl1').value, $('tpl2').value, $('tpl3').value];
+  const jobs = [];
+  if (state.src === 'master') {
+    const byPn = new Map(state.parts.map(p => [p.part_number, p]));
+    [...state.selected].forEach(pn => {
+      const p = byPn.get(pn) || { part_number: pn };
+      const lines = tpls.map(t => applyTemplate(t, p)).filter(Boolean);
+      jobs.push({ name: safeName(pn), lines: lines.length ? lines : [String(pn)] });
+    });
+  } else {
+    const raw = $('free-text').value.split('\n').map(s => s.trim()).filter(Boolean);
+    raw.forEach(row => {
+      const lines = row.split('|').map(s => s.trim()).filter(Boolean);
+      if (lines.length) jobs.push({ name: safeName(lines[0]), lines });
+    });
+  }
+  return jobs;
+}
+
+/* 같은 이름이 겹치면 _2, _3 … 을 붙인다 (ZIP 항목 충돌 방지) */
+function dedupeNames(jobs) {
+  const seen = new Map();
+  jobs.forEach(j => {
+    const n = seen.get(j.name) || 0;
+    seen.set(j.name, n + 1);
+    j.file = n === 0 ? j.name : `${j.name}_${n + 1}`;
+  });
+  return jobs;
+}
+
+/* ==========================================================
+   현재 UI 설정 읽기
+   ========================================================== */
+function readConfig() {
+  const frame = $('tg-frame').classList.contains('on');
+  const holeMode = document.querySelector('#hole-chips .chip.on').dataset.hole;
+  const mode = document.querySelector('#mode-seg button.on').dataset.mode;
+  return {
+    w: clamp(numOf('p-w', 60), 10, 250),
+    h: clamp(numOf('p-h', 25), 8, 250),
+    t: clamp(numOf('p-t', 2), 0.6, 10),
+    r: clamp(numOf('p-r', 3), 0, 30),
+    res: clamp(numOf('p-res', 0.25), 0.1, 1),
+    frame, fw: clamp(numOf('f-w', 1.6), 0.4, 10), fh: clamp(numOf('f-h', 0.8), 0.2, 5),
+    mode,
+    depth: clamp(numOf('t-depth', 0.8), 0.2, 5),
+    textSize: clamp(numOf('t-size', 6), 2, 40),
+    pad: clamp(numOf('t-pad', 4), 0, 20),
+    weight: $('t-weight').value,
+    fit: $('tg-fit').classList.contains('on'),
+    holeMode,
+    holeD: clamp(numOf('h-d', 4), 1, 20),
+    holeM: clamp(numOf('h-m', 4), 1, 20)
+  };
+}
+
+/* ==========================================================
+   지오메트리 엔진
+   ----------------------------------------------------------
+   플레이트/글자/구멍을 하나의 "하이트맵"(격자별 높이)으로 그린 뒤
+   격자를 그대로 압출해 닫힌 메시를 만든다.
+   폴리곤 삼각분할이 필요 없어 한글 글리프도 그대로 각인된다.
+   ========================================================== */
+
+/* 라운드 사각형 내부 판정 (좌하단 원점, mm 단위) */
+function inRoundRect(x, y, w, h, r) {
+  if (w <= 0 || h <= 0) return false;
+  if (x < 0 || y < 0 || x > w || y > h) return false;
+  const rr = Math.max(0, Math.min(r, w / 2, h / 2));
+  if (rr === 0) return true;
+  const cx = clamp(x, rr, w - rr);
+  const cy = clamp(y, rr, h - rr);
+  const dx = x - cx, dy = y - cy;
+  return dx * dx + dy * dy <= rr * rr;
+}
+
+let _rasterCanvas = null;
+/* 글자를 격자 크기의 1비트 마스크로 래스터라이즈 */
+function rasterizeText(lines, cfg, cols, rows, W, H, area) {
+  const cv = _rasterCanvas || (_rasterCanvas = document.createElement('canvas'));
+  cv.width = cols; cv.height = rows;
+  const ctx = cv.getContext('2d', { willReadFrequently: true });
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, cols, rows);
+  if (!lines.length) return null;
+
+  const res = cfg.res;
+  const pxOf = x => x / res;
+  const pyOf = y => (H - y) / res;
+
+  let fontPx = cfg.textSize / res;
+  const areaWpx = Math.max(1, (area.x1 - area.x0) / res);
+  const areaHpx = Math.max(1, (area.y1 - area.y0) / res);
+  const gap = 1.18;
+
+  const setFont = px => { ctx.font = `${cfg.weight} ${px}px 'Noto Sans KR', system-ui, sans-serif`; };
+  setFont(fontPx);
+  let maxW = 0;
+  lines.forEach(l => { maxW = Math.max(maxW, ctx.measureText(l).width); });
+
+  if (cfg.fit) {
+    let scale = 1;
+    if (maxW > areaWpx) scale = Math.min(scale, areaWpx / maxW);
+    const totalH = lines.length * fontPx * gap;
+    if (totalH > areaHpx) scale = Math.min(scale, areaHpx / totalH);
+    if (scale < 1) { fontPx *= scale; setFont(fontPx); }
+  }
+
+  ctx.fillStyle = '#fff';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const cxPx = pxOf((area.x0 + area.x1) / 2);
+  const cyPx = pyOf((area.y0 + area.y1) / 2);
+  const step = fontPx * gap;
+  const startY = cyPx - (lines.length - 1) * step / 2;
+  lines.forEach((l, i) => ctx.fillText(l, cxPx, startY + i * step));
+
+  const img = ctx.getImageData(0, 0, cols, rows).data;
+  const mask = new Uint8Array(cols * rows);
+  for (let i = 0, n = cols * rows; i < n; i++) mask[i] = img[i * 4] > 127 ? 1 : 0;
+  return { mask, fontMm: fontPx * res };
+}
+
+/* 라벨 한 장의 하이트맵을 만든다 */
+function buildHeightmap(lines, cfg) {
+  const res = cfg.res;
+  const cols = Math.max(4, Math.round(cfg.w / res));
+  const rows = Math.max(4, Math.round(cfg.h / res));
+  const W = cols * res, H = rows * res;
+  const hm = new Float32Array(cols * rows);
+
+  // hm 은 Float32Array 이므로, 이후 === 비교가 맞으려면 float32 로 맞춰 둔 값을 써야 한다
+  const baseT = Math.fround(cfg.t);
+  const frameTop = Math.fround(cfg.t + cfg.fh);
+  const fw = cfg.frame ? cfg.fw : 0;
+
+  /* 1) 바닥판 + 테두리 턱 */
+  for (let r = 0; r < rows; r++) {
+    const y = (rows - 1 - r + 0.5) * res;
+    for (let c = 0; c < cols; c++) {
+      const x = (c + 0.5) * res;
+      if (!inRoundRect(x, y, W, H, cfg.r)) continue;
+      let h = baseT;
+      if (cfg.frame && !inRoundRect(x - fw, y - fw, W - 2 * fw, H - 2 * fw, cfg.r - fw)) h = frameTop;
+      hm[r * cols + c] = h;
+    }
+  }
+
+  /* 2) 글자 영역 계산 (테두리·구멍을 피한다) */
+  const padV = 1.5;
+  const holeSpace = cfg.holeM + cfg.holeD + 1;   // 구멍 바깥선 + 1mm 여유
+  const area = {
+    x0: cfg.pad + fw + (cfg.holeMode === 'left' || cfg.holeMode === 'both' ? holeSpace : 0),
+    x1: W - cfg.pad - fw - (cfg.holeMode === 'both' ? holeSpace : 0),
+    y0: padV + fw,
+    y1: H - padV - fw - (cfg.holeMode === 'top' ? holeSpace : 0)
+  };
+  if (area.x1 - area.x0 < 2) { area.x0 = fw + 0.5; area.x1 = W - fw - 0.5; }
+  if (area.y1 - area.y0 < 2) { area.y0 = fw + 0.5; area.y1 = H - fw - 0.5; }
+
+  /* 3) 글자 각인 */
+  const raster = rasterizeText(lines, cfg, cols, rows, W, H, area);
+  let fontMm = cfg.textSize;
+  if (raster) {
+    fontMm = raster.fontMm;
+    const engraveFloor = Math.fround(Math.max(0.4, Math.min(cfg.t - 0.4, cfg.t - cfg.depth)));
+    for (let i = 0, n = cols * rows; i < n; i++) {
+      if (!raster.mask[i]) continue;
+      const cur = hm[i];
+      if (cur <= 0) continue;                 // 판 밖은 무시
+      if (cfg.mode === 'emboss') {
+        if (cur === baseT) hm[i] = Math.fround(cfg.t + cfg.depth);
+      } else {
+        if (cur === baseT) hm[i] = engraveFloor;
+      }
+    }
+  }
+
+  /* 4) 걸이 구멍 */
+  const holes = [];
+  const rad = cfg.holeD / 2;
+  const off = cfg.holeM + rad;
+  if (cfg.holeMode === 'left') holes.push([off, H / 2]);
+  if (cfg.holeMode === 'both') { holes.push([off, H / 2]); holes.push([W - off, H / 2]); }
+  if (cfg.holeMode === 'top') { holes.push([off, H - off]); holes.push([W - off, H - off]); }
+  if (holes.length) {
+    for (let r = 0; r < rows; r++) {
+      const y = (rows - 1 - r + 0.5) * res;
+      for (let c = 0; c < cols; c++) {
+        const i = r * cols + c;
+        if (hm[i] <= 0) continue;
+        const x = (c + 0.5) * res;
+        for (const [hx, hy] of holes) {
+          const dx = x - hx, dy = y - hy;
+          if (dx * dx + dy * dy <= rad * rad) { hm[i] = 0; break; }
+        }
+      }
+    }
+  }
+
+  /* 부피 (mm³) */
+  let vol = 0;
+  for (let i = 0, n = cols * rows; i < n; i++) vol += hm[i];
+  vol *= res * res;
+
+  return { hm, cols, rows, res, W, H, vol, fontMm };
+}
+
+/* 하이트맵 → 삼각형 목록 (9 float = 삼각형 1개) */
+function meshFromHeightmap(g, ox, oy, out) {
+  const { hm, cols, rows, res } = g;
+  const P = out || [];
+  const H = (c, r) => (c < 0 || r < 0 || c >= cols || r >= rows) ? 0 : hm[r * cols + c];
+  const X = c => ox + c * res;
+  const YL = r => oy + (rows - 1 - r) * res;   // 셀의 낮은 y 모서리
+  const YH = r => oy + (rows - r) * res;       // 셀의 높은 y 모서리
+
+  const push = (a, b, c) => P.push(a[0], a[1], a[2], b[0], b[1], b[2], c[0], c[1], c[2]);
+  const quad = (a, b, c, d) => { push(a, b, c); push(a, c, d); };
+
+  // 윗면 / 아랫면 : x 방향 런렝스로 병합
+  for (let r = 0; r < rows; r++) {
+    let c = 0;
+    while (c < cols) {
+      const h = H(c, r);
+      if (h <= 0) { c++; continue; }
+      let c2 = c;
+      while (c2 + 1 < cols && H(c2 + 1, r) === h) c2++;
+      const x0 = X(c), x1 = X(c2 + 1), y0 = YL(r), y1 = YH(r);
+      quad([x0, y0, h], [x1, y0, h], [x1, y1, h], [x0, y1, h]);   // +Z
+      quad([x0, y0, 0], [x0, y1, 0], [x1, y1, 0], [x1, y0, 0]);   // -Z
+      c = c2 + 1;
+    }
+  }
+
+  // 세로 벽 (x = X(c+1) 평면) : y 방향 런렝스
+  for (let c = -1; c < cols; c++) {
+    let r = 0;
+    while (r < rows) {
+      const hl = H(c, r), hr = H(c + 1, r);
+      if (hl === hr) { r++; continue; }
+      let r2 = r;
+      while (r2 + 1 < rows && H(c, r2 + 1) === hl && H(c + 1, r2 + 1) === hr) r2++;
+      const xw = X(c + 1), yA = YL(r2), yB = YH(r);
+      const lo = Math.min(hl, hr), hi = Math.max(hl, hr);
+      if (hl > hr) quad([xw, yA, lo], [xw, yB, lo], [xw, yB, hi], [xw, yA, hi]);  // +X
+      else         quad([xw, yA, lo], [xw, yA, hi], [xw, yB, hi], [xw, yB, lo]);  // -X
+      r = r2 + 1;
+    }
+  }
+
+  // 가로 벽 (y = YL(r) 평면) : x 방향 런렝스
+  for (let r = -1; r < rows; r++) {
+    let c = 0;
+    while (c < cols) {
+      const hu = H(c, r), hd = H(c, r + 1);
+      if (hu === hd) { c++; continue; }
+      let c2 = c;
+      while (c2 + 1 < cols && H(c2 + 1, r) === hu && H(c2 + 1, r + 1) === hd) c2++;
+      const yw = YL(r), x0 = X(c), x1 = X(c2 + 1);
+      const lo = Math.min(hu, hd), hi = Math.max(hu, hd);
+      if (hu > hd) quad([x0, yw, lo], [x1, yw, lo], [x1, yw, hi], [x0, yw, hi]);  // -Y
+      else         quad([x0, yw, lo], [x0, yw, hi], [x1, yw, hi], [x1, yw, lo]);  // +Y
+      c = c2 + 1;
+    }
+  }
+  return P;
+}
+
+/* 라벨 1장 → { tris, vol, W, H } */
+function buildLabel(lines, cfg) {
+  const g = buildHeightmap(lines, cfg);
+  const tris = new Float32Array(meshFromHeightmap(g, 0, 0));
+  return { tris, vol: g.vol, W: g.W, H: g.H, fontMm: g.fontMm };
+}
+
+/* 여러 장을 베드 위에 격자 배치해 하나의 메시로 */
+function buildBed(jobs, cfg, bedW, bedH) {
+  const gap = 3;
+  const g0 = buildHeightmap(jobs[0].lines, cfg);
+  const cw = g0.W + gap, ch = g0.H + gap;
+  const perRow = Math.max(1, Math.floor((bedW + gap) / cw));
+  const rowsNeeded = Math.ceil(jobs.length / perRow);
+  const usedH = rowsNeeded * ch - gap;
+  const startX = Math.max(0, (bedW - (Math.min(jobs.length, perRow) * cw - gap)) / 2);
+  const startY = Math.max(0, (bedH - usedH) / 2);
+  const out = [];
+  let vol = 0;
+  jobs.forEach((job, i) => {
+    const g = (i === 0) ? g0 : buildHeightmap(job.lines, cfg);
+    const col = i % perRow, row = Math.floor(i / perRow);
+    meshFromHeightmap(g, startX + col * cw, startY + usedH - (row + 1) * ch + gap, out);
+    vol += g.vol;
+  });
+  return { tris: new Float32Array(out), vol, fits: usedH <= bedH, perRow, rowsNeeded };
+}
+
+/* ==========================================================
+   파일 내보내기
+   ========================================================== */
+function triNormal(P, i) {
+  const ax = P[i], ay = P[i + 1], az = P[i + 2];
+  const bx = P[i + 3], by = P[i + 4], bz = P[i + 5];
+  const cx = P[i + 6], cy = P[i + 7], cz = P[i + 8];
+  const ux = bx - ax, uy = by - ay, uz = bz - az;
+  const vx = cx - ax, vy = cy - ay, vz = cz - az;
+  let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+  const len = Math.hypot(nx, ny, nz) || 1;
+  return [nx / len, ny / len, nz / len];
+}
+
+function toSTLBinary(P, title) {
+  const n = P.length / 9;
+  const buf = new ArrayBuffer(84 + n * 50);
+  const dv = new DataView(buf);
+  const head = ('worker-counter print3d · ' + (title || '')).slice(0, 79);
+  for (let i = 0; i < head.length; i++) dv.setUint8(i, head.charCodeAt(i) & 0x7f);
+  dv.setUint32(80, n, true);
+  let o = 84;
+  for (let t = 0; t < n; t++) {
+    const i = t * 9;
+    const nr = triNormal(P, i);
+    dv.setFloat32(o, nr[0], true); dv.setFloat32(o + 4, nr[1], true); dv.setFloat32(o + 8, nr[2], true);
+    o += 12;
+    for (let k = 0; k < 9; k++) { dv.setFloat32(o, P[i + k], true); o += 4; }
+    dv.setUint16(o, 0, true); o += 2;
+  }
+  return new Uint8Array(buf);
+}
+
+function toSTLAscii(P, name) {
+  const n = P.length / 9;
+  const out = [`solid ${name}`];
+  for (let t = 0; t < n; t++) {
+    const i = t * 9;
+    const nr = triNormal(P, i);
+    out.push(`facet normal ${nr[0].toFixed(6)} ${nr[1].toFixed(6)} ${nr[2].toFixed(6)}`);
+    out.push('  outer loop');
+    for (let k = 0; k < 3; k++) {
+      const j = i + k * 3;
+      out.push(`    vertex ${P[j].toFixed(4)} ${P[j + 1].toFixed(4)} ${P[j + 2].toFixed(4)}`);
+    }
+    out.push('  endloop');
+    out.push('endfacet');
+  }
+  out.push(`endsolid ${name}`);
+  return out.join('\n');
+}
+
+function toOBJ(P, name) {
+  const n = P.length / 9;
+  const out = [`# worker-counter print3d · ${name}`, `o ${name}`];
+  for (let t = 0; t < n; t++) {
+    const i = t * 9;
+    for (let k = 0; k < 3; k++) {
+      const j = i + k * 3;
+      out.push(`v ${P[j].toFixed(4)} ${P[j + 1].toFixed(4)} ${P[j + 2].toFixed(4)}`);
+    }
+  }
+  for (let t = 0; t < n; t++) out.push(`f ${t * 3 + 1} ${t * 3 + 2} ${t * 3 + 3}`);
+  return out.join('\n');
+}
+
+/* ---------- ZIP (무압축 store) ---------- */
+const CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let i = 0; i < 256; i++) {
+    let c = i;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[i] = c >>> 0;
+  }
+  return t;
+})();
+function crc32(u8) {
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < u8.length; i++) c = CRC_TABLE[(c ^ u8[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+function zipStore(files) {
+  const enc = new TextEncoder();
+  const parts = [], central = [];
+  let offset = 0;
+  files.forEach(f => {
+    const nameBytes = enc.encode(f.name);
+    const crc = crc32(f.data);
+    const lh = new Uint8Array(30 + nameBytes.length);
+    const dv = new DataView(lh.buffer);
+    dv.setUint32(0, 0x04034b50, true);
+    dv.setUint16(4, 20, true); dv.setUint16(6, 0x0800, true); dv.setUint16(8, 0, true);
+    dv.setUint16(10, 0, true); dv.setUint16(12, 0x2821, true);
+    dv.setUint32(14, crc, true);
+    dv.setUint32(18, f.data.length, true);
+    dv.setUint32(22, f.data.length, true);
+    dv.setUint16(26, nameBytes.length, true); dv.setUint16(28, 0, true);
+    lh.set(nameBytes, 30);
+    parts.push(lh, f.data);
+
+    const ch = new Uint8Array(46 + nameBytes.length);
+    const cv = new DataView(ch.buffer);
+    cv.setUint32(0, 0x02014b50, true);
+    cv.setUint16(4, 20, true); cv.setUint16(6, 20, true);
+    cv.setUint16(8, 0x0800, true); cv.setUint16(10, 0, true);
+    cv.setUint16(12, 0, true); cv.setUint16(14, 0x2821, true);
+    cv.setUint32(16, crc, true);
+    cv.setUint32(20, f.data.length, true);
+    cv.setUint32(24, f.data.length, true);
+    cv.setUint16(28, nameBytes.length, true);
+    cv.setUint32(42, offset, true);
+    ch.set(nameBytes, 46);
+    central.push(ch);
+    offset += lh.length + f.data.length;
+  });
+  const centralSize = central.reduce((a, b) => a + b.length, 0);
+  const end = new Uint8Array(22);
+  const ev = new DataView(end.buffer);
+  ev.setUint32(0, 0x06054b50, true);
+  ev.setUint16(8, files.length, true); ev.setUint16(10, files.length, true);
+  ev.setUint32(12, centralSize, true);
+  ev.setUint32(16, offset, true);
+  return new Blob([...parts, ...central, end], { type: 'application/zip' });
+}
+
+/* ==========================================================
+   WebGL 미리보기 (라이브러리 없이 직접 구현)
+   ========================================================== */
+const view = (function () {
+  const canvas = $('gl');
+  let gl = null, prog = null, vbo = null, nbo = null, count = 0, ready = false;
+  let yaw = -0.45, pitch = 0.95, dist = 120;
+  let target = [0, 0, 0];
+  let dirty = true;
+
+  const VS = `
+    attribute vec3 aPos; attribute vec3 aNor;
+    uniform mat4 uMV; uniform mat4 uP;
+    varying vec3 vN;
+    void main() {
+      vN = (uMV * vec4(aNor, 0.0)).xyz;
+      gl_Position = uP * uMV * vec4(aPos, 1.0);
+    }`;
+  const FS = `
+    precision mediump float;
+    varying vec3 vN;
+    void main() {
+      vec3 n = normalize(vN);
+      if (!gl_FrontFacing) n = -n;
+      float k  = max(dot(n, normalize(vec3(0.35, 0.45, 0.82))), 0.0);
+      float k2 = max(dot(n, normalize(vec3(-0.6, -0.3, 0.4))), 0.0);
+      float rim = pow(1.0 - max(n.z, 0.0), 3.0);
+      vec3 base = vec3(0.95, 0.73, 0.06);
+      vec3 col = base * (0.22 + 0.68 * k + 0.20 * k2) + vec3(0.30, 0.26, 0.16) * rim;
+      gl_FragColor = vec4(col, 1.0);
+    }`;
+
+  function compile(type, src) {
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src); gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+    return s;
+  }
+
+  function init() {
+    try {
+      gl = canvas.getContext('webgl', { antialias: true, alpha: false })
+        || canvas.getContext('experimental-webgl');
+      if (!gl) throw new Error('no webgl');
+      prog = gl.createProgram();
+      gl.attachShader(prog, compile(gl.VERTEX_SHADER, VS));
+      gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, FS));
+      gl.linkProgram(prog);
+      if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+      vbo = gl.createBuffer(); nbo = gl.createBuffer();
+      gl.enable(gl.DEPTH_TEST);
+      ready = true;
+      bind();
+      loop();
+    } catch (e) {
+      const el = $('gl-err');
+      el.style.display = 'flex';
+      el.textContent = '이 브라우저에서는 3D 미리보기를 쓸 수 없습니다. 내보내기 기능은 정상 동작합니다.';
+    }
+  }
+
+  /* ---- 행렬 ---- */
+  function perspective(fovy, aspect, near, far) {
+    const f = 1 / Math.tan(fovy / 2), nf = 1 / (near - far);
+    return [f / aspect, 0, 0, 0, 0, f, 0, 0, 0, 0, (far + near) * nf, -1, 0, 0, 2 * far * near * nf, 0];
+  }
+  function lookAt(eye, ctr, up) {
+    const z = norm([eye[0] - ctr[0], eye[1] - ctr[1], eye[2] - ctr[2]]);
+    const x = norm(cross(up, z));
+    const y = cross(z, x);
+    return [
+      x[0], y[0], z[0], 0,
+      x[1], y[1], z[1], 0,
+      x[2], y[2], z[2], 0,
+      -dot(x, eye), -dot(y, eye), -dot(z, eye), 1
+    ];
+  }
+  function cross(a, b) { return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]; }
+  function dot(a, b) { return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; }
+  function norm(a) { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; }
+
+  /* ---- 메시 업로드 ---- */
+  function setMesh(P) {
+    if (!ready) return;
+    const n = P.length / 9;
+    const nor = new Float32Array(P.length);
+    for (let t = 0; t < n; t++) {
+      const i = t * 9;
+      const nr = triNormal(P, i);
+      for (let k = 0; k < 3; k++) { nor[i + k * 3] = nr[0]; nor[i + k * 3 + 1] = nr[1]; nor[i + k * 3 + 2] = nr[2]; }
+    }
+    gl.bindBuffer(gl.ARRAY_BUFFER, vbo); gl.bufferData(gl.ARRAY_BUFFER, P, gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, nbo); gl.bufferData(gl.ARRAY_BUFFER, nor, gl.STATIC_DRAW);
+    count = P.length / 3;
+    dirty = true;
+  }
+
+  function frame(bbox) {
+    target = [(bbox[0] + bbox[3]) / 2, (bbox[1] + bbox[4]) / 2, (bbox[2] + bbox[5]) / 2];
+    const span = Math.max(bbox[3] - bbox[0], bbox[4] - bbox[1], bbox[5] - bbox[2], 5);
+    dist = span * 1.75;
+    dirty = true;
+  }
+
+  function draw() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
+      canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
+    }
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.clearColor(0.102, 0.102, 0.110, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    if (!count) return;
+
+    const cp = Math.cos(pitch), sp = Math.sin(pitch);
+    const eye = [
+      target[0] + dist * cp * Math.sin(yaw),
+      target[1] - dist * cp * Math.cos(yaw),
+      target[2] + dist * sp
+    ];
+    const P = perspective(0.62, (w || 1) / (h || 1), 0.5, 5000);
+    const MV = lookAt(eye, target, [0, 0, 1]);
+
+    gl.useProgram(prog);
+    gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'uP'), false, new Float32Array(P));
+    gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'uMV'), false, new Float32Array(MV));
+    const aPos = gl.getAttribLocation(prog, 'aPos'), aNor = gl.getAttribLocation(prog, 'aNor');
+    gl.bindBuffer(gl.ARRAY_BUFFER, vbo); gl.enableVertexAttribArray(aPos); gl.vertexAttribPointer(aPos, 3, gl.FLOAT, false, 0, 0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, nbo); gl.enableVertexAttribArray(aNor); gl.vertexAttribPointer(aNor, 3, gl.FLOAT, false, 0, 0);
+    gl.drawArrays(gl.TRIANGLES, 0, count);
+  }
+
+  function loop() {
+    if (dirty) { dirty = false; draw(); }
+    requestAnimationFrame(loop);
+  }
+
+  function bind() {
+    let dragging = false, lx = 0, ly = 0;
+    canvas.addEventListener('pointerdown', e => { dragging = true; lx = e.clientX; ly = e.clientY; canvas.setPointerCapture(e.pointerId); });
+    canvas.addEventListener('pointermove', e => {
+      if (!dragging) return;
+      yaw += (e.clientX - lx) * 0.01;
+      pitch = clamp(pitch + (e.clientY - ly) * 0.01, -1.5, 1.5);
+      lx = e.clientX; ly = e.clientY; dirty = true;
+    });
+    const stop = e => { dragging = false; try { canvas.releasePointerCapture(e.pointerId); } catch {} };
+    canvas.addEventListener('pointerup', stop);
+    canvas.addEventListener('pointercancel', stop);
+    canvas.addEventListener('wheel', e => {
+      e.preventDefault();
+      dist = clamp(dist * (e.deltaY > 0 ? 1.1 : 0.9), 5, 4000);
+      dirty = true;
+    }, { passive: false });
+    window.addEventListener('resize', () => { dirty = true; });
+  }
+
+  return { init, setMesh, frame, markDirty: () => { dirty = true; } };
+})();
+
+function bboxOf(P) {
+  if (!P.length) return [0, 0, 0, 1, 1, 1];
+  let x0 = Infinity, y0 = Infinity, z0 = Infinity, x1 = -Infinity, y1 = -Infinity, z1 = -Infinity;
+  for (let i = 0; i < P.length; i += 3) {
+    if (P[i] < x0) x0 = P[i]; if (P[i] > x1) x1 = P[i];
+    if (P[i + 1] < y0) y0 = P[i + 1]; if (P[i + 1] > y1) y1 = P[i + 1];
+    if (P[i + 2] < z0) z0 = P[i + 2]; if (P[i + 2] > z1) z1 = P[i + 2];
+  }
+  return [x0, y0, z0, x1, y1, z1];
+}
+
+/* ==========================================================
+   미리보기 갱신
+   ========================================================== */
+const PLA_DENSITY = 1.24;   // g/cm³
+let refreshTimer = null;
+let lastFrameKey = '';
+
+function scheduleRefresh(reframe) {
+  clearTimeout(refreshTimer);
+  refreshTimer = setTimeout(() => refresh(reframe), 110);
+}
+
+function refresh(reframe) {
+  const cfg = readConfig();
+  state.jobs = dedupeNames(buildJobs());
+  const n = state.jobs.length;
+  state.cursor = n ? clamp(state.cursor, 0, n - 1) : 0;
+
+  $('nav-label').textContent = `${n ? state.cursor + 1 : 0} / ${n}`;
+  $('exp-count').textContent = n ? `선택 ${n}건` : '선택 없음';
+  $('src-count').textContent = state.src === 'master' ? `선택 ${state.selected.size}건` : `${n}건`;
+  $('plate-dim').textContent = `${cfg.w} × ${cfg.h} × ${cfg.t} mm`;
+  ['btn-stl', 'btn-zip', 'btn-bed', 'btn-ascii', 'btn-obj'].forEach(id => { $(id).disabled = !n; });
+
+  const lines = n ? state.jobs[state.cursor].lines : ['품번을 선택하세요'];
+  let label;
+  try {
+    label = buildLabel(lines, cfg);
+  } catch (e) {
+    toast('미리보기 생성 실패: ' + e.message, true);
+    return;
+  }
+  state.meshCache = label;
+
+  const tri = label.tris.length / 9;
+  $('st-size').textContent = `${label.W.toFixed(0)}×${label.H.toFixed(0)}`;
+  $('st-tri').textContent = tri.toLocaleString();
+  $('st-vol').textContent = (label.vol / 1000).toFixed(2);
+  $('st-weight').textContent = (label.vol / 1000 * PLA_DENSITY).toFixed(1);
+
+  view.setMesh(label.tris);
+  const key = `${cfg.w}x${cfg.h}`;
+  if (reframe || key !== lastFrameKey) { view.frame(bboxOf(label.tris)); lastFrameKey = key; }
+}
+
+/* ==========================================================
+   부품 목록 UI
+   ========================================================== */
+const MAX_ROWS = 400;
+
+function renderProcChips() {
+  const procs = uniq(state.parts.map(p => p.process)).sort();
+  const el = $('proc-chips');
+  el.innerHTML = [`<button class="chip ${state.procFilter ? '' : 'on'}" data-proc="">전체</button>`]
+    .concat(procs.map(p => `<button class="chip ${state.procFilter === p ? 'on' : ''}" data-proc="${escapeHtml(p)}">${escapeHtml(p)}</button>`))
+    .join('');
+  el.querySelectorAll('[data-proc]').forEach(b => b.addEventListener('click', () => {
+    state.procFilter = b.dataset.proc;
+    renderProcChips(); applyFilter();
+  }));
+}
+
+function applyFilter() {
+  const q = state.search.trim().toLowerCase();
+  state.filtered = state.parts.filter(p => {
+    if (state.procFilter && p.process !== state.procFilter) return false;
+    if (!q) return true;
+    return [p.part_number, p.name, p.car_model, p.color, p.fabric, p.process]
+      .some(v => String(v ?? '').toLowerCase().includes(q));
+  });
+  renderParts();
+}
+
+function partMeta(p) {
+  return uniq([p.process, p.car_model, p.color, p.fabric, p.side, p.name]).join(' · ');
+}
+
+function renderParts() {
+  const box = $('parts-box');
+  if (!state.parts.length) {
+    box.innerHTML = '<div class="parts-empty">부품 마스터가 없습니다.<br>작업량 입력 앱에서 한 번 동기화하거나 “직접 입력”을 사용하세요.</div>';
+    return;
+  }
+  if (!state.filtered.length) {
+    box.innerHTML = '<div class="parts-empty">조건에 맞는 품번이 없습니다</div>';
+    return;
+  }
+  const rows = state.filtered.slice(0, MAX_ROWS);
+  box.innerHTML = rows.map(p => {
+    const on = state.selected.has(p.part_number);
+    return `<div class="part-row ${on ? 'on' : ''}" data-pn="${escapeHtml(p.part_number)}">
+      <div class="part-check">${on ? '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0f0f10" stroke-width="3.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>' : ''}</div>
+      <div class="part-main">
+        <div class="part-pn">${escapeHtml(p.part_number)}</div>
+        <div class="part-meta">${escapeHtml(partMeta(p))}</div>
+      </div>
+    </div>`;
+  }).join('') + (state.filtered.length > MAX_ROWS
+    ? `<div class="parts-empty">… 외 ${state.filtered.length - MAX_ROWS}건 · 검색으로 좁혀주세요</div>` : '');
+
+  box.querySelectorAll('[data-pn]').forEach(el => el.addEventListener('click', () => {
+    const pn = el.dataset.pn;
+    if (state.selected.has(pn)) state.selected.delete(pn); else state.selected.add(pn);
+    renderParts(); scheduleRefresh();
+  }));
+}
+
+/* ==========================================================
+   내보내기 핸들러
+   ========================================================== */
+function currentJobName() {
+  const j = state.jobs[state.cursor];
+  return j ? (j.file || j.name) : 'label';
+}
+
+function exportSingle(kind) {
+  if (!state.meshCache) return;
+  const P = state.meshCache.tris;
+  const name = currentJobName();
+  if (kind === 'stl') downloadBlob(new Blob([toSTLBinary(P, name)], { type: 'model/stl' }), `${name}.stl`);
+  if (kind === 'ascii') downloadBlob(new Blob([toSTLAscii(P, name)], { type: 'model/stl' }), `${name}_ascii.stl`);
+  if (kind === 'obj') downloadBlob(new Blob([toOBJ(P, name)], { type: 'text/plain' }), `${name}.obj`);
+  toast(`${name} 내려받기 완료`);
+}
+
+async function exportZip() {
+  const cfg = readConfig();
+  const jobs = state.jobs;
+  if (!jobs.length) return;
+  if (jobs.length > 200 && !confirm(`${jobs.length}건을 한 번에 만들면 시간이 걸립니다. 계속할까요?`)) return;
+  toast(`${jobs.length}건 생성 중…`);
+  await new Promise(r => setTimeout(r, 30));
+  try {
+    const files = jobs.map(j => ({
+      name: `${j.file}.stl`,
+      data: toSTLBinary(buildLabel(j.lines, cfg).tris, j.file)
+    }));
+    downloadBlob(zipStore(files), `labels_${jobs.length}ea.zip`);
+    toast(`${jobs.length}건 ZIP 내려받기 완료`);
+  } catch (e) {
+    toast('ZIP 생성 실패: ' + e.message, true);
+  }
+}
+
+async function exportBed() {
+  const cfg = readConfig();
+  const jobs = state.jobs;
+  if (!jobs.length) return;
+  const bedW = clamp(numOf('bed-w', 220), 50, 1000);
+  const bedH = clamp(numOf('bed-h', 220), 50, 1000);
+  toast(`${jobs.length}건 배치 중…`);
+  await new Promise(r => setTimeout(r, 30));
+  try {
+    const bed = buildBed(jobs, cfg, bedW, bedH);
+    downloadBlob(new Blob([toSTLBinary(bed.tris, 'bed')], { type: 'model/stl' }), `bed_${jobs.length}ea.stl`);
+    view.setMesh(bed.tris); view.frame(bboxOf(bed.tris)); lastFrameKey = 'bed';
+    toast(bed.fits
+      ? `한 판 ${jobs.length}건 배치 완료 (가로 ${bed.perRow}개 × ${bed.rowsNeeded}줄)`
+      : `베드보다 큽니다 · ${bed.rowsNeeded}줄 필요 · 나눠서 출력하세요`, !bed.fits);
+  } catch (e) {
+    toast('배치 실패: ' + e.message, true);
+  }
+}
+
+/* ==========================================================
+   이벤트 연결
+   ========================================================== */
+const PRESETS = {
+  tag:   { w: 40,  h: 20, t: 2,   r: 2.5, size: 5 },
+  label: { w: 60,  h: 25, t: 2,   r: 3,   size: 6 },
+  big:   { w: 60,  h: 40, t: 2.4, r: 4,   size: 8 },
+  shelf: { w: 100, h: 35, t: 3,   r: 4,   size: 11 }
+};
+
+function bindUI() {
+  // 소스 전환
+  $('src-seg').querySelectorAll('[data-src]').forEach(b => b.addEventListener('click', () => {
+    state.src = b.dataset.src;
+    $('src-seg').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+    $('src-master').style.display = state.src === 'master' ? '' : 'none';
+    $('src-free').style.display = state.src === 'free' ? '' : 'none';
+    $('tpl-box').style.display = state.src === 'master' ? '' : 'none';
+    scheduleRefresh();
+  }));
+
+  // 프리셋
+  $('preset-chips').querySelectorAll('[data-preset]').forEach(b => b.addEventListener('click', () => {
+    const p = PRESETS[b.dataset.preset];
+    $('preset-chips').querySelectorAll('.chip').forEach(x => x.classList.toggle('on', x === b));
+    $('p-w').value = p.w; $('p-h').value = p.h; $('p-t').value = p.t;
+    $('p-r').value = p.r; $('t-size').value = p.size;
+    scheduleRefresh(true);
+  }));
+
+  // 양각 / 음각
+  $('mode-seg').querySelectorAll('[data-mode]').forEach(b => b.addEventListener('click', () => {
+    $('mode-seg').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+    $('lbl-depth').textContent = b.dataset.mode === 'emboss' ? '각인 높이 mm' : '각인 깊이 mm';
+    scheduleRefresh();
+  }));
+
+  // 구멍
+  $('hole-chips').querySelectorAll('[data-hole]').forEach(b => b.addEventListener('click', () => {
+    $('hole-chips').querySelectorAll('.chip').forEach(x => x.classList.toggle('on', x === b));
+    $('hole-opts').style.display = b.dataset.hole === 'none' ? 'none' : '';
+    scheduleRefresh();
+  }));
+
+  // 토글
+  $('tg-frame').addEventListener('click', () => {
+    const on = $('tg-frame').classList.toggle('on');
+    $('frame-opts').style.display = on ? '' : 'none';
+    scheduleRefresh();
+  });
+  $('tg-fit').addEventListener('click', () => { $('tg-fit').classList.toggle('on'); scheduleRefresh(); });
+
+  // 숫자 · 문구 입력
+  ['p-w', 'p-h', 'p-t', 'p-r', 'p-res', 'f-w', 'f-h', 't-depth', 't-size', 't-pad', 'h-d', 'h-m']
+    .forEach(id => $(id).addEventListener('input', () => scheduleRefresh(id === 'p-w' || id === 'p-h')));
+  $('t-weight').addEventListener('change', () => scheduleRefresh());
+  ['tpl1', 'tpl2', 'tpl3', 'free-text'].forEach(id => $(id).addEventListener('input', () => scheduleRefresh()));
+
+  // 검색 · 선택
+  $('part-search').addEventListener('input', e => { state.search = e.target.value; applyFilter(); });
+  $('btn-sel-page').addEventListener('click', () => {
+    state.filtered.slice(0, MAX_ROWS).forEach(p => state.selected.add(p.part_number));
+    renderParts(); scheduleRefresh();
+  });
+  $('btn-sel-clear').addEventListener('click', () => {
+    state.selected.clear(); renderParts(); scheduleRefresh();
+  });
+
+  // 미리보기 이동
+  $('nav-prev').addEventListener('click', () => { if (state.jobs.length) { state.cursor = (state.cursor - 1 + state.jobs.length) % state.jobs.length; refresh(); } });
+  $('nav-next').addEventListener('click', () => { if (state.jobs.length) { state.cursor = (state.cursor + 1) % state.jobs.length; refresh(); } });
+
+  // 내보내기
+  $('btn-stl').addEventListener('click', () => exportSingle('stl'));
+  $('btn-ascii').addEventListener('click', () => exportSingle('ascii'));
+  $('btn-obj').addEventListener('click', () => exportSingle('obj'));
+  $('btn-zip').addEventListener('click', exportZip);
+  $('btn-bed').addEventListener('click', exportBed);
+}
+
+/* ==========================================================
+   시작
+   ========================================================== */
+async function init() {
+  bindUI();
+  view.init();
+  try { if (document.fonts && document.fonts.ready) await document.fonts.ready; } catch {}
+  refresh(true);
+  loadParts().then(() => scheduleRefresh());
+}
+init();
+</script>
+</body>
+</html>
