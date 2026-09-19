@@ -236,22 +236,32 @@
       </div>
     </div>
 
-    <!-- 3. 각인 -->
+    <!-- 3. 명함 패널 -->
     <div class="card">
-      <div class="card-head"><div class="card-num">3</div><div class="card-title">커버 각인</div>
-        <div class="card-sub">커버 윗면</div></div>
+      <div class="card-head"><div class="card-num">3</div><div class="card-title">명함 패널</div>
+        <div class="card-sub" id="sub-panel">—</div></div>
       <div class="card-body">
+        <div class="hint" style="margin:-2px 0 2px">
+          명함 내용을 <b>양각</b>으로 찍은 평판입니다. 커버 위에 붙이면 명함 케이스가 되고,
+          그대로 쓰면 <b>3D 명함</b>이 됩니다.
+        </div>
+        <div class="chips" id="panel-size">
+          <button class="chip on" data-psize="cover">커버에 맞춤</button>
+          <button class="chip" data-psize="card">명함 크기 90×50</button>
+        </div>
+        <div class="grid3">
+          <div class="field"><div class="field-label">패널 두께 mm</div><input id="pn-t" class="txt mono" type="number" min="0.6" max="4" step="0.1" value="1.4"></div>
+          <div class="field"><div class="field-label">모서리 R mm</div><input id="pn-r" class="txt mono" type="number" min="0" max="12" step="0.5" value="3"></div>
+          <div class="field"><div class="field-label">양각 높이 mm</div><input id="pn-h" class="txt mono" type="number" min="0.2" max="2" step="0.1" value="0.6"></div>
+        </div>
         <div class="seg" id="deco-seg">
-          <button data-deco="both" class="on">로고+문구</button>
-          <button data-deco="logo">로고만</button>
-          <button data-deco="text">문구만</button>
-          <button data-deco="none">없음</button>
+          <button data-deco="emboss" class="on">양각 (튀어나옴)</button>
+          <button data-deco="engrave">음각 (파임)</button>
         </div>
-        <div class="seg" id="layout-seg">
-          <button data-lay="row" class="on">가로 배치</button>
-          <button data-lay="col">세로 배치</button>
+        <div class="switch">
+          <div><div class="switch-label">가운데 구분선</div><div class="switch-hint">실제 명함처럼 위아래를 나눕니다</div></div>
+          <div class="toggle on" id="tg-rule"></div>
         </div>
-
         <div class="logo-row">
           <div class="logo-prev" id="logo-prev"></div>
           <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:7px">
@@ -264,51 +274,86 @@
         </div>
         <input type="file" id="logo-file" accept="image/png,image/jpeg,image/svg+xml,.svg" style="display:none">
         <div class="grid2">
-          <div class="field"><div class="field-label">로고 크기 mm</div><input id="l-size" class="txt mono" type="number" min="5" max="60" step="0.5" value="20"></div>
-          <div class="field"><div class="field-label">각인 깊이 mm</div><input id="l-depth" class="txt mono" type="number" min="0.2" max="1.5" step="0.1" value="0.6"></div>
+          <div class="field"><div class="field-label">로고 크기 mm</div><input id="l-size" class="txt mono" type="number" min="5" max="40" step="0.5" value="15"></div>
+          <div class="field"><div class="field-label">본문 크기 mm</div><input id="t-body" class="txt mono" type="number" min="1.6" max="5" step="0.1" value="2.3"></div>
         </div>
         <div class="field" id="thr-box" style="display:none">
           <div class="field-label">업로드 이미지 임계값 <span id="thr-val" class="mono">160</span></div>
           <input id="l-thr" type="range" min="20" max="240" step="5" value="160" style="accent-color:var(--amber)">
         </div>
         <div class="switch" id="inv-box" style="display:none">
-          <div><div class="switch-label">밝고 어두움 반전</div><div class="switch-hint">로고가 반대로 파이면 켜세요</div></div>
+          <div><div class="switch-label">밝고 어두움 반전</div><div class="switch-hint">로고가 반대로 나오면 켜세요</div></div>
           <div class="toggle" id="tg-invert"></div>
         </div>
+      </div>
+    </div>
 
-        <div class="field" style="gap:7px">
-          <div class="field-label">각인 문구 (빈 줄은 건너뜀)</div>
-          <input id="t1" class="txt" type="text" value="(주)우주특수산업">
-          <input id="t2" class="txt" type="text" value="WooJoo Special Industry">
-          <input id="t3" class="txt" type="text" value="대표이사 백용선">
+    <!-- 4. 명함 내용 -->
+    <div class="card">
+      <div class="card-head"><div class="card-num">4</div><div class="card-title">명함 내용</div>
+        <div class="card-sub" id="sub-fit">—</div></div>
+      <div class="card-body">
+        <div class="grid2">
+          <div class="field"><div class="field-label">회사명 (국문)</div><input id="f-co-ko" class="txt" type="text" value="(주)우주특수산업"></div>
+          <div class="field"><div class="field-label">회사명 (영문)</div><input id="f-co-en" class="txt" type="text" value="WooJoo Special Industry"></div>
         </div>
         <div class="grid2">
-          <div class="field"><div class="field-label">문구 크기 mm</div><input id="t-size" class="txt mono" type="number" min="1.5" max="12" step="0.1" value="3.6"></div>
-          <div class="field"><div class="field-label">굵기</div>
-            <select id="t-weight" class="txt"><option value="500">보통</option><option value="700" selected>굵게</option><option value="900">아주 굵게</option></select>
-          </div>
+          <div class="field"><div class="field-label">직함</div><input id="f-title" class="txt" type="text" value="대표이사"></div>
+          <div class="field"><div class="field-label">이름</div><input id="f-name" class="txt" type="text" value="백용선"></div>
+        </div>
+
+        <div class="field-label" style="margin-top:2px">왼쪽 블록</div>
+        <input id="f-a-label" class="txt" type="text" value="본사">
+        <input id="f-a-addr" class="txt" type="text" value="울산광역시 중구 성안8길 55">
+        <div class="grid2">
+          <input id="f-a-tel" class="txt mono" type="text" value="TEL. 070-5154-4146">
+          <input id="f-a-fax" class="txt mono" type="text" value="FAX. 052) 943-6446">
+        </div>
+        <input id="f-a-mob" class="txt mono" type="text" value="Mobile. 010-2827-7649">
+
+        <div class="field-label" style="margin-top:2px">오른쪽 블록</div>
+        <input id="f-b-label" class="txt" type="text" value="경주공장">
+        <input id="f-b-addr" class="txt" type="text" value="경주시 외동읍 구어2산단로1길 114">
+        <div class="grid2">
+          <input id="f-b-tel" class="txt mono" type="text" value="TEL. 052) 243-6441">
+          <input id="f-b-fax" class="txt mono" type="text" value="FAX. 052) 243-6446">
+        </div>
+        <input id="f-b-mail" class="txt mono" type="text" value="E-mail. goforitseon@gwoojoo.co.kr">
+
+        <div class="field" style="margin-top:2px">
+          <div class="field-label">맨 아래 (가운데)</div>
+          <input id="f-web" class="txt mono" type="text" value="http://www.gwoojoo.com">
         </div>
       </div>
     </div>
 
     <!-- 4. 내보내기 -->
     <div class="card">
-      <div class="card-head"><div class="card-num">4</div><div class="card-title">내보내기</div>
+      <div class="card-head"><div class="card-num">5</div><div class="card-title">내보내기</div>
         <div class="card-sub" id="sub-tri">—</div></div>
       <div class="card-body">
-        <button class="btn btn-amber" id="btn-both">
+        <button class="btn btn-amber" id="btn-panel">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          한 판 STL (트레이+커버)
+          명함 패널 STL
         </button>
-        <div class="grid2">
-          <button class="btn btn-ghost" id="btn-tray">트레이만</button>
-          <button class="btn btn-ghost" id="btn-cover">커버만</button>
+        <button class="btn btn-ghost" id="btn-all">한 판 STL (전체 3개)</button>
+        <div class="grid3">
+          <button class="btn btn-ghost" id="btn-tray">트레이</button>
+          <button class="btn btn-ghost" id="btn-cover">커버</button>
+          <button class="btn btn-ghost" id="btn-both">케이스</button>
         </div>
-        <div class="hint">
-          <b>출력 방법</b> · 두 파트 모두 <b>열린 쪽이 위로</b> 놓인 상태라 서포트 없이 그대로 출력하면 됩니다.
-          커버의 로고·문구는 <b>베드에 닿는 면</b>에 파여 있어, 베드 면 광택 그대로 선명하게 나옵니다.
-          (뒤집어 봤을 때 바로 읽히도록 모델에서 좌우를 미리 반전해 두었습니다.)
-          레이어 0.15~0.2mm, 벽 3줄, 각인 깊이 0.4~0.6mm 권장.
+        <div class="hint" id="color-hint">
+          <b>흰 바탕 + 검정 글자로 뽑는 법</b><br>
+          패널을 <b>흰색 필라멘트</b>로 출력하다가, 슬라이서에서
+          <b id="hint-z">Z = 1.4mm</b> 높이에 <b>필라멘트 교체(Change filament / M600)</b>를 넣고
+          <b>검정</b>으로 바꾸면 글자와 로고만 검정으로 나옵니다.
+          (프루사슬라이서 = 오른쪽 레이어 막대 우클릭 → Add color change · 큐라 = Post Processing → Filament Change)
+          <br><br>
+          <b>출력 방법</b> · 세 파트 모두 서포트 없이 그대로 올려놓고 출력합니다.
+          패널은 글자면이 위를 보고 있어 그대로 뽑으면 됩니다.
+          트레이·커버는 열린 쪽이 위입니다. 레이어 0.15~0.2mm, 벽 3줄 권장.
+          패널은 커버 위에 양면테이프나 순간접착제로 붙이세요.
+          <span id="bed-note"></span>
         </div>
       </div>
     </div>
@@ -319,9 +364,10 @@
       <canvas id="gl"></canvas>
       <div class="viewer-badge">PREVIEW · 드래그 회전 / 휠 확대</div>
       <div class="viewer-seg" id="part-seg">
-        <button data-part="both" class="on">전체</button>
+        <button data-part="panel" class="on">패널</button>
         <button data-part="tray">트레이</button>
         <button data-part="cover">커버</button>
+        <button data-part="all">전체</button>
       </div>
       <button class="viewer-flip" id="btn-flip" title="뒤집어서 각인면 보기">뒤집어 보기</button>
       <div class="viewer-err" id="gl-err"></div>
@@ -508,6 +554,8 @@ function toSTLBinary(P, title) {
 /* ==========================================================
    설정 읽기
    ========================================================== */
+function val(id) { const e = $(id); return e ? e.value.trim() : ''; }
+
 function readConfig() {
   const cardW = clamp(numOf('c-w', 90), 40, 140);
   const cardD = clamp(numOf('c-d', 50), 30, 110);
@@ -523,25 +571,36 @@ function readConfig() {
   const trayWallH = stackH + 0.5;
   const coverWallH = Math.max(3, trayWallH * clamp(numOf('p-cover', 60), 25, 95) / 100);
   return {
-    cardW, cardD, tol, n, cardT, wall, floor, r, fit, res,
-    stackH, trayWallH, coverWallH,
+    cardW, cardD, tol, n, cardT, wall, floor, r, fit, res, stackH, trayWallH, coverWallH,
     notch: $('tg-notch').classList.contains('on'),
     notchW: clamp(numOf('n-w', 30), 8, 70),
     notchKeep: clamp(numOf('n-h', 1.2), 0.4, 8),
+
+    /* 패널 */
+    panelSize: document.querySelector('#panel-size .chip.on').dataset.psize,
+    panelT: clamp(numOf('pn-t', 1.4), 0.6, 4),
+    panelR: clamp(numOf('pn-r', 3), 0, 12),
+    embossH: clamp(numOf('pn-h', 0.6), 0.2, 2),
     deco: document.querySelector('#deco-seg button.on').dataset.deco,
-    lay: document.querySelector('#layout-seg button.on').dataset.lay,
-    logoSize: clamp(numOf('l-size', 20), 5, 60),
-    depth: clamp(numOf('l-depth', 0.6), 0.2, 1.5),
+    rule: $('tg-rule').classList.contains('on'),
+    logoSize: clamp(numOf('l-size', 15), 5, 40),
+    bodySize: clamp(numOf('t-body', 2.3), 1.6, 5),
     thr: clamp(numOf('l-thr', 160), 20, 240),
     invert: $('tg-invert').classList.contains('on'),
-    lines: [$('t1').value, $('t2').value, $('t3').value].map(s => s.trim()).filter(Boolean),
-    textSize: clamp(numOf('t-size', 3.6), 1.5, 12),
-    weight: $('t-weight').value
+
+    /* 명함 내용 */
+    coKo: val('f-co-ko'), coEn: val('f-co-en'),
+    title: val('f-title'), name: val('f-name'),
+    aLabel: val('f-a-label'),
+    aLines: [val('f-a-addr'), val('f-a-tel'), val('f-a-fax'), val('f-a-mob')].filter(Boolean),
+    bLabel: val('f-b-label'),
+    bLines: [val('f-b-addr'), val('f-b-tel'), val('f-b-fax'), val('f-b-mail')].filter(Boolean),
+    web: val('f-web')
   };
 }
 
 /* ==========================================================
-   각인 마스크 (로고 + 문구)
+   로고 마스크
    ========================================================== */
 const state = { logoImg: null, logoIsDefault: true, logoName: '' };
 
@@ -553,126 +612,122 @@ function ctxOf(which, w, h) {
   return ref.getContext('2d', { willReadFrequently: true });
 }
 
-/* 업로드/기본 로고를 지정한 픽셀 크기의 불리언 마스크로 */
 function logoMask(cfg, px) {
   if (!state.logoImg || !state.logoImg.complete || !state.logoImg.naturalWidth) return null;
   const ctx = ctxOf('logo', px, px);
   ctx.clearRect(0, 0, px, px);
   const im = state.logoImg;
-  const s = Math.min(px / im.naturalWidth, px / im.naturalHeight);
-  const w = im.naturalWidth * s, h = im.naturalHeight * s;
+  const sc = Math.min(px / im.naturalWidth, px / im.naturalHeight);
+  const w = im.naturalWidth * sc, h = im.naturalHeight * sc;
   ctx.drawImage(im, (px - w) / 2, (px - h) / 2, w, h);
   const d = ctx.getImageData(0, 0, px, px).data;
   const m = new Uint8Array(px * px);
-  // 투명도가 있는 이미지는 알파로, 불투명 이미지는 밝기로 판정
   let hasAlpha = false;
   for (let i = 3; i < d.length; i += 4) { if (d[i] < 250) { hasAlpha = true; break; } }
   for (let i = 0, n = px * px; i < n; i++) {
-    const a = d[i * 4 + 3];
     let on;
-    if (hasAlpha) on = a > 128;
-    else {
-      const lum = 0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2];
-      on = lum < cfg.thr;
-    }
+    if (hasAlpha) on = d[i * 4 + 3] > 128;
+    else on = (0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2]) < cfg.thr;
     if (!state.logoIsDefault && cfg.invert) on = !on;
     m[i] = on ? 1 : 0;
   }
   return m;
 }
 
-/* 커버 윗면(=베드면)에 새길 마스크. area 는 mm 단위 사각형 */
-function decoMask(cfg, cols, rows, W, H, area) {
-  if (cfg.deco === 'none') return null;
-  const res = cfg.res;
-  const mask = new Uint8Array(cols * rows);
-  const pxOf = x => x / res;
-  const pyOf = y => (H - y) / res;
-  const wantLogo = (cfg.deco === 'both' || cfg.deco === 'logo') && state.logoImg;
-  const wantText = (cfg.deco === 'both' || cfg.deco === 'text') && cfg.lines.length;
-  if (!wantLogo && !wantText) return null;
+/* ==========================================================
+   명함 패널 레이아웃
+   ----------------------------------------------------------
+   실제 명함과 같은 구성:
+     [로고 · 회사명]            [직함 · 이름]
+     ──────────── 구분선 ────────────
+     [왼쪽 블록]                [오른쪽 블록]
+                 [웹사이트]
+   글자면이 위를 향하므로 좌우 반전이 필요 없다.
+   ========================================================== */
+let lastMinText = 99;
 
-  // 문구 크기 측정
+function panelDeco(cfg, cols, rows, W, H) {
+  const res = cfg.res;
   const ctx = ctxOf('main', cols, rows);
   ctx.fillStyle = '#000'; ctx.fillRect(0, 0, cols, rows);
-  let fontPx = cfg.textSize / res;
-  const gapMm = 4;
-  const setFont = p => { ctx.font = `${cfg.weight} ${p}px 'Noto Sans KR', system-ui, sans-serif`; };
-  setFont(fontPx);
-  let textWpx = 0;
-  if (wantText) cfg.lines.forEach(l => { textWpx = Math.max(textWpx, ctx.measureText(l).width); });
-  const lineStep = fontPx * 1.3;
-  let textHpx = wantText ? cfg.lines.length * lineStep : 0;
+  ctx.fillStyle = '#fff';
 
-  const areaWpx = (area.x1 - area.x0) / res, areaHpx = (area.y1 - area.y0) / res;
-  let logoPx = wantLogo ? cfg.logoSize / res : 0;
-  const gapPx = (wantLogo && wantText) ? gapMm / res : 0;
+  const X = mm => mm / res;          // 모델 x(mm) → 캔버스 px
+  const Y = ty => ty / res;          // 위에서부터 ty(mm) → 캔버스 px
+  let minText = 99;
 
-  // 영역을 넘치면 전체를 균일 축소
-  let scale = 1;
-  if (cfg.lay === 'row') {
-    const gw = logoPx + gapPx + textWpx;
-    if (gw > areaWpx) scale = Math.min(scale, areaWpx / gw);
-    const gh = Math.max(logoPx, textHpx);
-    if (gh > areaHpx) scale = Math.min(scale, areaHpx / gh);
-  } else {
-    const gh = logoPx + gapPx + textHpx;
-    if (gh > areaHpx) scale = Math.min(scale, areaHpx / gh);
-    const gw = Math.max(logoPx, textWpx);
-    if (gw > areaWpx) scale = Math.min(scale, areaWpx / gw);
-  }
-  if (scale < 1) {
-    fontPx *= scale; logoPx *= scale; textWpx *= scale; textHpx *= scale;
-    setFont(fontPx);
-  }
-  const step = fontPx * 1.3;
-  const gp = (wantLogo && wantText) ? gapMm / res * scale : 0;
-
-  const cx = pxOf((area.x0 + area.x1) / 2);
-  const cy = pyOf((area.y0 + area.y1) / 2);
-
-  let logoX = 0, logoY = 0, textCx = cx, textCy = cy;
-  if (cfg.lay === 'row') {
-    const gw = (wantLogo ? logoPx : 0) + gp + (wantText ? textWpx : 0);
-    const left = cx - gw / 2;
-    if (wantLogo) { logoX = left; logoY = cy - logoPx / 2; }
-    if (wantText) textCx = left + (wantLogo ? logoPx + gp : 0) + textWpx / 2;
-  } else {
-    const gh = (wantLogo ? logoPx : 0) + gp + (wantText ? textHpx : 0);
-    const top = cy - gh / 2;
-    if (wantLogo) { logoX = cx - logoPx / 2; logoY = top; }
-    if (wantText) textCy = top + (wantLogo ? logoPx + gp : 0) + textHpx / 2;
+  const font = (px, w) => { ctx.font = `${w} ${px}px 'Noto Sans KR', system-ui, sans-serif`; };
+  function T(text, xmm, tymm, sizeMm, weight, align, maxWmm) {
+    if (!text) return 0;
+    let px = sizeMm / res;
+    font(px, weight);
+    if (maxWmm) {
+      const maxpx = maxWmm / res, w = ctx.measureText(text).width;
+      if (w > maxpx) { px *= maxpx / w; font(px, weight); }
+    }
+    minText = Math.min(minText, px * res);
+    ctx.textAlign = align || 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText(text, X(xmm), Y(tymm));
+    return px * res;
   }
 
-  // 문구를 캔버스에 그린다
-  if (wantText) {
-    ctx.fillStyle = '#fff';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    const start = textCy - (cfg.lines.length - 1) * step / 2;
-    cfg.lines.forEach((l, i) => ctx.fillText(l, textCx, start + i * step));
-  }
+  const M = Math.max(3.5, W * 0.05);
+  const body = cfg.bodySize;
+  const sName = body * 2.2, sCoKo = body * 1.75, sCoEn = body * 0.95;
+  const sTitle = body * 0.95, sLabel = body * 1.12, step = body * 1.34;
+  const half = (W - 2 * M - 3) / 2;
+
+  /* ── 상단 ── */
+  const top = M * 0.9;
+  const logoS = Math.min(cfg.logoSize, H * 0.34, W * 0.28);
+  const tx = M + logoS + 2.5;
+  const rightMax = W - M - tx - 2;
+  T(cfg.coEn, tx, top + logoS * 0.14, sCoEn, 600, 'left', rightMax * 0.62);
+  T(cfg.coKo, tx, top + logoS * 0.14 + sCoEn * 1.45, sCoKo, 800, 'left', rightMax * 0.7);
+  T(cfg.title, W - M, top + logoS * 0.08, sTitle, 600, 'right', half * 0.7);
+  T(cfg.name, W - M, top + logoS * 0.08 + sTitle * 1.6, sName, 800, 'right', half * 0.8);
+
+  /* ── 구분선 ── */
+  const ruleTy = top + logoS + 2.4;
+  if (cfg.rule) ctx.fillRect(X(M), Y(ruleTy), X(W - 2 * M), Math.max(1, X(0.35)));
+
+  /* ── 하단 2단 ── */
+  const nLines = Math.max(cfg.aLines.length, cfg.bLines.length);
+  const blockH = sLabel * 1.5 + nLines * step;
+  const webH = cfg.web ? body * 1.9 : 0;
+  const availTop = ruleTy + 2.2, availBot = H - M * 0.8 - webH;
+  const bTop = availTop + Math.max(0, (availBot - availTop - blockH) / 2);
+
+  [[cfg.aLabel, cfg.aLines, M], [cfg.bLabel, cfg.bLines, M + half + 3]].forEach(([label, lines, x]) => {
+    let ty = bTop;
+    if (label) { T(label, x, ty, sLabel, 800, 'left', half); ty += sLabel * 1.5; }
+    lines.forEach(l => { T(l, x, ty, body, 500, 'left', half); ty += step; });
+  });
+
+  /* ── 웹사이트 ── */
+  if (cfg.web) T(cfg.web, W / 2, H - M * 0.8 - body * 1.25, body, 600, 'center', W - 2 * M);
+
+  /* ── 픽셀 → 마스크 ── */
   const img = ctx.getImageData(0, 0, cols, rows).data;
+  const mask = new Uint8Array(cols * rows);
   for (let i = 0, n = cols * rows; i < n; i++) if (img[i * 4] > 127) mask[i] = 1;
 
-  // 로고를 마스크에 합친다
-  if (wantLogo) {
-    const lp = Math.max(8, Math.round(logoPx));
-    const lm = logoMask(cfg, lp);
-    if (lm) {
-      const ox = Math.round(logoX), oy = Math.round(logoY);
-      for (let y = 0; y < lp; y++) {
-        const ty = oy + y;
-        if (ty < 0 || ty >= rows) continue;
-        for (let x = 0; x < lp; x++) {
-          if (!lm[y * lp + x]) continue;
-          const tx = ox + x;
-          if (tx < 0 || tx >= cols) continue;
-          mask[ty * cols + tx] = 1;
-        }
+  /* ── 로고 합성 ── */
+  const lp = Math.max(8, Math.round(logoS / res));
+  const lm = logoMask(cfg, lp);
+  if (lm) {
+    const ox = Math.round(X(M)), oy = Math.round(Y(top));
+    for (let y = 0; y < lp; y++) {
+      const ty2 = oy + y; if (ty2 < 0 || ty2 >= rows) continue;
+      for (let x = 0; x < lp; x++) {
+        if (!lm[y * lp + x]) continue;
+        const tx2 = ox + x; if (tx2 < 0 || tx2 >= cols) continue;
+        mask[ty2 * cols + tx2] = 1;
       }
     }
   }
+  lastMinText = minText;
   return mask;
 }
 
@@ -688,6 +743,11 @@ function coverDims(cfg) {
   const iw = t.ow + 2 * cfg.fit, id = t.od + 2 * cfg.fit;
   return { iw, id, ow: iw + 2 * cfg.wall, od: id + 2 * cfg.wall, r: cfg.r + cfg.wall + cfg.fit };
 }
+function panelDims(cfg) {
+  if (cfg.panelSize === 'card') return { w: cfg.cardW, h: cfg.cardD };
+  const c = coverDims(cfg);
+  return { w: c.ow, h: c.od };
+}
 
 function buildTray(cfg) {
   const d = trayDims(cfg);
@@ -696,7 +756,6 @@ function buildTray(cfg) {
   const floorT = F(cfg.floor), top = F(cfg.floor + cfg.trayWallH);
   const innerR = cfg.r - cfg.wall;
 
-  // 엄지 홈 프로파일 (끝을 둥글게)
   const hw = cfg.notchW / 2;
   const keep = F(cfg.floor + cfg.notchKeep);
   const rr = Math.min(hw * 0.5, Math.max(0.1, (top - keep) * 0.9));
@@ -731,7 +790,6 @@ function buildCover(cfg) {
   const { cols, rows, res, W, H } = g;
   const floorT = F(cfg.floor), top = F(cfg.floor + cfg.coverWallH);
   const innerR = d.r - cfg.wall;
-
   for (let r = 0; r < rows; r++) {
     const y = (rows - 1 - r + 0.5) * res;
     for (let c = 0; c < cols; c++) {
@@ -741,26 +799,28 @@ function buildCover(cfg) {
         inRoundRect(x - cfg.wall, y - cfg.wall, d.iw, d.id, innerR) ? floorT : top;
     }
   }
+  return g;
+}
 
-  // 베드에 닿는 면(=닫았을 때 윗면)에 음각
-  const margin = 3;
-  const area = {
-    x0: cfg.wall + margin, x1: W - cfg.wall - margin,
-    y0: cfg.wall + margin, y1: H - cfg.wall - margin
-  };
-  const depth = F(Math.min(cfg.depth, cfg.floor - 0.4));
-  if (depth > 0.05) {
-    const m = decoMask(cfg, cols, rows, W, H, area);
-    if (m) {
-      // 이 면은 베드에 닿는 면이라 출력 후 뒤집어서 보게 된다.
-      // 그대로 새기면 거울상이 되므로 좌우를 미리 반전해 둔다.
-      for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-          if (!m[r * cols + c]) continue;
-          const i = r * cols + (cols - 1 - c);
-          if (g.hi[i] > depth + 0.05) g.lo[i] = depth;
-        }
-      }
+function buildPanel(cfg) {
+  const d = panelDims(cfg);
+  const g = newSolid(d.w, d.h, cfg.res);
+  const { cols, rows, res, W, H } = g;
+  const base = F(cfg.panelT);
+  for (let r = 0; r < rows; r++) {
+    const y = (rows - 1 - r + 0.5) * res;
+    for (let c = 0; c < cols; c++) {
+      const x = (c + 0.5) * res;
+      if (inRoundRect(x, y, W, H, cfg.panelR)) g.hi[r * cols + c] = base;
+    }
+  }
+  const mask = panelDeco(cfg, cols, rows, W, H);
+  if (mask) {
+    const up = F(cfg.panelT + cfg.embossH);
+    const down = F(Math.max(0.3, cfg.panelT - cfg.embossH));
+    const v = cfg.deco === 'emboss' ? up : down;
+    for (let i = 0, n = cols * rows; i < n; i++) {
+      if (mask[i] && g.hi[i] === base) g.hi[i] = v;
     }
   }
   return g;
@@ -772,7 +832,7 @@ function buildCover(cfg) {
 const view = (function () {
   const canvas = $('gl');
   let gl = null, prog = null, vbo = null, nbo = null, count = 0, ready = false;
-  let yaw = -0.5, pitch = 0.95, dist = 200, target = [0, 0, 0], dirty = true;
+  let yaw = 0, pitch = 0.92, dist = 200, target = [0, 0, 0], dirty = true;   // 정면 위에서 = 명함이 바로 읽히는 시점
 
   const VS = `attribute vec3 aPos; attribute vec3 aNor; uniform mat4 uMV; uniform mat4 uP;
     varying vec3 vN;
@@ -893,61 +953,73 @@ function bboxOf(P) {
    갱신
    ========================================================== */
 const PLA = 1.24;
-let timer = null, lastKey = '', built = null, part = 'both', flipped = false;
+let timer = null, lastKey = '', built = null, part = 'panel', flipped = false;
 const GAP = 5;
 
 function scheduleRefresh(reframe) { clearTimeout(timer); timer = setTimeout(() => refresh(reframe), 140); }
 
-function meshFor(which, cfg) {
+function meshFor(which) {
   const out = [];
-  if (which === 'tray' || which === 'both') meshFromSolid(built.tray, 0, 0, out);
-  if (which === 'cover' || which === 'both')
-    meshFromSolid(built.cover, which === 'both' ? built.tray.W + GAP : 0, 0, out);
+  const t = built.tray, c = built.cover, p = built.panel;
+  if (which === 'tray') meshFromSolid(t, 0, 0, out);
+  else if (which === 'cover') meshFromSolid(c, 0, 0, out);
+  else if (which === 'panel') meshFromSolid(p, 0, 0, out);
+  else if (which === 'both') { meshFromSolid(t, 0, 0, out); meshFromSolid(c, t.W + GAP, 0, out); }
+  else {
+    // 2줄 배치 — 일렬로 놓으면 300mm 가까워져 일반 베드(220mm)에 안 들어간다
+    meshFromSolid(t, 0, 0, out);
+    meshFromSolid(c, t.W + GAP, 0, out);
+    meshFromSolid(p, 0, Math.max(t.H, c.H) + GAP, out);
+  }
   return new Float32Array(out);
 }
 
-/* 미리보기용 뒤집기 — Y축 기준 180° 회전.
-   실제로 케이스를 좌우로 넘겨 잡았을 때와 같은 모습이라 각인이 바로 읽힌다.
-   회전이므로 면 방향(와인딩)은 유지되고, 내보내는 STL 에는 적용하지 않는다
-   (출력 자세는 언제나 열린 쪽이 위). */
+/* 미리보기용 뒤집기 — Y축 180° 회전. 회전이라 면 방향(와인딩)은 유지된다.
+   내보내는 STL 에는 적용하지 않는다 (출력 자세 고정). */
 function flipForView(P) {
   let maxX = -Infinity, maxZ = -Infinity;
   for (let i = 0; i < P.length; i += 3) {
     if (P[i] > maxX) maxX = P[i];
     if (P[i + 2] > maxZ) maxZ = P[i + 2];
   }
-  for (let i = 0; i < P.length; i += 3) {
-    P[i] = maxX - P[i];
-    P[i + 2] = maxZ - P[i + 2];
-  }
+  for (let i = 0; i < P.length; i += 3) { P[i] = maxX - P[i]; P[i + 2] = maxZ - P[i + 2]; }
   return P;
 }
 
 function refresh(reframe) {
   const cfg = readConfig();
-  let tray, cover;
   try {
-    tray = buildTray(cfg);
-    cover = buildCover(cfg);
+    built = { tray: buildTray(cfg), cover: buildCover(cfg), panel: buildPanel(cfg) };
   } catch (e) { toast('생성 실패: ' + e.message, true); return; }
-  built = { tray, cover };
 
-  const P = meshFor(part, cfg);
+  const P = meshFor(part);
   if (flipped) flipForView(P);
-  const vol = solidVolume(tray) + solidVolume(cover);
-  const cd = coverDims(cfg);
-  const closedH = cfg.floor * 2 + cfg.trayWallH;
+  const vol = solidVolume(built.tray) + solidVolume(built.cover) + solidVolume(built.panel);
+  const cd = coverDims(cfg), pd = panelDims(cfg);
+  const closedH = cfg.floor * 2 + cfg.trayWallH + cfg.panelT;
 
   $('sub-stack').textContent = `${cfg.stackH.toFixed(1)}mm 스택`;
   $('sub-outer').textContent = `${cd.ow.toFixed(1)} × ${cd.od.toFixed(1)}`;
-  $('sub-tri').textContent = `${(P.length/9).toLocaleString()} 삼각형`;
+  $('sub-panel').textContent = `${pd.w.toFixed(1)} × ${pd.h.toFixed(1)} mm`;
+  $('sub-tri').textContent = `${(P.length / 9).toLocaleString()} 삼각형`;
   $('st-size').textContent = `${cd.ow.toFixed(0)}×${cd.od.toFixed(0)}×${closedH.toFixed(1)}`;
   $('st-cards').textContent = `${cfg.n}장`;
-  $('st-vol').textContent = (vol/1000).toFixed(2);
-  $('st-weight').textContent = (vol/1000*PLA).toFixed(1);
+  $('st-vol').textContent = (vol / 1000).toFixed(2);
+  $('st-weight').textContent = (vol / 1000 * PLA).toFixed(1);
+  $('hint-z').textContent = `Z = ${cfg.panelT.toFixed(2)}mm`;
+  const allW = built.tray.W + GAP + built.cover.W;
+  const allH = Math.max(built.tray.H, built.cover.H) + GAP + built.panel.H;
+  $('bed-note').innerHTML = `<br><br><b>전체 한 판</b>은 2줄로 배치되어 <b>${allW.toFixed(0)} × ${allH.toFixed(0)}mm</b> 입니다.`
+    + (allW > 220 || allH > 220 ? ' 베드가 작으면 파트별로 나눠 출력하세요.' : '');
+
+  const small = lastMinText;
+  $('sub-fit').textContent = small < 98 ? `최소 글자 ${small.toFixed(1)}mm` : '—';
+  $('sub-fit').style.color = small < 2.0 ? 'var(--red)' : '';
+  $('sub-fit').title = small < 2.0
+    ? '노즐 0.4mm 기준으로는 글자가 뭉갤 수 있습니다. 본문 크기를 키우거나 내용을 줄여보세요.' : '';
 
   view.setMesh(P);
-  const key = `${part}|${flipped}|${cd.ow.toFixed(1)}|${cd.od.toFixed(1)}|${closedH.toFixed(1)}`;
+  const key = `${part}|${flipped}|${cd.ow.toFixed(1)}|${pd.w.toFixed(1)}|${closedH.toFixed(1)}`;
   if (reframe || key !== lastKey) { view.frame(bboxOf(P)); lastKey = key; }
 }
 
@@ -976,12 +1048,17 @@ function useDefaultLogo() {
 /* ==========================================================
    내보내기
    ========================================================== */
+const PART_NAME = {
+  tray: 'woojoo_cardcase_tray',
+  cover: 'woojoo_cardcase_cover',
+  panel: 'woojoo_namecard_panel',
+  both: 'woojoo_cardcase_set',
+  all: 'woojoo_cardcase_all'
+};
 function exportPart(which) {
   if (!built) return;
-  const P = meshFor(which, readConfig());   // 항상 출력 자세 (뒤집기는 미리보기 전용)
-  const name = which === 'tray' ? 'woojoo_cardcase_tray'
-             : which === 'cover' ? 'woojoo_cardcase_cover'
-             : 'woojoo_cardcase_set';
+  const P = meshFor(which);            // 항상 출력 자세 (뒤집기는 미리보기 전용)
+  const name = PART_NAME[which] || 'part';
   downloadBlob(new Blob([toSTLBinary(P, name)], { type: 'model/stl' }), `${name}.stl`);
   toast(`${name}.stl 내려받기 완료`);
 }
@@ -989,6 +1066,12 @@ function exportPart(which) {
 /* ==========================================================
    이벤트
    ========================================================== */
+const NUM_IDS = ['c-w','c-d','c-tol','c-n','c-t','p-wall','p-floor','p-r','p-cover','p-fit','p-res',
+                 'n-w','n-h','pn-t','pn-r','pn-h','l-size','t-body'];
+const TEXT_IDS = ['f-co-ko','f-co-en','f-title','f-name',
+                  'f-a-label','f-a-addr','f-a-tel','f-a-fax','f-a-mob',
+                  'f-b-label','f-b-addr','f-b-tel','f-b-fax','f-b-mail','f-web'];
+
 function bindUI() {
   $('brand-logo').innerHTML = LOGO_SVG;
 
@@ -997,14 +1080,14 @@ function bindUI() {
     $('c-w').value = b.dataset.cw; $('c-d').value = b.dataset.cd;
     scheduleRefresh(true);
   }));
-
-  ['deco-seg', 'layout-seg'].forEach(id => {
-    $(id).querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
-      $(id).querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
-      scheduleRefresh();
-    }));
-  });
-
+  $('panel-size').querySelectorAll('.chip').forEach(b => b.addEventListener('click', () => {
+    $('panel-size').querySelectorAll('.chip').forEach(x => x.classList.toggle('on', x === b));
+    scheduleRefresh(true);
+  }));
+  $('deco-seg').querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+    $('deco-seg').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+    scheduleRefresh();
+  }));
   $('part-seg').querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
     $('part-seg').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
     part = b.dataset.part;
@@ -1017,19 +1100,17 @@ function bindUI() {
     $('btn-flip').textContent = flipped ? '출력 자세로' : '뒤집어 보기';
     refresh(true);
   });
-
   $('tg-notch').addEventListener('click', () => {
     const on = $('tg-notch').classList.toggle('on');
     $('notch-opts').style.display = on ? '' : 'none';
     scheduleRefresh();
   });
+  $('tg-rule').addEventListener('click', () => { $('tg-rule').classList.toggle('on'); scheduleRefresh(); });
   $('tg-invert').addEventListener('click', () => { $('tg-invert').classList.toggle('on'); scheduleRefresh(); });
 
-  ['c-w','c-d','c-tol','c-n','c-t','p-wall','p-floor','p-r','p-cover','p-fit','p-res',
-   'n-w','n-h','l-size','l-depth','t-size']
-    .forEach(id => $(id).addEventListener('input', () => scheduleRefresh(['c-w','c-d','c-n','c-t'].includes(id))));
-  $('t-weight').addEventListener('change', () => scheduleRefresh());
-  ['t1','t2','t3'].forEach(id => $(id).addEventListener('input', () => scheduleRefresh()));
+  NUM_IDS.forEach(id => $(id).addEventListener('input',
+    () => scheduleRefresh(['c-w','c-d','c-n','c-t','pn-t'].includes(id))));
+  TEXT_IDS.forEach(id => $(id).addEventListener('input', () => scheduleRefresh()));
   $('l-thr').addEventListener('input', e => { $('thr-val').textContent = e.target.value; scheduleRefresh(); });
 
   $('btn-logo-file').addEventListener('click', () => $('logo-file').click());
@@ -1053,9 +1134,9 @@ function bindUI() {
     img.src = url;
   });
 
-  $('btn-tray').addEventListener('click', () => exportPart('tray'));
-  $('btn-cover').addEventListener('click', () => exportPart('cover'));
-  $('btn-both').addEventListener('click', () => exportPart('both'));
+  [['btn-panel','panel'], ['btn-all','all'], ['btn-tray','tray'],
+   ['btn-cover','cover'], ['btn-both','both']]
+    .forEach(([id, which]) => $(id).addEventListener('click', () => exportPart(which)));
 }
 
 async function init() {
