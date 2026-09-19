@@ -1,0 +1,1071 @@
+<!DOCTYPE html>
+<!--
+  ============================================================
+  Worker counter · 명함 케이스 생성기
+  배포: https://goforitseon-lab.github.io/worker-counter/cardcase.html
+  ============================================================
+  (주)우주특수산업 명함(90×50)용 3D 프린팅 케이스를 만든다.
+  트레이 + 커버(텔레스코핑) 2피스, 서포트 없이 그대로 출력.
+
+  · 외부 3D 라이브러리 없음
+  · 커버 바닥면(=닫았을 때 윗면)에 로고·문구를 음각
+    베드에 닿는 면이라 광택이 살아 각인이 선명하게 나온다
+  · 로고는 공식 로고 AI 원본에서 뽑은 벡터(woojoo-logo.svg) 내장
+    다른 로고 파일(PNG/JPG/SVG) 업로드도 가능
+  ============================================================
+  REVISION
+  ============================================================
+  cardcase 0001 · 최초 버전
+  ============================================================
+-->
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f0f10">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta name="version" content="cardcase-0001">
+  <title>명함 케이스 · Worker Counter</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@500;700&family=Noto+Sans+KR:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    :root {
+      --bg: #f7f7f5; --surface: #ffffff; --surface-2: #f0f0ee;
+      --border: rgba(0,0,0,0.1); --text: #1a1a1a; --text-dim: #555; --text-muted: #999;
+      --amber: #f5b800; --emerald: #00a865; --red: #d92847; --blue: #0080c7;
+      --navy: #1b3f8f; --green: #6cb33f;
+    }
+    html, body {
+      background: var(--bg); color: var(--text);
+      font-family: 'Noto Sans KR', system-ui, -apple-system, sans-serif;
+      min-height: 100vh; -webkit-font-smoothing: antialiased;
+    }
+    body {
+      background-image:
+        linear-gradient(rgba(0,0,0,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,0,0,0.025) 1px, transparent 1px);
+      background-size: 32px 32px;
+    }
+    button { background: none; border: none; color: inherit; font: inherit; cursor: pointer; }
+    input, textarea, select { background: none; border: none; color: inherit; font: inherit; outline: none; }
+
+    .topbar {
+      position: sticky; top: 0; z-index: 30;
+      display: flex; align-items: center; gap: 12px; padding: 12px 20px;
+      background: rgba(247,247,245,0.92); backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+    .topbar-logo { width: 38px; height: 38px; flex: none; color: var(--navy); }
+    .topbar-logo svg { width: 100%; height: 100%; display: block; }
+    .topbar-tag { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.22em; color: #b58900; }
+    .topbar-title { font-size: 18px; font-weight: 800; margin-top: 1px; line-height: 1.1; }
+    .topbar-spacer { flex: 1; }
+    .link-btn {
+      padding: 9px 14px; border-radius: 10px; border: 1px solid var(--border);
+      background: var(--surface); font-size: 13px; font-weight: 600; color: var(--text-dim);
+      display: inline-flex; align-items: center; gap: 6px; text-decoration: none;
+    }
+    .link-btn:hover { border-color: rgba(245,184,0,0.6); color: var(--text); }
+
+    .layout {
+      display: grid; grid-template-columns: 430px minmax(0, 1fr);
+      gap: 18px; padding: 18px 20px 40px; align-items: start; max-width: 1500px; margin: 0 auto;
+    }
+    @media (max-width: 1040px) { .layout { grid-template-columns: 1fr; } }
+    .panel { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+    .card-head { display: flex; align-items: center; gap: 9px; padding: 13px 16px; border-bottom: 1px solid var(--border); }
+    .card-num {
+      width: 20px; height: 20px; border-radius: 6px; flex: none; background: var(--amber); color: #0f0f10;
+      font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .card-title { font-size: 14px; font-weight: 700; }
+    .card-sub { font-size: 11px; color: var(--text-muted); margin-left: auto; font-family: 'JetBrains Mono', monospace; }
+    .card-body { padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; }
+
+    .seg { display: flex; padding: 3px; background: var(--surface-2); border-radius: 10px; gap: 3px; }
+    .seg button { flex: 1; padding: 8px 6px; border-radius: 8px; font-size: 12.5px; font-weight: 600; color: var(--text-dim); }
+    .seg button.on { background: var(--amber); color: #0f0f10; }
+
+    .field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+    .field-label { font-size: 11px; font-weight: 600; color: var(--text-dim); }
+    .txt {
+      width: 100%; padding: 9px 11px; background: var(--surface-2);
+      border: 1px solid transparent; border-radius: 9px; font-size: 13px; font-weight: 500;
+    }
+    .txt:focus { border-color: rgba(245,184,0,0.7); background: #fff; }
+    .txt.mono { font-family: 'JetBrains Mono', monospace; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chip { padding: 6px 11px; border-radius: 999px; border: 1px solid var(--border); font-size: 12px; font-weight: 600; color: var(--text-dim); background: var(--surface); }
+    .chip.on { background: var(--amber); border-color: var(--amber); color: #0f0f10; }
+
+    .switch { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .switch-label { font-size: 13px; font-weight: 600; }
+    .switch-hint { font-size: 11px; color: var(--text-muted); font-weight: 400; margin-top: 2px; }
+    .toggle { width: 44px; height: 26px; border-radius: 999px; background: #ddd; position: relative; flex: none; transition: background .15s; }
+    .toggle::after { content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform .15s; }
+    .toggle.on { background: var(--amber); }
+    .toggle.on::after { transform: translateX(18px); }
+
+    .hint { font-size: 11px; color: var(--text-muted); line-height: 1.55; }
+
+    .logo-row { display: flex; align-items: center; gap: 12px; }
+    .logo-prev {
+      width: 62px; height: 62px; flex: none; border-radius: 12px;
+      background: var(--surface-2); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center; overflow: hidden; color: var(--text);
+    }
+    .logo-prev svg, .logo-prev img { width: 48px; height: 48px; object-fit: contain; display: block; }
+    .file-btn {
+      padding: 9px 13px; border-radius: 9px; background: var(--surface-2);
+      font-size: 12.5px; font-weight: 600; color: var(--text-dim);
+    }
+    .file-btn:hover { background: #e7e7e4; color: var(--text); }
+
+    .btn { width: 100%; padding: 12px; border-radius: 11px; font-size: 14px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 7px; }
+    .btn-amber { background: var(--amber); color: #0f0f10; }
+    .btn-ghost { background: var(--surface-2); color: var(--text-dim); font-size: 13px; font-weight: 600; padding: 10px; }
+    .btn-ghost:hover { background: #e7e7e4; color: var(--text); }
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
+
+    .viewer { position: sticky; top: 72px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+    @media (max-width: 1040px) { .viewer { position: static; } }
+    .viewer-canvas-wrap { position: relative; background: #1a1a1c; }
+    #gl { display: block; width: 100%; height: 500px; touch-action: none; cursor: grab; }
+    #gl:active { cursor: grabbing; }
+    .viewer-badge { position: absolute; top: 12px; left: 12px; font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: .18em; color: rgba(255,255,255,.45); }
+    .viewer-seg {
+      position: absolute; top: 10px; right: 12px; display: flex; gap: 3px;
+      background: rgba(0,0,0,.5); border-radius: 999px; padding: 3px; backdrop-filter: blur(6px);
+    }
+    .viewer-seg button { padding: 6px 13px; border-radius: 999px; font-size: 12px; font-weight: 600; color: rgba(255,255,255,.65); }
+    .viewer-seg button.on { background: var(--amber); color: #0f0f10; }
+    .viewer-flip {
+      position: absolute; bottom: 12px; right: 12px;
+      padding: 8px 14px; border-radius: 999px; font-size: 12px; font-weight: 600;
+      background: rgba(0,0,0,.5); color: rgba(255,255,255,.7); backdrop-filter: blur(6px);
+    }
+    .viewer-flip:hover { color: #fff; }
+    .viewer-flip.on { background: var(--amber); color: #0f0f10; }
+    .viewer-err { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; text-align: center; color: rgba(255,255,255,.6); font-size: 13px; padding: 24px; line-height: 1.6; }
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--border); }
+    .stat { padding: 11px 8px; text-align: center; border-right: 1px solid var(--border); }
+    .stat:last-child { border-right: none; }
+    .stat-val { font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 700; }
+    .stat-key { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+
+    #toast {
+      position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(20px);
+      background: #1a1a1c; color: #fff; padding: 12px 20px; border-radius: 999px;
+      font-size: 13px; font-weight: 600; opacity: 0; pointer-events: none;
+      transition: opacity .18s, transform .18s; z-index: 100; max-width: 90vw; text-align: center;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    #toast.err { background: var(--red); }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-logo" id="brand-logo"></div>
+  <div>
+    <div class="topbar-tag">WOOJOO · CARD CASE</div>
+    <div class="topbar-title">명함 케이스 만들기</div>
+  </div>
+  <div class="topbar-spacer"></div>
+  <a class="link-btn" href="print3d.html">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+    3D프린터 출력
+  </a>
+</div>
+
+<div class="layout">
+  <div class="panel">
+
+    <!-- 1. 명함 / 수납 -->
+    <div class="card">
+      <div class="card-head"><div class="card-num">1</div><div class="card-title">명함 · 수납</div>
+        <div class="card-sub" id="sub-stack">—</div></div>
+      <div class="card-body">
+        <div class="chips" id="card-presets">
+          <button class="chip on" data-cw="90" data-cd="50">한국 표준 90×50</button>
+          <button class="chip" data-cw="91" data-cd="55">일본 91×55</button>
+          <button class="chip" data-cw="88.9" data-cd="50.8">US 3.5×2"</button>
+        </div>
+        <div class="grid3">
+          <div class="field"><div class="field-label">명함 가로 mm</div><input id="c-w" class="txt mono" type="number" min="40" max="140" step="0.1" value="90"></div>
+          <div class="field"><div class="field-label">명함 세로 mm</div><input id="c-d" class="txt mono" type="number" min="30" max="110" step="0.1" value="50"></div>
+          <div class="field"><div class="field-label">여유 mm</div><input id="c-tol" class="txt mono" type="number" min="0.1" max="2" step="0.05" value="0.4"></div>
+        </div>
+        <div class="grid2">
+          <div class="field"><div class="field-label">수납 매수</div><input id="c-n" class="txt mono" type="number" min="5" max="120" step="1" value="30"></div>
+          <div class="field"><div class="field-label">명함 1장 두께 mm</div><input id="c-t" class="txt mono" type="number" min="0.15" max="1" step="0.01" value="0.28"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. 케이스 치수 -->
+    <div class="card">
+      <div class="card-head"><div class="card-num">2</div><div class="card-title">케이스 치수</div>
+        <div class="card-sub" id="sub-outer">—</div></div>
+      <div class="card-body">
+        <div class="grid3">
+          <div class="field"><div class="field-label">벽 두께 mm</div><input id="p-wall" class="txt mono" type="number" min="0.8" max="4" step="0.1" value="1.6"></div>
+          <div class="field"><div class="field-label">바닥 두께 mm</div><input id="p-floor" class="txt mono" type="number" min="0.6" max="4" step="0.1" value="1.2"></div>
+          <div class="field"><div class="field-label">모서리 R mm</div><input id="p-r" class="txt mono" type="number" min="0" max="12" step="0.5" value="3"></div>
+        </div>
+        <div class="grid3">
+          <div class="field"><div class="field-label">커버 높이 %</div><input id="p-cover" class="txt mono" type="number" min="25" max="95" step="5" value="60"></div>
+          <div class="field"><div class="field-label">끼움 여유 mm</div><input id="p-fit" class="txt mono" type="number" min="0.05" max="0.8" step="0.05" value="0.25"></div>
+          <div class="field"><div class="field-label">격자 mm</div><input id="p-res" class="txt mono" type="number" min="0.15" max="0.6" step="0.05" value="0.25"></div>
+        </div>
+        <div class="switch">
+          <div><div class="switch-label">엄지 홈</div><div class="switch-hint">트레이 앞벽을 파내 명함을 밀어 꺼냅니다</div></div>
+          <div class="toggle on" id="tg-notch"></div>
+        </div>
+        <div class="grid2" id="notch-opts">
+          <div class="field"><div class="field-label">홈 폭 mm</div><input id="n-w" class="txt mono" type="number" min="8" max="70" step="1" value="30"></div>
+          <div class="field"><div class="field-label">남길 턱 mm</div><input id="n-h" class="txt mono" type="number" min="0.4" max="8" step="0.2" value="1.2"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. 각인 -->
+    <div class="card">
+      <div class="card-head"><div class="card-num">3</div><div class="card-title">커버 각인</div>
+        <div class="card-sub">커버 윗면</div></div>
+      <div class="card-body">
+        <div class="seg" id="deco-seg">
+          <button data-deco="both" class="on">로고+문구</button>
+          <button data-deco="logo">로고만</button>
+          <button data-deco="text">문구만</button>
+          <button data-deco="none">없음</button>
+        </div>
+        <div class="seg" id="layout-seg">
+          <button data-lay="row" class="on">가로 배치</button>
+          <button data-lay="col">세로 배치</button>
+        </div>
+
+        <div class="logo-row">
+          <div class="logo-prev" id="logo-prev"></div>
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:7px">
+            <div style="display:flex;gap:7px">
+              <button class="file-btn" id="btn-logo-file" style="flex:1">로고 파일 선택</button>
+              <button class="file-btn" id="btn-logo-reset">기본 로고</button>
+            </div>
+            <div class="hint" id="logo-name">기본: 공식 로고 (AI 원본 벡터)</div>
+          </div>
+        </div>
+        <input type="file" id="logo-file" accept="image/png,image/jpeg,image/svg+xml,.svg" style="display:none">
+        <div class="grid2">
+          <div class="field"><div class="field-label">로고 크기 mm</div><input id="l-size" class="txt mono" type="number" min="5" max="60" step="0.5" value="20"></div>
+          <div class="field"><div class="field-label">각인 깊이 mm</div><input id="l-depth" class="txt mono" type="number" min="0.2" max="1.5" step="0.1" value="0.6"></div>
+        </div>
+        <div class="field" id="thr-box" style="display:none">
+          <div class="field-label">업로드 이미지 임계값 <span id="thr-val" class="mono">160</span></div>
+          <input id="l-thr" type="range" min="20" max="240" step="5" value="160" style="accent-color:var(--amber)">
+        </div>
+        <div class="switch" id="inv-box" style="display:none">
+          <div><div class="switch-label">밝고 어두움 반전</div><div class="switch-hint">로고가 반대로 파이면 켜세요</div></div>
+          <div class="toggle" id="tg-invert"></div>
+        </div>
+
+        <div class="field" style="gap:7px">
+          <div class="field-label">각인 문구 (빈 줄은 건너뜀)</div>
+          <input id="t1" class="txt" type="text" value="(주)우주특수산업">
+          <input id="t2" class="txt" type="text" value="WooJoo Special Industry">
+          <input id="t3" class="txt" type="text" value="대표이사 백용선">
+        </div>
+        <div class="grid2">
+          <div class="field"><div class="field-label">문구 크기 mm</div><input id="t-size" class="txt mono" type="number" min="1.5" max="12" step="0.1" value="3.6"></div>
+          <div class="field"><div class="field-label">굵기</div>
+            <select id="t-weight" class="txt"><option value="500">보통</option><option value="700" selected>굵게</option><option value="900">아주 굵게</option></select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. 내보내기 -->
+    <div class="card">
+      <div class="card-head"><div class="card-num">4</div><div class="card-title">내보내기</div>
+        <div class="card-sub" id="sub-tri">—</div></div>
+      <div class="card-body">
+        <button class="btn btn-amber" id="btn-both">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          한 판 STL (트레이+커버)
+        </button>
+        <div class="grid2">
+          <button class="btn btn-ghost" id="btn-tray">트레이만</button>
+          <button class="btn btn-ghost" id="btn-cover">커버만</button>
+        </div>
+        <div class="hint">
+          <b>출력 방법</b> · 두 파트 모두 <b>열린 쪽이 위로</b> 놓인 상태라 서포트 없이 그대로 출력하면 됩니다.
+          커버의 로고·문구는 <b>베드에 닿는 면</b>에 파여 있어, 베드 면 광택 그대로 선명하게 나옵니다.
+          (뒤집어 봤을 때 바로 읽히도록 모델에서 좌우를 미리 반전해 두었습니다.)
+          레이어 0.15~0.2mm, 벽 3줄, 각인 깊이 0.4~0.6mm 권장.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="viewer">
+    <div class="viewer-canvas-wrap">
+      <canvas id="gl"></canvas>
+      <div class="viewer-badge">PREVIEW · 드래그 회전 / 휠 확대</div>
+      <div class="viewer-seg" id="part-seg">
+        <button data-part="both" class="on">전체</button>
+        <button data-part="tray">트레이</button>
+        <button data-part="cover">커버</button>
+      </div>
+      <button class="viewer-flip" id="btn-flip" title="뒤집어서 각인면 보기">뒤집어 보기</button>
+      <div class="viewer-err" id="gl-err"></div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="stat-val" id="st-size">—</div><div class="stat-key">닫은 크기 mm</div></div>
+      <div class="stat"><div class="stat-val" id="st-cards">—</div><div class="stat-key">수납 매수</div></div>
+      <div class="stat"><div class="stat-val" id="st-vol">—</div><div class="stat-key">부피 cm³</div></div>
+      <div class="stat"><div class="stat-val" id="st-weight">—</div><div class="stat-key">PLA g</div></div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ==========================================================
+   공식 로고 (AI 원본에서 추출한 벡터 · woojoo-logo.svg 와 동일)
+   ========================================================== */
+const LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50.552 50.55">
+<path d="M13.102,12.862 C15.214,12.862 16.925,14.574 16.925,16.685 C16.925,18.796 15.214,20.508 13.102,20.508 C10.992,20.508 9.28,18.796 9.28,16.685 C9.28,14.574 10.992,12.862 13.102,12.862 M37.896,12.861 C40.008,12.861 41.72,14.574 41.72,16.685 C41.72,18.797 40.008,20.508 37.896,20.508 C35.787,20.508 34.075,18.797 34.075,16.685 C34.075,14.574 35.787,12.861 37.896,12.861 M12.57,28.037 L22.391,18.519 L23.094,17.837 L23.094,4.214 L27.8,4.214 L27.8,17.846 L28.396,18.425 L38.313,28.037 L48.973,17.705 L49.397,17.705 C46.18,7.444 36.598,0 25.276,0 C13.954,0 4.372,7.444 1.155,17.705 L1.911,17.705 L12.57,28.037 Z" fill="currentColor"/>
+<path d="M4.629,36.898 L9.334,36.898 C9.334,40.576 12.42,43.568 16.214,43.568 C20.008,43.568 23.094,40.576 23.094,36.898 L23.094,23.833 L12.573,34.565 L0.205,22.103 C0.074,23.143 0,24.2 0,25.275 C0,31.147 2.007,36.544 5.364,40.836 C4.891,39.61 4.629,38.284 4.629,36.898 Z" fill="currentColor"/>
+<path d="M27.8,23.969 L27.8,36.898 C27.8,43.091 22.603,48.13 16.214,48.13 C15.483,48.13 14.769,48.061 14.077,47.935 C17.452,49.607 21.254,50.55 25.276,50.55 C39.235,50.55 50.552,39.234 50.552,25.275 C50.552,24.258 50.484,23.258 50.368,22.272 L38.318,34.565 L27.8,23.969 Z" fill="currentColor"/>
+</svg>`;
+
+/* ==========================================================
+   UTIL
+   ========================================================== */
+function $(id) { return document.getElementById(id); }
+function clamp(v, lo, hi) { return Math.min(hi, Math.max(lo, v)); }
+function numOf(id, def) { const v = parseFloat($(id).value); return Number.isFinite(v) ? v : def; }
+const F = Math.fround;
+
+let toastTimer = null;
+function toast(msg, isErr) {
+  const el = $('toast');
+  el.textContent = msg;
+  el.className = 'show' + (isErr ? ' err' : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.className = ''; }, 2800);
+}
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
+}
+
+/* 라운드 사각형 내부 판정 (좌하단 원점, mm) */
+function inRoundRect(x, y, w, h, r) {
+  if (w <= 0 || h <= 0) return false;
+  if (x < 0 || y < 0 || x > w || y > h) return false;
+  const rr = Math.max(0, Math.min(r, w / 2, h / 2));
+  if (rr === 0) return true;
+  const cx = clamp(x, rr, w - rr), cy = clamp(y, rr, h - rr);
+  const dx = x - cx, dy = y - cy;
+  return dx * dx + dy * dy <= rr * rr;
+}
+
+/* ==========================================================
+   지오메트리 엔진 — 2면 하이트맵 (아래면 lo, 윗면 hi)
+   ----------------------------------------------------------
+   각 격자 칸이 [lo, hi] 한 구간의 고체를 갖는다.
+   lo 를 올리면 "바닥면을 파낸" 형태가 되므로,
+   베드에 닿는 면에 로고를 음각할 수 있다.
+   ========================================================== */
+function newSolid(W, H, res) {
+  const cols = Math.max(4, Math.round(W / res));
+  const rows = Math.max(4, Math.round(H / res));
+  return {
+    lo: new Float32Array(cols * rows),
+    hi: new Float32Array(cols * rows),
+    cols, rows, res, W: cols * res, H: rows * res
+  };
+}
+function solidVolume(g) {
+  let v = 0;
+  for (let i = 0; i < g.hi.length; i++) v += g.hi[i] - g.lo[i];
+  return v * g.res * g.res;
+}
+
+/* A=[la,ha] 에서 B=[lb,hb] 를 뺀 구간들 (최대 2개) */
+function wallPieces(la, ha, lb, hb) {
+  const out = [];
+  if (ha - la <= 1e-9) return out;
+  if (hb - lb <= 1e-9) { out.push([la, ha]); return out; }
+  const a1 = Math.min(ha, lb); if (la < a1 - 1e-9) out.push([la, a1]);
+  const a2 = Math.max(la, hb); if (a2 < ha - 1e-9) out.push([a2, ha]);
+  return out;
+}
+
+function meshFromSolid(g, ox, oy, out) {
+  const { lo, hi, cols, rows, res } = g;
+  const P = out || [];
+  const IN = (c, r) => c >= 0 && r >= 0 && c < cols && r < rows;
+  const LO = (c, r) => IN(c, r) ? lo[r * cols + c] : 0;
+  const HI = (c, r) => IN(c, r) ? hi[r * cols + c] : 0;
+  const X = c => ox + c * res;
+  const YL = r => oy + (rows - 1 - r) * res;
+  const YH = r => oy + (rows - r) * res;
+  const push = (a, b, c) => P.push(a[0], a[1], a[2], b[0], b[1], b[2], c[0], c[1], c[2]);
+  const quad = (a, b, c, d) => { push(a, b, c); push(a, c, d); };
+
+  // 윗면 / 아랫면 (x 방향 런렝스)
+  for (let r = 0; r < rows; r++) {
+    let c = 0;
+    while (c < cols) {
+      const l = LO(c, r), h = HI(c, r);
+      if (h - l <= 1e-9) { c++; continue; }
+      let c2 = c;
+      while (c2 + 1 < cols && LO(c2 + 1, r) === l && HI(c2 + 1, r) === h) c2++;
+      const x0 = X(c), x1 = X(c2 + 1), y0 = YL(r), y1 = YH(r);
+      quad([x0, y0, h], [x1, y0, h], [x1, y1, h], [x0, y1, h]);   // +Z
+      quad([x0, y0, l], [x0, y1, l], [x1, y1, l], [x1, y0, l]);   // -Z
+      c = c2 + 1;
+    }
+  }
+
+  // 세로 벽 (x = X(c+1) 평면, y 방향 런렝스)
+  for (let c = -1; c < cols; c++) {
+    let r = 0;
+    while (r < rows) {
+      const la = LO(c, r), ha = HI(c, r), lb = LO(c + 1, r), hb = HI(c + 1, r);
+      const pa = wallPieces(la, ha, lb, hb), pb = wallPieces(lb, hb, la, ha);
+      if (!pa.length && !pb.length) { r++; continue; }
+      let r2 = r;
+      while (r2 + 1 < rows && LO(c, r2 + 1) === la && HI(c, r2 + 1) === ha
+             && LO(c + 1, r2 + 1) === lb && HI(c + 1, r2 + 1) === hb) r2++;
+      const xw = X(c + 1), yA = YL(r2), yB = YH(r);
+      pa.forEach(([z0, z1]) => quad([xw, yA, z0], [xw, yB, z0], [xw, yB, z1], [xw, yA, z1]));  // +X
+      pb.forEach(([z0, z1]) => quad([xw, yA, z0], [xw, yA, z1], [xw, yB, z1], [xw, yB, z0]));  // -X
+      r = r2 + 1;
+    }
+  }
+
+  // 가로 벽 (y = YL(r) 평면, x 방향 런렝스)
+  for (let r = -1; r < rows; r++) {
+    let c = 0;
+    while (c < cols) {
+      const la = LO(c, r), ha = HI(c, r), lb = LO(c, r + 1), hb = HI(c, r + 1);
+      const pa = wallPieces(la, ha, lb, hb), pb = wallPieces(lb, hb, la, ha);
+      if (!pa.length && !pb.length) { c++; continue; }
+      let c2 = c;
+      while (c2 + 1 < cols && LO(c2 + 1, r) === la && HI(c2 + 1, r) === ha
+             && LO(c2 + 1, r + 1) === lb && HI(c2 + 1, r + 1) === hb) c2++;
+      const yw = YL(r), x0 = X(c), x1 = X(c2 + 1);
+      pa.forEach(([z0, z1]) => quad([x0, yw, z0], [x1, yw, z0], [x1, yw, z1], [x0, yw, z1]));  // -Y
+      pb.forEach(([z0, z1]) => quad([x0, yw, z0], [x0, yw, z1], [x1, yw, z1], [x1, yw, z0]));  // +Y
+      c = c2 + 1;
+    }
+  }
+  return P;
+}
+
+/* ==========================================================
+   STL
+   ========================================================== */
+function triNormal(P, i) {
+  const ux = P[i + 3] - P[i], uy = P[i + 4] - P[i + 1], uz = P[i + 5] - P[i + 2];
+  const vx = P[i + 6] - P[i], vy = P[i + 7] - P[i + 1], vz = P[i + 8] - P[i + 2];
+  let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+  const len = Math.hypot(nx, ny, nz) || 1;
+  return [nx / len, ny / len, nz / len];
+}
+function toSTLBinary(P, title) {
+  const n = P.length / 9;
+  const buf = new ArrayBuffer(84 + n * 50);
+  const dv = new DataView(buf);
+  const head = ('woojoo card case · ' + (title || '')).slice(0, 79);
+  for (let i = 0; i < head.length; i++) dv.setUint8(i, head.charCodeAt(i) & 0x7f);
+  dv.setUint32(80, n, true);
+  let o = 84;
+  for (let t = 0; t < n; t++) {
+    const i = t * 9, nr = triNormal(P, i);
+    dv.setFloat32(o, nr[0], true); dv.setFloat32(o + 4, nr[1], true); dv.setFloat32(o + 8, nr[2], true);
+    o += 12;
+    for (let k = 0; k < 9; k++) { dv.setFloat32(o, P[i + k], true); o += 4; }
+    dv.setUint16(o, 0, true); o += 2;
+  }
+  return new Uint8Array(buf);
+}
+
+/* ==========================================================
+   설정 읽기
+   ========================================================== */
+function readConfig() {
+  const cardW = clamp(numOf('c-w', 90), 40, 140);
+  const cardD = clamp(numOf('c-d', 50), 30, 110);
+  const tol   = clamp(numOf('c-tol', 0.4), 0.1, 2);
+  const n     = Math.round(clamp(numOf('c-n', 30), 5, 120));
+  const cardT = clamp(numOf('c-t', 0.28), 0.15, 1);
+  const wall  = clamp(numOf('p-wall', 1.6), 0.8, 4);
+  const floor = clamp(numOf('p-floor', 1.2), 0.6, 4);
+  const r     = clamp(numOf('p-r', 3), 0, 12);
+  const fit   = clamp(numOf('p-fit', 0.25), 0.05, 0.8);
+  const res   = clamp(numOf('p-res', 0.25), 0.15, 0.6);
+  const stackH = n * cardT;
+  const trayWallH = stackH + 0.5;
+  const coverWallH = Math.max(3, trayWallH * clamp(numOf('p-cover', 60), 25, 95) / 100);
+  return {
+    cardW, cardD, tol, n, cardT, wall, floor, r, fit, res,
+    stackH, trayWallH, coverWallH,
+    notch: $('tg-notch').classList.contains('on'),
+    notchW: clamp(numOf('n-w', 30), 8, 70),
+    notchKeep: clamp(numOf('n-h', 1.2), 0.4, 8),
+    deco: document.querySelector('#deco-seg button.on').dataset.deco,
+    lay: document.querySelector('#layout-seg button.on').dataset.lay,
+    logoSize: clamp(numOf('l-size', 20), 5, 60),
+    depth: clamp(numOf('l-depth', 0.6), 0.2, 1.5),
+    thr: clamp(numOf('l-thr', 160), 20, 240),
+    invert: $('tg-invert').classList.contains('on'),
+    lines: [$('t1').value, $('t2').value, $('t3').value].map(s => s.trim()).filter(Boolean),
+    textSize: clamp(numOf('t-size', 3.6), 1.5, 12),
+    weight: $('t-weight').value
+  };
+}
+
+/* ==========================================================
+   각인 마스크 (로고 + 문구)
+   ========================================================== */
+const state = { logoImg: null, logoIsDefault: true, logoName: '' };
+
+let _cv = null, _lv = null;
+function ctxOf(which, w, h) {
+  const ref = which === 'main' ? (_cv || (_cv = document.createElement('canvas')))
+                               : (_lv || (_lv = document.createElement('canvas')));
+  ref.width = w; ref.height = h;
+  return ref.getContext('2d', { willReadFrequently: true });
+}
+
+/* 업로드/기본 로고를 지정한 픽셀 크기의 불리언 마스크로 */
+function logoMask(cfg, px) {
+  if (!state.logoImg || !state.logoImg.complete || !state.logoImg.naturalWidth) return null;
+  const ctx = ctxOf('logo', px, px);
+  ctx.clearRect(0, 0, px, px);
+  const im = state.logoImg;
+  const s = Math.min(px / im.naturalWidth, px / im.naturalHeight);
+  const w = im.naturalWidth * s, h = im.naturalHeight * s;
+  ctx.drawImage(im, (px - w) / 2, (px - h) / 2, w, h);
+  const d = ctx.getImageData(0, 0, px, px).data;
+  const m = new Uint8Array(px * px);
+  // 투명도가 있는 이미지는 알파로, 불투명 이미지는 밝기로 판정
+  let hasAlpha = false;
+  for (let i = 3; i < d.length; i += 4) { if (d[i] < 250) { hasAlpha = true; break; } }
+  for (let i = 0, n = px * px; i < n; i++) {
+    const a = d[i * 4 + 3];
+    let on;
+    if (hasAlpha) on = a > 128;
+    else {
+      const lum = 0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2];
+      on = lum < cfg.thr;
+    }
+    if (!state.logoIsDefault && cfg.invert) on = !on;
+    m[i] = on ? 1 : 0;
+  }
+  return m;
+}
+
+/* 커버 윗면(=베드면)에 새길 마스크. area 는 mm 단위 사각형 */
+function decoMask(cfg, cols, rows, W, H, area) {
+  if (cfg.deco === 'none') return null;
+  const res = cfg.res;
+  const mask = new Uint8Array(cols * rows);
+  const pxOf = x => x / res;
+  const pyOf = y => (H - y) / res;
+  const wantLogo = (cfg.deco === 'both' || cfg.deco === 'logo') && state.logoImg;
+  const wantText = (cfg.deco === 'both' || cfg.deco === 'text') && cfg.lines.length;
+  if (!wantLogo && !wantText) return null;
+
+  // 문구 크기 측정
+  const ctx = ctxOf('main', cols, rows);
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, cols, rows);
+  let fontPx = cfg.textSize / res;
+  const gapMm = 4;
+  const setFont = p => { ctx.font = `${cfg.weight} ${p}px 'Noto Sans KR', system-ui, sans-serif`; };
+  setFont(fontPx);
+  let textWpx = 0;
+  if (wantText) cfg.lines.forEach(l => { textWpx = Math.max(textWpx, ctx.measureText(l).width); });
+  const lineStep = fontPx * 1.3;
+  let textHpx = wantText ? cfg.lines.length * lineStep : 0;
+
+  const areaWpx = (area.x1 - area.x0) / res, areaHpx = (area.y1 - area.y0) / res;
+  let logoPx = wantLogo ? cfg.logoSize / res : 0;
+  const gapPx = (wantLogo && wantText) ? gapMm / res : 0;
+
+  // 영역을 넘치면 전체를 균일 축소
+  let scale = 1;
+  if (cfg.lay === 'row') {
+    const gw = logoPx + gapPx + textWpx;
+    if (gw > areaWpx) scale = Math.min(scale, areaWpx / gw);
+    const gh = Math.max(logoPx, textHpx);
+    if (gh > areaHpx) scale = Math.min(scale, areaHpx / gh);
+  } else {
+    const gh = logoPx + gapPx + textHpx;
+    if (gh > areaHpx) scale = Math.min(scale, areaHpx / gh);
+    const gw = Math.max(logoPx, textWpx);
+    if (gw > areaWpx) scale = Math.min(scale, areaWpx / gw);
+  }
+  if (scale < 1) {
+    fontPx *= scale; logoPx *= scale; textWpx *= scale; textHpx *= scale;
+    setFont(fontPx);
+  }
+  const step = fontPx * 1.3;
+  const gp = (wantLogo && wantText) ? gapMm / res * scale : 0;
+
+  const cx = pxOf((area.x0 + area.x1) / 2);
+  const cy = pyOf((area.y0 + area.y1) / 2);
+
+  let logoX = 0, logoY = 0, textCx = cx, textCy = cy;
+  if (cfg.lay === 'row') {
+    const gw = (wantLogo ? logoPx : 0) + gp + (wantText ? textWpx : 0);
+    const left = cx - gw / 2;
+    if (wantLogo) { logoX = left; logoY = cy - logoPx / 2; }
+    if (wantText) textCx = left + (wantLogo ? logoPx + gp : 0) + textWpx / 2;
+  } else {
+    const gh = (wantLogo ? logoPx : 0) + gp + (wantText ? textHpx : 0);
+    const top = cy - gh / 2;
+    if (wantLogo) { logoX = cx - logoPx / 2; logoY = top; }
+    if (wantText) textCy = top + (wantLogo ? logoPx + gp : 0) + textHpx / 2;
+  }
+
+  // 문구를 캔버스에 그린다
+  if (wantText) {
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const start = textCy - (cfg.lines.length - 1) * step / 2;
+    cfg.lines.forEach((l, i) => ctx.fillText(l, textCx, start + i * step));
+  }
+  const img = ctx.getImageData(0, 0, cols, rows).data;
+  for (let i = 0, n = cols * rows; i < n; i++) if (img[i * 4] > 127) mask[i] = 1;
+
+  // 로고를 마스크에 합친다
+  if (wantLogo) {
+    const lp = Math.max(8, Math.round(logoPx));
+    const lm = logoMask(cfg, lp);
+    if (lm) {
+      const ox = Math.round(logoX), oy = Math.round(logoY);
+      for (let y = 0; y < lp; y++) {
+        const ty = oy + y;
+        if (ty < 0 || ty >= rows) continue;
+        for (let x = 0; x < lp; x++) {
+          if (!lm[y * lp + x]) continue;
+          const tx = ox + x;
+          if (tx < 0 || tx >= cols) continue;
+          mask[ty * cols + tx] = 1;
+        }
+      }
+    }
+  }
+  return mask;
+}
+
+/* ==========================================================
+   파트 만들기
+   ========================================================== */
+function trayDims(cfg) {
+  const iw = cfg.cardW + 2 * cfg.tol, id = cfg.cardD + 2 * cfg.tol;
+  return { iw, id, ow: iw + 2 * cfg.wall, od: id + 2 * cfg.wall };
+}
+function coverDims(cfg) {
+  const t = trayDims(cfg);
+  const iw = t.ow + 2 * cfg.fit, id = t.od + 2 * cfg.fit;
+  return { iw, id, ow: iw + 2 * cfg.wall, od: id + 2 * cfg.wall, r: cfg.r + cfg.wall + cfg.fit };
+}
+
+function buildTray(cfg) {
+  const d = trayDims(cfg);
+  const g = newSolid(d.ow, d.od, cfg.res);
+  const { cols, rows, res, W, H } = g;
+  const floorT = F(cfg.floor), top = F(cfg.floor + cfg.trayWallH);
+  const innerR = cfg.r - cfg.wall;
+
+  // 엄지 홈 프로파일 (끝을 둥글게)
+  const hw = cfg.notchW / 2;
+  const keep = F(cfg.floor + cfg.notchKeep);
+  const rr = Math.min(hw * 0.5, Math.max(0.1, (top - keep) * 0.9));
+  const notchTop = dx => {
+    const a = Math.abs(dx);
+    if (a > hw) return null;
+    if (a <= hw - rr) return keep;
+    const t = (a - (hw - rr)) / rr;
+    return F(keep + (top - keep) * (1 - Math.sqrt(Math.max(0, 1 - t * t))));
+  };
+
+  for (let r = 0; r < rows; r++) {
+    const y = (rows - 1 - r + 0.5) * res;
+    for (let c = 0; c < cols; c++) {
+      const x = (c + 0.5) * res;
+      if (!inRoundRect(x, y, W, H, cfg.r)) continue;
+      let h = top;
+      if (inRoundRect(x - cfg.wall, y - cfg.wall, d.iw, d.id, innerR)) h = floorT;
+      else if (cfg.notch && y < cfg.wall) {
+        const nt = notchTop(x - W / 2);
+        if (nt !== null && nt < h) h = nt;
+      }
+      g.hi[r * cols + c] = h;
+    }
+  }
+  return g;
+}
+
+function buildCover(cfg) {
+  const d = coverDims(cfg);
+  const g = newSolid(d.ow, d.od, cfg.res);
+  const { cols, rows, res, W, H } = g;
+  const floorT = F(cfg.floor), top = F(cfg.floor + cfg.coverWallH);
+  const innerR = d.r - cfg.wall;
+
+  for (let r = 0; r < rows; r++) {
+    const y = (rows - 1 - r + 0.5) * res;
+    for (let c = 0; c < cols; c++) {
+      const x = (c + 0.5) * res;
+      if (!inRoundRect(x, y, W, H, d.r)) continue;
+      g.hi[r * cols + c] =
+        inRoundRect(x - cfg.wall, y - cfg.wall, d.iw, d.id, innerR) ? floorT : top;
+    }
+  }
+
+  // 베드에 닿는 면(=닫았을 때 윗면)에 음각
+  const margin = 3;
+  const area = {
+    x0: cfg.wall + margin, x1: W - cfg.wall - margin,
+    y0: cfg.wall + margin, y1: H - cfg.wall - margin
+  };
+  const depth = F(Math.min(cfg.depth, cfg.floor - 0.4));
+  if (depth > 0.05) {
+    const m = decoMask(cfg, cols, rows, W, H, area);
+    if (m) {
+      // 이 면은 베드에 닿는 면이라 출력 후 뒤집어서 보게 된다.
+      // 그대로 새기면 거울상이 되므로 좌우를 미리 반전해 둔다.
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          if (!m[r * cols + c]) continue;
+          const i = r * cols + (cols - 1 - c);
+          if (g.hi[i] > depth + 0.05) g.lo[i] = depth;
+        }
+      }
+    }
+  }
+  return g;
+}
+
+/* ==========================================================
+   WebGL 미리보기
+   ========================================================== */
+const view = (function () {
+  const canvas = $('gl');
+  let gl = null, prog = null, vbo = null, nbo = null, count = 0, ready = false;
+  let yaw = -0.5, pitch = 0.95, dist = 200, target = [0, 0, 0], dirty = true;
+
+  const VS = `attribute vec3 aPos; attribute vec3 aNor; uniform mat4 uMV; uniform mat4 uP;
+    varying vec3 vN;
+    void main(){ vN = (uMV * vec4(aNor,0.0)).xyz; gl_Position = uP * uMV * vec4(aPos,1.0); }`;
+  const FS = `precision mediump float; varying vec3 vN;
+    void main(){
+      vec3 n = normalize(vN);
+      if (!gl_FrontFacing) n = -n;
+      float k  = max(dot(n, normalize(vec3(0.35,0.45,0.82))), 0.0);
+      float k2 = max(dot(n, normalize(vec3(-0.6,-0.3,0.4))), 0.0);
+      float rim = pow(1.0 - max(n.z,0.0), 3.0);
+      vec3 base = vec3(0.93,0.71,0.07);
+      vec3 col = base*(0.22 + 0.68*k + 0.20*k2) + vec3(0.30,0.26,0.16)*rim;
+      gl_FragColor = vec4(col,1.0);
+    }`;
+
+  function compile(t, s) {
+    const sh = gl.createShader(t); gl.shaderSource(sh, s); gl.compileShader(sh);
+    if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(sh));
+    return sh;
+  }
+  function init() {
+    try {
+      gl = canvas.getContext('webgl', { antialias: true, alpha: false }) || canvas.getContext('experimental-webgl');
+      if (!gl) throw new Error('no webgl');
+      prog = gl.createProgram();
+      gl.attachShader(prog, compile(gl.VERTEX_SHADER, VS));
+      gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, FS));
+      gl.linkProgram(prog);
+      if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+      vbo = gl.createBuffer(); nbo = gl.createBuffer();
+      gl.enable(gl.DEPTH_TEST);
+      ready = true; bind(); loop();
+    } catch (e) {
+      const el = $('gl-err');
+      el.style.display = 'flex';
+      el.textContent = '이 브라우저에서는 3D 미리보기를 쓸 수 없습니다. STL 내보내기는 정상 동작합니다.';
+    }
+  }
+  const cross = (a, b) => [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]];
+  const dot = (a, b) => a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+  const norm = a => { const l = Math.hypot(a[0],a[1],a[2]) || 1; return [a[0]/l,a[1]/l,a[2]/l]; };
+  function perspective(f_, aspect, near, far) {
+    const f = 1/Math.tan(f_/2), nf = 1/(near-far);
+    return [f/aspect,0,0,0, 0,f,0,0, 0,0,(far+near)*nf,-1, 0,0,2*far*near*nf,0];
+  }
+  function lookAt(eye, ctr, up) {
+    const z = norm([eye[0]-ctr[0], eye[1]-ctr[1], eye[2]-ctr[2]]);
+    const x = norm(cross(up, z)), y = cross(z, x);
+    return [x[0],y[0],z[0],0, x[1],y[1],z[1],0, x[2],y[2],z[2],0, -dot(x,eye),-dot(y,eye),-dot(z,eye),1];
+  }
+  function setMesh(P) {
+    if (!ready) return;
+    const n = P.length / 9, nor = new Float32Array(P.length);
+    for (let t = 0; t < n; t++) {
+      const i = t*9, nr = triNormal(P, i);
+      for (let k = 0; k < 3; k++) { nor[i+k*3]=nr[0]; nor[i+k*3+1]=nr[1]; nor[i+k*3+2]=nr[2]; }
+    }
+    gl.bindBuffer(gl.ARRAY_BUFFER, vbo); gl.bufferData(gl.ARRAY_BUFFER, P, gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, nbo); gl.bufferData(gl.ARRAY_BUFFER, nor, gl.STATIC_DRAW);
+    count = P.length / 3; dirty = true;
+  }
+  function frame(b) {
+    target = [(b[0]+b[3])/2, (b[1]+b[4])/2, (b[2]+b[5])/2];
+    dist = Math.max(b[3]-b[0], b[4]-b[1], b[5]-b[2], 10) * 1.7;
+    dirty = true;
+  }
+  function draw() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    if (canvas.width !== Math.round(w*dpr) || canvas.height !== Math.round(h*dpr)) {
+      canvas.width = Math.round(w*dpr); canvas.height = Math.round(h*dpr);
+    }
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.clearColor(0.102, 0.102, 0.110, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    if (!count) return;
+    const cp = Math.cos(pitch), sp = Math.sin(pitch);
+    const eye = [target[0]+dist*cp*Math.sin(yaw), target[1]-dist*cp*Math.cos(yaw), target[2]+dist*sp];
+    gl.useProgram(prog);
+    gl.uniformMatrix4fv(gl.getUniformLocation(prog,'uP'), false, new Float32Array(perspective(0.62,(w||1)/(h||1),0.5,9000)));
+    gl.uniformMatrix4fv(gl.getUniformLocation(prog,'uMV'), false, new Float32Array(lookAt(eye,target,[0,0,1])));
+    const aPos = gl.getAttribLocation(prog,'aPos'), aNor = gl.getAttribLocation(prog,'aNor');
+    gl.bindBuffer(gl.ARRAY_BUFFER, vbo); gl.enableVertexAttribArray(aPos); gl.vertexAttribPointer(aPos,3,gl.FLOAT,false,0,0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, nbo); gl.enableVertexAttribArray(aNor); gl.vertexAttribPointer(aNor,3,gl.FLOAT,false,0,0);
+    gl.drawArrays(gl.TRIANGLES, 0, count);
+  }
+  function loop() { if (dirty) { dirty = false; draw(); } requestAnimationFrame(loop); }
+  function bind() {
+    let drag = false, lx = 0, ly = 0;
+    canvas.addEventListener('pointerdown', e => { drag = true; lx = e.clientX; ly = e.clientY; canvas.setPointerCapture(e.pointerId); });
+    canvas.addEventListener('pointermove', e => {
+      if (!drag) return;
+      yaw += (e.clientX-lx)*0.01; pitch = clamp(pitch + (e.clientY-ly)*0.01, -1.5, 1.5);
+      lx = e.clientX; ly = e.clientY; dirty = true;
+    });
+    const stop = e => { drag = false; try { canvas.releasePointerCapture(e.pointerId); } catch {} };
+    canvas.addEventListener('pointerup', stop);
+    canvas.addEventListener('pointercancel', stop);
+    canvas.addEventListener('wheel', e => { e.preventDefault(); dist = clamp(dist*(e.deltaY>0?1.1:0.9), 8, 6000); dirty = true; }, { passive: false });
+    window.addEventListener('resize', () => { dirty = true; });
+  }
+  return { init, setMesh, frame };
+})();
+
+function bboxOf(P) {
+  if (!P.length) return [0,0,0,1,1,1];
+  let x0=Infinity,y0=Infinity,z0=Infinity,x1=-Infinity,y1=-Infinity,z1=-Infinity;
+  for (let i = 0; i < P.length; i += 3) {
+    if(P[i]<x0)x0=P[i]; if(P[i]>x1)x1=P[i];
+    if(P[i+1]<y0)y0=P[i+1]; if(P[i+1]>y1)y1=P[i+1];
+    if(P[i+2]<z0)z0=P[i+2]; if(P[i+2]>z1)z1=P[i+2];
+  }
+  return [x0,y0,z0,x1,y1,z1];
+}
+
+/* ==========================================================
+   갱신
+   ========================================================== */
+const PLA = 1.24;
+let timer = null, lastKey = '', built = null, part = 'both', flipped = false;
+const GAP = 5;
+
+function scheduleRefresh(reframe) { clearTimeout(timer); timer = setTimeout(() => refresh(reframe), 140); }
+
+function meshFor(which, cfg) {
+  const out = [];
+  if (which === 'tray' || which === 'both') meshFromSolid(built.tray, 0, 0, out);
+  if (which === 'cover' || which === 'both')
+    meshFromSolid(built.cover, which === 'both' ? built.tray.W + GAP : 0, 0, out);
+  return new Float32Array(out);
+}
+
+/* 미리보기용 뒤집기 — Y축 기준 180° 회전.
+   실제로 케이스를 좌우로 넘겨 잡았을 때와 같은 모습이라 각인이 바로 읽힌다.
+   회전이므로 면 방향(와인딩)은 유지되고, 내보내는 STL 에는 적용하지 않는다
+   (출력 자세는 언제나 열린 쪽이 위). */
+function flipForView(P) {
+  let maxX = -Infinity, maxZ = -Infinity;
+  for (let i = 0; i < P.length; i += 3) {
+    if (P[i] > maxX) maxX = P[i];
+    if (P[i + 2] > maxZ) maxZ = P[i + 2];
+  }
+  for (let i = 0; i < P.length; i += 3) {
+    P[i] = maxX - P[i];
+    P[i + 2] = maxZ - P[i + 2];
+  }
+  return P;
+}
+
+function refresh(reframe) {
+  const cfg = readConfig();
+  let tray, cover;
+  try {
+    tray = buildTray(cfg);
+    cover = buildCover(cfg);
+  } catch (e) { toast('생성 실패: ' + e.message, true); return; }
+  built = { tray, cover };
+
+  const P = meshFor(part, cfg);
+  if (flipped) flipForView(P);
+  const vol = solidVolume(tray) + solidVolume(cover);
+  const cd = coverDims(cfg);
+  const closedH = cfg.floor * 2 + cfg.trayWallH;
+
+  $('sub-stack').textContent = `${cfg.stackH.toFixed(1)}mm 스택`;
+  $('sub-outer').textContent = `${cd.ow.toFixed(1)} × ${cd.od.toFixed(1)}`;
+  $('sub-tri').textContent = `${(P.length/9).toLocaleString()} 삼각형`;
+  $('st-size').textContent = `${cd.ow.toFixed(0)}×${cd.od.toFixed(0)}×${closedH.toFixed(1)}`;
+  $('st-cards').textContent = `${cfg.n}장`;
+  $('st-vol').textContent = (vol/1000).toFixed(2);
+  $('st-weight').textContent = (vol/1000*PLA).toFixed(1);
+
+  view.setMesh(P);
+  const key = `${part}|${flipped}|${cd.ow.toFixed(1)}|${cd.od.toFixed(1)}|${closedH.toFixed(1)}`;
+  if (reframe || key !== lastKey) { view.frame(bboxOf(P)); lastKey = key; }
+}
+
+/* ==========================================================
+   로고
+   ========================================================== */
+function svgToImage(svgText, cb) {
+  const sized = svgText.replace('<svg ', '<svg width="640" height="640" ').replace(/currentColor/g, '#000');
+  const url = URL.createObjectURL(new Blob([sized], { type: 'image/svg+xml' }));
+  const img = new Image();
+  img.onload = () => { cb(img); URL.revokeObjectURL(url); };
+  img.onerror = () => { cb(null); URL.revokeObjectURL(url); };
+  img.src = url;
+}
+function useDefaultLogo() {
+  svgToImage(LOGO_SVG, img => {
+    state.logoImg = img; state.logoIsDefault = true; state.logoName = '';
+    $('logo-prev').innerHTML = LOGO_SVG;
+    $('logo-name').textContent = '기본: 공식 로고 (AI 원본 벡터)';
+    $('thr-box').style.display = 'none';
+    $('inv-box').style.display = 'none';
+    scheduleRefresh();
+  });
+}
+
+/* ==========================================================
+   내보내기
+   ========================================================== */
+function exportPart(which) {
+  if (!built) return;
+  const P = meshFor(which, readConfig());   // 항상 출력 자세 (뒤집기는 미리보기 전용)
+  const name = which === 'tray' ? 'woojoo_cardcase_tray'
+             : which === 'cover' ? 'woojoo_cardcase_cover'
+             : 'woojoo_cardcase_set';
+  downloadBlob(new Blob([toSTLBinary(P, name)], { type: 'model/stl' }), `${name}.stl`);
+  toast(`${name}.stl 내려받기 완료`);
+}
+
+/* ==========================================================
+   이벤트
+   ========================================================== */
+function bindUI() {
+  $('brand-logo').innerHTML = LOGO_SVG;
+
+  $('card-presets').querySelectorAll('.chip').forEach(b => b.addEventListener('click', () => {
+    $('card-presets').querySelectorAll('.chip').forEach(x => x.classList.toggle('on', x === b));
+    $('c-w').value = b.dataset.cw; $('c-d').value = b.dataset.cd;
+    scheduleRefresh(true);
+  }));
+
+  ['deco-seg', 'layout-seg'].forEach(id => {
+    $(id).querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+      $(id).querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+      scheduleRefresh();
+    }));
+  });
+
+  $('part-seg').querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+    $('part-seg').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+    part = b.dataset.part;
+    refresh(true);
+  }));
+
+  $('btn-flip').addEventListener('click', () => {
+    flipped = !flipped;
+    $('btn-flip').classList.toggle('on', flipped);
+    $('btn-flip').textContent = flipped ? '출력 자세로' : '뒤집어 보기';
+    refresh(true);
+  });
+
+  $('tg-notch').addEventListener('click', () => {
+    const on = $('tg-notch').classList.toggle('on');
+    $('notch-opts').style.display = on ? '' : 'none';
+    scheduleRefresh();
+  });
+  $('tg-invert').addEventListener('click', () => { $('tg-invert').classList.toggle('on'); scheduleRefresh(); });
+
+  ['c-w','c-d','c-tol','c-n','c-t','p-wall','p-floor','p-r','p-cover','p-fit','p-res',
+   'n-w','n-h','l-size','l-depth','t-size']
+    .forEach(id => $(id).addEventListener('input', () => scheduleRefresh(['c-w','c-d','c-n','c-t'].includes(id))));
+  $('t-weight').addEventListener('change', () => scheduleRefresh());
+  ['t1','t2','t3'].forEach(id => $(id).addEventListener('input', () => scheduleRefresh()));
+  $('l-thr').addEventListener('input', e => { $('thr-val').textContent = e.target.value; scheduleRefresh(); });
+
+  $('btn-logo-file').addEventListener('click', () => $('logo-file').click());
+  $('btn-logo-reset').addEventListener('click', useDefaultLogo);
+  $('logo-file').addEventListener('change', e => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    const url = URL.createObjectURL(f);
+    const img = new Image();
+    img.onload = () => {
+      if (!img.naturalWidth) { toast('이미지 크기를 읽지 못했습니다 · PNG로 저장해 다시 올려보세요', true); return; }
+      state.logoImg = img; state.logoIsDefault = false; state.logoName = f.name;
+      $('logo-prev').innerHTML = '';
+      const pv = new Image(); pv.src = url; $('logo-prev').appendChild(pv);
+      $('logo-name').textContent = f.name;
+      $('thr-box').style.display = '';
+      $('inv-box').style.display = '';
+      scheduleRefresh();
+    };
+    img.onerror = () => toast('이미지를 읽지 못했습니다', true);
+    img.src = url;
+  });
+
+  $('btn-tray').addEventListener('click', () => exportPart('tray'));
+  $('btn-cover').addEventListener('click', () => exportPart('cover'));
+  $('btn-both').addEventListener('click', () => exportPart('both'));
+}
+
+async function init() {
+  bindUI();
+  view.init();
+  try { if (document.fonts && document.fonts.ready) await document.fonts.ready; } catch {}
+  useDefaultLogo();
+  refresh(true);
+}
+init();
+</script>
+</body>
+</html>
