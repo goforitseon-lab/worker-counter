@@ -233,6 +233,21 @@
           <div class="field"><div class="field-label">홈 폭 mm</div><input id="n-w" class="txt mono" type="number" min="8" max="70" step="1" value="30"></div>
           <div class="field"><div class="field-label">남길 턱 mm</div><input id="n-h" class="txt mono" type="number" min="0.4" max="8" step="0.2" value="1.2"></div>
         </div>
+        <div class="switch" style="border-top:1px solid var(--border);padding-top:12px">
+          <div><div class="switch-label">딸깍 체결</div><div class="switch-hint">커버가 돌기에 걸려 딸깍 닫히고, 당기면 열립니다</div></div>
+          <div class="toggle on" id="tg-snap"></div>
+        </div>
+        <div id="snap-opts">
+          <div class="grid3">
+            <div class="field"><div class="field-label">체결 세기 mm</div><input id="s-str" class="txt mono" type="number" min="0.15" max="0.8" step="0.05" value="0.35"></div>
+            <div class="field"><div class="field-label">돌기 길이 mm</div><input id="s-len" class="txt mono" type="number" min="6" max="45" step="1" value="18"></div>
+            <div class="field"><div class="field-label">손잡이 홈 mm</div><input id="s-sc" class="txt mono" type="number" min="0" max="6" step="0.5" value="2.5"></div>
+          </div>
+          <div class="switch" style="margin-top:12px">
+            <div><div class="switch-label">커버 탄성 슬릿</div><div class="switch-hint">돌기 옆에 틈을 내 부드럽게 여닫히게 합니다</div></div>
+            <div class="toggle on" id="tg-slot"></div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -258,6 +273,14 @@
           <button data-deco="emboss" class="on">양각 (튀어나옴)</button>
           <button data-deco="engrave">음각 (파임)</button>
         </div>
+        <div class="seg" id="block-seg">
+          <button data-block="wide" class="on">연락처 1단 (넓게)</button>
+          <button data-block="two">2단 (명함식)</button>
+        </div>
+        <div class="field">
+          <div class="field-label">패널 격자 mm · 작을수록 글자가 또렷합니다</div>
+          <input id="pn-res" class="txt mono" type="number" min="0.08" max="0.4" step="0.01" value="0.12">
+        </div>
         <div class="switch">
           <div><div class="switch-label">가운데 구분선</div><div class="switch-hint">실제 명함처럼 위아래를 나눕니다</div></div>
           <div class="toggle on" id="tg-rule"></div>
@@ -275,7 +298,7 @@
         <input type="file" id="logo-file" accept="image/png,image/jpeg,image/svg+xml,.svg" style="display:none">
         <div class="grid2">
           <div class="field"><div class="field-label">로고 크기 mm</div><input id="l-size" class="txt mono" type="number" min="5" max="40" step="0.5" value="15"></div>
-          <div class="field"><div class="field-label">본문 크기 mm</div><input id="t-body" class="txt mono" type="number" min="1.6" max="5" step="0.1" value="2.3"></div>
+          <div class="field"><div class="field-label">본문 크기 mm</div><input id="t-body" class="txt mono" type="number" min="1.6" max="5" step="0.1" value="2.9"></div>
         </div>
         <div class="field" id="thr-box" style="display:none">
           <div class="field-label">업로드 이미지 임계값 <span id="thr-val" class="mono">160</span></div>
@@ -348,6 +371,10 @@
           <b id="hint-z">Z = 1.4mm</b> 높이에 <b>필라멘트 교체(Change filament / M600)</b>를 넣고
           <b>검정</b>으로 바꾸면 글자와 로고만 검정으로 나옵니다.
           (프루사슬라이서 = 오른쪽 레이어 막대 우클릭 → Add color change · 큐라 = Post Processing → Filament Change)
+          <br><br>
+          <b>여닫는 법</b> · 커버를 덮으면 옆면 탭이 트레이 돌기를 타고 넘어가 <b>딸깍</b> 물립니다.
+          열 때는 앞뒤 가운데 <b>손잡이 홈</b>으로 트레이를 밀어내면 빠집니다.
+          너무 헐겁거나 뻑뻑하면 <b>체결 세기</b>를 0.05mm씩 조절하세요.
           <br><br>
           <b>출력 방법</b> · 세 파트 모두 서포트 없이 그대로 올려놓고 출력합니다.
           패널은 글자면이 위를 보고 있어 그대로 뽑으면 됩니다.
@@ -426,6 +453,15 @@ function inRoundRect(x, y, w, h, r) {
   const cx = clamp(x, rr, w - rr), cy = clamp(y, rr, h - rr);
   const dx = x - cx, dy = y - cy;
   return dx * dx + dy * dy <= rr * rr;
+}
+
+/* 라운드 사각형 부호거리 (양수 = 바깥쪽 거리, mm) */
+function sdRoundRect(x, y, w, h, r) {
+  const rr = Math.max(0, Math.min(r, w / 2, h / 2));
+  const qx = Math.abs(x - w / 2) - (w / 2 - rr);
+  const qy = Math.abs(y - h / 2) - (h / 2 - rr);
+  const ax = Math.max(qx, 0), ay = Math.max(qy, 0);
+  return Math.hypot(ax, ay) + Math.min(Math.max(qx, qy), 0) - rr;
 }
 
 /* ==========================================================
@@ -569,12 +605,29 @@ function readConfig() {
   const res   = clamp(numOf('p-res', 0.25), 0.15, 0.6);
   const stackH = n * cardT;
   const trayWallH = stackH + 0.5;
-  const coverWallH = Math.max(3, trayWallH * clamp(numOf('p-cover', 60), 25, 95) / 100);
+  const snap = $('tg-snap').classList.contains('on');
+  const snapStr = clamp(numOf('s-str', 0.35), 0.15, 0.8);
+
+  /* 커버 높이 — 체결을 켜면 돌기가 들어갈 자리를 남기도록 자동으로 낮춘다.
+     (돌기는 커버 테두리보다 아래에 있어야 하므로 커버가 너무 높으면 공간이 없다) */
+  let coverWallH = Math.max(3, trayWallH * clamp(numOf('p-cover', 60), 25, 95) / 100);
+  let coverClamped = false;
+  if (snap) {
+    const tabExt = 2 * ((fit + snapStr) * 1.6) + 0.4;
+    const maxCover = trayWallH - tabExt - 0.7;
+    if (maxCover >= 3 && coverWallH > maxCover) { coverWallH = maxCover; coverClamped = true; }
+  }
   return {
     cardW, cardD, tol, n, cardT, wall, floor, r, fit, res, stackH, trayWallH, coverWallH,
     notch: $('tg-notch').classList.contains('on'),
     notchW: clamp(numOf('n-w', 30), 8, 70),
     notchKeep: clamp(numOf('n-h', 1.2), 0.4, 8),
+
+    /* 딸깍 체결 */
+    snap, snapStr, coverClamped,
+    snapLen: clamp(numOf('s-len', 18), 6, 45),
+    scallop: clamp(numOf('s-sc', 2.5), 0, 6),
+    slit: $('tg-slot').classList.contains('on'),
 
     /* 패널 */
     panelSize: document.querySelector('#panel-size .chip.on').dataset.psize,
@@ -582,9 +635,11 @@ function readConfig() {
     panelR: clamp(numOf('pn-r', 3), 0, 12),
     embossH: clamp(numOf('pn-h', 0.6), 0.2, 2),
     deco: document.querySelector('#deco-seg button.on').dataset.deco,
+    blockLay: document.querySelector('#block-seg button.on').dataset.block,
+    panelRes: clamp(numOf('pn-res', 0.12), 0.08, 0.4),
     rule: $('tg-rule').classList.contains('on'),
     logoSize: clamp(numOf('l-size', 15), 5, 40),
-    bodySize: clamp(numOf('t-body', 2.3), 1.6, 5),
+    bodySize: clamp(numOf('t-body', 2.9), 1.6, 5),
     thr: clamp(numOf('l-thr', 160), 20, 240),
     invert: $('tg-invert').classList.contains('on'),
 
@@ -647,7 +702,7 @@ function logoMask(cfg, px) {
 let lastMinText = 99;
 
 function panelDeco(cfg, cols, rows, W, H) {
-  const res = cfg.res;
+  const res = cfg.panelRes;
   const ctx = ctxOf('main', cols, rows);
   ctx.fillStyle = '#000'; ctx.fillRect(0, 0, cols, rows);
   ctx.fillStyle = '#fff';
@@ -692,18 +747,38 @@ function panelDeco(cfg, cols, rows, W, H) {
   const ruleTy = top + logoS + 2.4;
   if (cfg.rule) ctx.fillRect(X(M), Y(ruleTy), X(W - 2 * M), Math.max(1, X(0.35)));
 
-  /* ── 하단 2단 ── */
-  const nLines = Math.max(cfg.aLines.length, cfg.bLines.length);
-  const blockH = sLabel * 1.5 + nLines * step;
+  /* ── 하단 연락처 ── */
   const webH = cfg.web ? body * 1.9 : 0;
   const availTop = ruleTy + 2.2, availBot = H - M * 0.8 - webH;
-  const bTop = availTop + Math.max(0, (availBot - availTop - blockH) / 2);
+  const full = W - 2 * M;
 
-  [[cfg.aLabel, cfg.aLines, M], [cfg.bLabel, cfg.bLines, M + half + 3]].forEach(([label, lines, x]) => {
-    let ty = bTop;
-    if (label) { T(label, x, ty, sLabel, 800, 'left', half); ty += sLabel * 1.5; }
-    lines.forEach(l => { T(l, x, ty, body, 500, 'left', half); ty += step; });
-  });
+  if (cfg.blockLay === 'wide') {
+    /* 1단 — 한 줄을 판 전체 폭으로 써서 글자를 최대한 크게.
+       2단으로 좁히면 한글 주소가 노즐 굵기 아래로 내려가 뭉갠다. */
+    const rows2 = [];
+    const addrA = [cfg.aLabel, cfg.aLines[0]].filter(Boolean).join(' · ');
+    if (addrA) rows2.push([addrA, 800]);
+    const contA = cfg.aLines.slice(1).join('   ');
+    if (contA) rows2.push([contA, 500]);
+    const addrB = [cfg.bLabel, cfg.bLines[0]].filter(Boolean).join(' · ');
+    if (addrB) rows2.push([addrB, 800]);
+    const contB = cfg.bLines.slice(1, 3).join('   ');
+    if (contB) rows2.push([contB, 500]);
+    cfg.bLines.slice(3).forEach(l => rows2.push([l, 500]));
+
+    const blockH = rows2.length * step;
+    let ty = availTop + Math.max(0, (availBot - availTop - blockH) / 2);
+    rows2.forEach(([t, w]) => { T(t, M, ty, body, w, 'left', full); ty += step; });
+  } else {
+    const nLines = Math.max(cfg.aLines.length, cfg.bLines.length);
+    const blockH = sLabel * 1.5 + nLines * step;
+    const bTop = availTop + Math.max(0, (availBot - availTop - blockH) / 2);
+    [[cfg.aLabel, cfg.aLines, M], [cfg.bLabel, cfg.bLines, M + half + 3]].forEach(([label, lines, x]) => {
+      let ty = bTop;
+      if (label) { T(label, x, ty, sLabel, 800, 'left', half); ty += sLabel * 1.5; }
+      lines.forEach(l => { T(l, x, ty, body, 500, 'left', half); ty += step; });
+    });
+  }
 
   /* ── 웹사이트 ── */
   if (cfg.web) T(cfg.web, W / 2, H - M * 0.8 - body * 1.25, body, 600, 'center', W - 2 * M);
@@ -749,10 +824,33 @@ function panelDims(cfg) {
   return { w: c.ow, h: c.od };
 }
 
+/* ----------------------------------------------------------
+   딸깍 체결 구조
+
+     트레이 바깥벽에 마름모 단면 돌기를 두르고,
+     커버 벽을 테두리보다 조금 더 길게 빼서 "탭"을 만든다.
+     닫을 때 탭이 돌기를 타고 넘어가 딸깍 걸리고(탭 끝이 돌기 밑에 물림),
+     열 때는 같은 경사를 타고 빠진다.
+
+     돌기 단면이 마름모라 위아래 모두 약 37° 경사 → 서포트 불필요.
+     탭 양옆 슬릿은 탭을 캔틸레버로 만들어 힘을 덜 들게 한다.
+   ---------------------------------------------------------- */
+function snapGeom(cfg) {
+  const proj = cfg.fit + cfg.snapStr;          // 트레이 벽면 기준 돌기 돌출
+  const hh = proj * 1.6;                       // 돌기 세로 반높이 (아랫면 약 40° 오버행 → 서포트 불필요)
+  const tabExt = 2 * hh + 0.4;                 // 커버 탭이 테두리 밖으로 더 나가는 길이
+  const coverRim = cfg.floor + cfg.trayWallH - cfg.coverWallH;   // 다 닫혔을 때 커버 테두리 높이
+  const ridgeBot = coverRim - tabExt;          // 탭 끝이 물리는 지점
+  const ok = !!cfg.snap && ridgeBot > cfg.floor + 0.6 && cfg.snapLen > 4;
+  return { proj, hh, tabExt, coverRim, ridgeBot, zc: ridgeBot + hh, ok };
+}
+
 function buildTray(cfg) {
   const d = trayDims(cfg);
-  const g = newSolid(d.ow, d.od, cfg.res);
-  const { cols, rows, res, W, H } = g;
+  const sn = snapGeom(cfg);
+  const pad = sn.ok ? sn.proj + 0.6 : 0;       // 돌기가 들어갈 격자 여백
+  const g = newSolid(d.ow + 2 * pad, d.od + 2 * pad, cfg.res);
+  const { cols, rows, res } = g;
   const floorT = F(cfg.floor), top = F(cfg.floor + cfg.trayWallH);
   const innerR = cfg.r - cfg.wall;
 
@@ -767,18 +865,39 @@ function buildTray(cfg) {
     return F(keep + (top - keep) * (1 - Math.sqrt(Math.max(0, 1 - t * t))));
   };
 
+  const yc = d.od / 2, half = cfg.snapLen / 2;
+  const zcF = F(sn.zc);
+
   for (let r = 0; r < rows; r++) {
-    const y = (rows - 1 - r + 0.5) * res;
+    const y = (rows - 1 - r + 0.5) * res - pad;      // 트레이 본체 기준 좌표
     for (let c = 0; c < cols; c++) {
-      const x = (c + 0.5) * res;
-      if (!inRoundRect(x, y, W, H, cfg.r)) continue;
-      let h = top;
-      if (inRoundRect(x - cfg.wall, y - cfg.wall, d.iw, d.id, innerR)) h = floorT;
-      else if (cfg.notch && y < cfg.wall) {
-        const nt = notchTop(x - W / 2);
-        if (nt !== null && nt < h) h = nt;
+      const x = (c + 0.5) * res - pad;
+      const i = r * cols + c;
+      const sd = sdRoundRect(x, y, d.ow, d.od, cfg.r);
+
+      if (sd <= 0) {                                  // ── 본체 ──
+        let h = top;
+        if (inRoundRect(x - cfg.wall, y - cfg.wall, d.iw, d.id, innerR)) h = floorT;
+        else if (cfg.notch && y < cfg.wall) {
+          const nt = notchTop(x - d.ow / 2);
+          if (nt !== null && nt < h) h = nt;
+        }
+        g.hi[i] = h;
+        continue;
       }
-      g.hi[r * cols + c] = h;
+
+      /* ── 딸깍 돌기 (좌우 짧은 벽 바깥면) ── */
+      /* 칸은 중심 기준이고 실제 고체는 반 칸 더 나가므로, 경계를 반 칸 당겨 잡는다 */
+      const dMax = sn.proj - res / 2;
+      if (!sn.ok || dMax <= 0 || sd > dMax) continue;
+      if (Math.abs(y - yc) > half) continue;
+      if (x > sn.proj && x < d.ow - sn.proj) continue;   // 좌우 끝만
+      /* 끝을 뾰족하게 하면 격자에 안 잡혀 물림량이 모자란다 → 끝에 평탄부를 둔 사다리꼴 */
+      const tipHalf = Math.max(res, 0.25);
+      const hs = tipHalf + (sn.hh - tipHalf) * (1 - sd / dMax);
+      if (hs <= res * 0.4) continue;
+      g.lo[i] = F(zcF - hs);
+      g.hi[i] = F(zcF + hs);
     }
   }
   return g;
@@ -790,13 +909,40 @@ function buildCover(cfg) {
   const { cols, rows, res, W, H } = g;
   const floorT = F(cfg.floor), top = F(cfg.floor + cfg.coverWallH);
   const innerR = d.r - cfg.wall;
+  const sn = snapGeom(cfg);
+  const tabTop = F(cfg.floor + cfg.coverWallH + sn.tabExt);
+
+  const yc = H / 2, tabHalf = cfg.snapLen / 2;
+  const slitOff = tabHalf + 0.7, slitHalf = 0.45;      // 탭 양옆 탄성 슬릿
+  const scR = Math.min(W * 0.18, 14);                  // 손잡이 홈 반폭
+
   for (let r = 0; r < rows; r++) {
     const y = (rows - 1 - r + 0.5) * res;
     for (let c = 0; c < cols; c++) {
       const x = (c + 0.5) * res;
+      const i = r * cols + c;
       if (!inRoundRect(x, y, W, H, d.r)) continue;
-      g.hi[r * cols + c] =
-        inRoundRect(x - cfg.wall, y - cfg.wall, d.iw, d.id, innerR) ? floorT : top;
+      if (inRoundRect(x - cfg.wall, y - cfg.wall, d.iw, d.id, innerR)) { g.hi[i] = floorT; continue; }
+
+      let h = top;
+      const onSide = (x < cfg.wall + 0.01) || (x > W - cfg.wall - 0.01);   // 좌우 짧은 벽
+      const onFace = (y < cfg.wall + 0.01) || (y > H - cfg.wall - 0.01);   // 앞뒤 긴 벽
+
+      /* 체결 탭 — 테두리보다 길게 빼서 돌기 밑에 물리게 한다 */
+      if (sn.ok && onSide && Math.abs(y - yc) <= tabHalf) h = tabTop;
+
+      /* 탄성 슬릿 — 벽을 끊어 탭을 캔틸레버로 */
+      if (sn.ok && cfg.slit && onSide && Math.abs(Math.abs(y - yc) - slitOff) <= slitHalf) h = floorT;
+
+      /* 손잡이 홈 — 앞뒤 긴 벽 가운데를 둥글게 파서 트레이를 밀어낼 수 있게 */
+      if (cfg.scallop > 0 && onFace) {
+        const t = (x - W / 2) / scR;
+        if (Math.abs(t) < 1) {
+          const cut = cfg.scallop * Math.sqrt(1 - t * t);
+          h = Math.min(h, F(Math.max(floorT + 0.4, top - cut)));
+        }
+      }
+      g.hi[i] = h;
     }
   }
   return g;
@@ -804,7 +950,7 @@ function buildCover(cfg) {
 
 function buildPanel(cfg) {
   const d = panelDims(cfg);
-  const g = newSolid(d.w, d.h, cfg.res);
+  const g = newSolid(d.w, d.h, cfg.panelRes);   // 글자를 위해 본체보다 고운 격자
   const { cols, rows, res, W, H } = g;
   const base = F(cfg.panelT);
   for (let r = 0; r < rows; r++) {
@@ -986,6 +1132,24 @@ function flipForView(P) {
   return P;
 }
 
+/* 트레이 격자에서 돌기의 실제 돌출을 재고, 커버 여유를 뺀 물림량을 돌려준다 */
+function measureGrip(tray, cfg) {
+  const sn = snapGeom(cfg);
+  if (!sn.ok) return 0;
+  const td = trayDims(cfg);
+  const pad = sn.proj + 0.6;
+  let maxProj = 0;
+  for (let r = 0; r < tray.rows; r++) {
+    for (let c = 0; c < tray.cols; c++) {
+      if (tray.lo[r * tray.cols + c] <= 0) continue;
+      const x = (c + 0.5) * tray.res - pad, y = (tray.rows - 1 - r + 0.5) * tray.res - pad;
+      const sd = sdRoundRect(x, y, td.ow, td.od, cfg.r);
+      if (sd > maxProj) maxProj = sd;
+    }
+  }
+  return Math.max(0, maxProj + tray.res / 2 - cfg.fit);   // 칸은 중심 기준이라 반 칸 더 나간다
+}
+
 function refresh(reframe) {
   const cfg = readConfig();
   try {
@@ -999,7 +1163,18 @@ function refresh(reframe) {
   const closedH = cfg.floor * 2 + cfg.trayWallH + cfg.panelT;
 
   $('sub-stack').textContent = `${cfg.stackH.toFixed(1)}mm 스택`;
-  $('sub-outer').textContent = `${cd.ow.toFixed(1)} × ${cd.od.toFixed(1)}`;
+  const sn = snapGeom(cfg);
+  if (!cfg.snap) $('sub-outer').textContent = `${cd.ow.toFixed(1)} × ${cd.od.toFixed(1)}`;
+  else if (!sn.ok) {
+    $('sub-outer').textContent = '케이스가 얇아 체결 불가 · 수납 매수를 늘리세요';
+    $('sub-outer').style.color = 'var(--red)';
+  } else {
+    /* 격자 양자화까지 반영한 실제 물림량 */
+    const grip = measureGrip(built.tray, cfg);
+    $('sub-outer').textContent = `${cd.ow.toFixed(1)} × ${cd.od.toFixed(1)} · 물림 ${grip.toFixed(2)}mm`
+      + (cfg.coverClamped ? ' (커버 높이 자동조정)' : '');
+    $('sub-outer').style.color = grip < 0.15 ? 'var(--red)' : '';
+  }
   $('sub-panel').textContent = `${pd.w.toFixed(1)} × ${pd.h.toFixed(1)} mm`;
   $('sub-tri').textContent = `${(P.length / 9).toLocaleString()} 삼각형`;
   $('st-size').textContent = `${cd.ow.toFixed(0)}×${cd.od.toFixed(0)}×${closedH.toFixed(1)}`;
@@ -1067,7 +1242,7 @@ function exportPart(which) {
    이벤트
    ========================================================== */
 const NUM_IDS = ['c-w','c-d','c-tol','c-n','c-t','p-wall','p-floor','p-r','p-cover','p-fit','p-res',
-                 'n-w','n-h','pn-t','pn-r','pn-h','l-size','t-body'];
+                 'n-w','n-h','s-str','s-len','s-sc','pn-t','pn-r','pn-h','pn-res','l-size','t-body'];
 const TEXT_IDS = ['f-co-ko','f-co-en','f-title','f-name',
                   'f-a-label','f-a-addr','f-a-tel','f-a-fax','f-a-mob',
                   'f-b-label','f-b-addr','f-b-tel','f-b-fax','f-b-mail','f-web'];
@@ -1084,10 +1259,11 @@ function bindUI() {
     $('panel-size').querySelectorAll('.chip').forEach(x => x.classList.toggle('on', x === b));
     scheduleRefresh(true);
   }));
-  $('deco-seg').querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
-    $('deco-seg').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
-    scheduleRefresh();
-  }));
+  ['deco-seg', 'block-seg'].forEach(id =>
+    $(id).querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+      $(id).querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+      scheduleRefresh();
+    })));
   $('part-seg').querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
     $('part-seg').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
     part = b.dataset.part;
@@ -1106,6 +1282,12 @@ function bindUI() {
     scheduleRefresh();
   });
   $('tg-rule').addEventListener('click', () => { $('tg-rule').classList.toggle('on'); scheduleRefresh(); });
+  $('tg-snap').addEventListener('click', () => {
+    const on = $('tg-snap').classList.toggle('on');
+    $('snap-opts').style.display = on ? '' : 'none';
+    scheduleRefresh();
+  });
+  $('tg-slot').addEventListener('click', () => { $('tg-slot').classList.toggle('on'); scheduleRefresh(); });
   $('tg-invert').addEventListener('click', () => { $('tg-invert').classList.toggle('on'); scheduleRefresh(); });
 
   NUM_IDS.forEach(id => $(id).addEventListener('input',
