@@ -30,11 +30,11 @@ fs.mkdirSync(OUT, { recursive: true });
 
 const M = {
   /* 모듈 실측 */
-  modW: 60, modH: arg('modH', 100), modT: 12,
+  modW: 60, modH: arg('modH', 93), modT: 12,   // 세로는 실측 93mm
   clr: 0.35,                 // 모듈 둘레 여유 (편측)
   /* 케이스 */
-  wall: 2.6, floor: 1.6, corner: 5, res: 0.15,
-  capT: arg('capT', 1.0),    // 커버 판 두께 — 맥세이프 자력 때문에 얇게
+  wall: 2.6, floor: arg('floor', 1.2), corner: 5, res: 0.15,
+  capT: arg('capT', 0.8),    // 커버 판 두께 — 맥세이프 자력 때문에 얇게
   /* 체결 — 커버 안쪽 립이 셸 안쪽벽 홈에 물린다 */
   rimT: 0.85,                // 립 두께 (얇아야 휘어서 들어간다)
   rimFit: 0.15,              // 립과 확장부 사이 헐거움
@@ -43,14 +43,15 @@ const M = {
   beadCorner: 13,            // 모서리 이만큼은 비드를 빼서 립이 휠 수 있게 한다
   beadH: 1.0,                // 비드 평평한 구간 높이
   beadRamp: 0.7,             // 진입 경사 높이
-  boreZ: 8.7,                // 립이 들어갈 확장부 시작 높이
+  boreGap: 0.3,              // 립 아래끝과 확장부 턱 사이 여유
   leadIn: 0.5,               // 셸 입구 유도 챔퍼
   /* USB-C 개구 — 모듈 밑면 기준 6~10mm 에 가로 10mm (실측).
-     여유 0.7mm 씩 줘서 중심 8mm 에 5.4mm 높이로 뚫는다. */
-  portW: 11.5, portH: 5.4, portX: 0, portZ: 5.3,
-  portCh: 0.8, portChD: 1.2, // 바깥쪽 유도 챔퍼 (넓어지는 양 / 깊이)
+     ⚠ USB-C 플러그 쉘 규격이 8.34 x 2.56mm 라 가로는 9.0mm 아래로 못 줄인다.
+        (9.0 = 플러그 8.34 + 좌우 0.33 여유) */
+  portW: arg('portW', 9.0), portH: 5.4, portX: 0, portZ: 5.3,
+  portCh: 0.5, portChD: 1.0, // 바깥쪽 유도 챔퍼 (넓어지는 양 / 깊이)
   /* 라벨 */
-  labelT: 0.6,               // 색이 들어가는 깊이 (0.2mm 층 x3)
+  labelT: 0.4,               // 색이 들어가는 깊이 (0.2mm 층 x2)
   labelInset: 1.0,           // 케이스 모서리에서 라벨까지 (둥근 모서리 때문에 필요)
   labelFill: true,           // true = 면을 꽉 채우도록 살짝 늘림
   /* 커버 로고 */
@@ -72,6 +73,7 @@ const grvW = boreW + 2*M.beadD, grvH = boreH + 2*M.beadD;           // 홈 개�
 
 /* 체결 높이 (조립 좌표 = 케이스 바닥이 0) */
 const rimZ0 = wallTop - M.rimH;                           // 립 아래끝
+const boreZ = rimZ0 - M.boreGap;                          // 확장부는 립보다 조금 아래에서 시작
 const beadZ0 = rimZ0 + 1.0, beadZ1 = beadZ0 + M.beadH;    // 비드 평평 구간
 const grvZ0 = beadZ0 - 0.1, grvZ1 = beadZ1 + 0.1;         // 홈 (비드보다 0.1 여유)
 
@@ -189,7 +191,7 @@ function buildShell(clipY, withLabel = true) {
       /* 벽 안쪽을 립 두께만큼 넓힌다 (z ≥ boreZ) */
       const dBore = (ow - boreW)/2;
       if (inRR(x - dBore, y - dBore, boreW, boreH, boreR)) {
-        cutSpan(g, i, M.boreZ, wallTop + 1);
+        cutSpan(g, i, boreZ, wallTop + 1);
         continue;
       }
       /* 입구 유도 챔퍼 — 비드가 처음 물리기 쉽게 벽 안쪽 위끝을 45도로 딴다 */
@@ -372,14 +374,20 @@ const grip = M.beadD - M.rimFit;
 console.log('체결          ', `실걸림 ${grip.toFixed(2)}mm · 걸림면 수평(0도) · 진입 경사 ${(Math.atan(M.beadRamp/M.beadD)*180/Math.PI).toFixed(0)}도`);
 console.log('              ', `물리는 높이 ${beadZ0.toFixed(1)}~${beadZ1.toFixed(1)}mm · 닫을 때 립이 ${grip.toFixed(2)}mm 안으로 휜다`,
             `· 모서리 ${M.beadCorner}mm 는 비드 없음(휘라고)`);
-console.log('USB-C 개구    ', `가로 ${M.portW} × 세로 ${M.portH} · 좌우중심 ${M.portX>=0?'+':''}${M.portX}`,
-            `· 바닥 안쪽면에서 ${M.portZ}~${(M.portZ+M.portH).toFixed(1)}mm · 바깥 챔퍼 +${M.portCh}mm`);
+console.log('USB-C 개구    ', `안쪽 ${M.portW} × ${M.portH} · 바깥 ${(M.portW+2*M.portCh).toFixed(1)} × ${(M.portH+2*M.portCh).toFixed(1)}`,
+            `· 바닥 안쪽면에서 ${M.portZ}~${(M.portZ+M.portH).toFixed(1)}mm`);
+console.log('              ', `플러그 쉘 8.34mm 기준 좌우 여유 ${((M.portW-8.34)/2).toFixed(2)}mm`,
+            M.portW >= 8.9 ? '✓' : '❌ 플러그가 안 들어간다');
 console.log('바닥 라벨     ', `${labXext.toFixed(1)} × ${labYext.toFixed(1)} mm`,
             `(원본 ${LAB_W}×${LAB_H} 대비 ${(kx*100).toFixed(1)}% / ${(ky*100).toFixed(1)}%)`,
             `· 상감 ${M.labelT}mm`);
 console.log('커버 로고     ', `${M.logoSize}mm · 2색 상감 ${M.logoT}mm · 로고 위 살두께 ${(M.capT-M.logoT).toFixed(1)}mm`);
 console.log('맥세이프 간격 ', `커버 ${M.capT}mm + 모듈 유격 ${(cav-M.modT).toFixed(2)}mm =`,
             `자석에서 폰까지 ${(M.capT + cav - M.modT).toFixed(2)}mm`);
+console.log('두께 내역     ', `바닥 ${M.floor} + 모듈칸 ${cav.toFixed(1)} + 커버 ${M.capT} = ${total.toFixed(1)}mm`,
+            `· 라벨 아래 살두께 ${(M.floor - M.labelT).toFixed(1)}mm · 로고 아래 ${(M.capT - M.logoT).toFixed(1)}mm`);
+console.log('확장부/립     ', `확장부 z ${boreZ.toFixed(1)}~${wallTop.toFixed(1)} · 립 z ${rimZ0.toFixed(1)}~${wallTop.toFixed(1)}`,
+            boreZ <= rimZ0 ? '(립이 턱에 안 닿음 ✓)' : '❌ 립이 턱에 부딪힘');
 
 const LGN = ['남색','초록'];
 function bedArea(P) {                                      // z=0 에 놓인 면의 넓이
@@ -400,6 +408,8 @@ const all = [['셸',Ps,shell], ['커버',Pc,cap],
              ...Pi.map((p,i)=>[`라벨 ${INK[i]}`,p,inks[i]]),
              ...Pg.map((p,i)=>[`로고 ${LGN[i]}`,p,lgs[i]]), ['시험',Pt,test]];
 for (const [n,p,g] of all) console.log(n.padEnd(9), JSON.stringify(audit(p,g)));
+/* 얇은 파트일수록 부피가 작아 상대오차가 커진다 — 절대 부피 오차로도 본다 */
 const ok = all.every(([,p,g]) => { const a = audit(p,g);
-  return a.relErr < 1e-6 && a.normSum < 1e-5 && a.z0 === 0; });
+  return (a.relErr < 1e-5 || a.relErr * a.vol * 1000 < 0.01)
+      && a.normSum < 1e-5 && a.z0 === 0; });
 console.log(ok ? '✅ 전 파트 닫힌 메시 · 베드 밀착' : '❌ 검증 실패');
