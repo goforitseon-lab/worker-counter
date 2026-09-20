@@ -6,7 +6,8 @@
      파트마다 색을 바꿔 여러 개를 한 장에 겹쳐 볼 수 있다.
    ============================================================ */
 import fs from 'fs';
-import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
+import { chromium as getChromium } from './lib/browser.mjs';
+const chromium = await getChromium();
 
 const argv = process.argv.slice(2);
 const view = { az: -35, el: 28 };                       // 기본 시점 (방위/고도, 도)

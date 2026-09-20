@@ -1,0 +1,16 @@
+{
+  "name": "woojoo-worker-counter",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "(주)우주특수산업 작업량 관리 + 3D 출력물 생성기",
+  "scripts": {
+    "qicase": "node tools/build-qicase.mjs out-qi",
+    "qicase:test": "node tools/build-qicase.mjs out-qi --plain",
+    "cardcase": "node tools/build-cardcase.mjs out-card"
+  },
+  "devDependencies": {
+    "playwright": "^1.49.0"
+  },
+  "engines": { "node": ">=20" }
+}

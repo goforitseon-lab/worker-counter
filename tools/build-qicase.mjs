@@ -14,7 +14,8 @@
      확인용으로 포트 주변만 잘라낸 시험 조각도 같이 내보낸다.
    ============================================================ */
 import fs from 'fs'; import path from 'path';
-import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
+import { chromium as getChromium } from './lib/browser.mjs';
+const chromium = await getChromium();
 import { newSolid, addSpan, cutSpan, meshOf, audit, toSTL, inRR, sdRR }
   from './lib/solid.mjs';
 import { write3mf } from './lib/threemf.mjs';

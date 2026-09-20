@@ -11,7 +11,8 @@
 
    출력 자세 그대로 서포트 없이 뽑으면 된다.
    ============================================================ */
-import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
+import { chromium as getChromium } from './lib/browser.mjs';
+const chromium = await getChromium();
 import fs from 'fs';
 import path from 'path';
 import zlib from 'zlib';
