@@ -19,18 +19,22 @@ import { newSolid, addSpan, cutSpan, meshOf, audit, toSTL, inRR, sdRR }
   from './lib/solid.mjs';
 import { write3mf } from './lib/threemf.mjs';
 
-/* --plain : 라벨·로고 없이 단색 시험 출력용으로 뽑는다 (바닥이 꽉 차서 브림이 필요 없다) */
+/* --plain     : 라벨·로고 없이 단색 시험 출력용 (바닥이 꽉 차서 브림이 필요 없다)
+   --capT=1.0  : 커버 두께. 얇을수록 맥세이프 자력이 세진다
+   --modH=100  : 모듈 세로 실측값. 케이스 세로 = modH + 2*clr + 2*wall */
 const PLAIN = process.argv.includes('--plain');
+const arg = (k, d) => { const m = process.argv.find(a => a.startsWith(`--${k}=`));
+                        return m ? parseFloat(m.split('=')[1]) : d; };
 const OUT = process.argv.filter(a => !a.startsWith('--'))[2] || 'out-qi';
 fs.mkdirSync(OUT, { recursive: true });
 
 const M = {
   /* 모듈 실측 */
-  modW: 60, modH: 100, modT: 12,
+  modW: 60, modH: arg('modH', 100), modT: 12,
   clr: 0.35,                 // 모듈 둘레 여유 (편측)
   /* 케이스 */
   wall: 2.6, floor: 1.6, corner: 5, res: 0.15,
-  capT: 1.6,                 // 커버 판 두께
+  capT: arg('capT', 1.0),    // 커버 판 두께 — 맥세이프 자력 때문에 얇게
   /* 체결 — 커버 안쪽 립이 셸 안쪽벽 홈에 물린다 */
   rimT: 0.85,                // 립 두께 (얇아야 휘어서 들어간다)
   rimFit: 0.15,              // 립과 확장부 사이 헐거움
@@ -51,7 +55,7 @@ const M = {
   labelFill: true,           // true = 면을 꽉 채우도록 살짝 늘림
   /* 커버 로고 */
   logoSize: 46,              // 로고 폭
-  logoT: 0.6,                // 로고 상감 깊이
+  logoT: 0.4,                // 로고 상감 깊이 (커버가 얇아져서 같이 줄임)
 };
 
 const R = M.res;
@@ -155,14 +159,18 @@ const labIn = new Uint8Array(labCols*labRows).fill(1);
   }
 }
 
-/* 셸 평면좌표 (x,y) → 라벨 픽셀. 바닥 바깥면이 베드에 닿으므로 X 를 뒤집어야
-   케이스를 뒤집어 봤을 때 바로 읽힌다. 범위 밖이면 -1 */
-function labAt(x, y) {
+/* 셸 평면좌표 (x,y) → 라벨 색 번호 (0 흰바탕 / 1 노랑 / 2 검정 / 3 빨강, 범위 밖 -1).
+   바닥 바깥면이 베드에 닿으므로 X 를 뒤집어야 케이스를 뒤집어 봤을 때 바로 읽힌다.
+
+   흰 바탕은 파내지 않는다 — 로고와 똑같이 "색이 들어가는 자리만" 파고
+   몸체 살이 그대로 바탕이 된다. 그래야 바닥이 베드에 꽉 닿아서
+   첫 층이 뭉개지지 않는다. */
+function labColor(x, y) {
   const pc = Math.floor((y - labY0) / R);
   const pr = Math.floor((labX1 - x) / R);
   if (pc<0 || pr<0 || pc>=labCols || pr>=labRows) return -1;
   const i = pr*labCols + pc;
-  return labIn[i] ? i : -1;
+  return labIn[i] ? labIdx[i] : -1;
 }
 
 /* ---------- 하부 셸 (바닥을 베드에 놓고 그대로 출력) ---------- */
@@ -209,7 +217,7 @@ function buildShell(clipY, withLabel = true) {
     for (let r=0;r<rows;r++) {
       const y = (rows-1-r+0.5)*R;
       for (let c=0;c<cols;c++)
-        if (labAt((c+0.5)*R, y) >= 0) cutSpan(g, r*cols+c, 0, M.labelT);
+        if (labColor((c+0.5)*R, y) > 0) cutSpan(g, r*cols+c, 0, M.labelT);
     }
   return g;
 }
@@ -271,8 +279,8 @@ function buildInk(color) {                                 // 셸 바닥 라벨
   for (let r=0;r<rows;r++) {
     const y = (rows-1-r+0.5)*R;
     for (let c=0;c<cols;c++) {
-      const x = (c+0.5)*R, i = labAt(x, y);
-      if (i >= 0 && labIdx[i] === color && inRR(x, y, ow, oh, M.corner))
+      const x = (c+0.5)*R;
+      if (labColor(x, y) === color && inRR(x, y, ow, oh, M.corner))
         addSpan(g, r*cols+c, 0, M.labelT);
     }
   }
@@ -295,8 +303,7 @@ function buildLogoInk(color) {                             // 커버 로고
 
 const shell = buildShell();
 const cap   = buildCap();
-/* 라벨은 흰 바탕까지 파트로 만들어야 한다 — 안 그러면 바탕이 빈 홈으로 남는다 */
-const inks  = [0,1,2,3].map(buildInk);                     // 흰 바탕 / 노랑 / 검정 / 빨강
+const inks  = [1,2,3].map(buildInk);                       // 노랑 / 검정 / 빨강 (흰 바탕은 몸체 살)
 const lgs   = [1,2].map(buildLogoInk);                     // 남색 / 초록
 const test  = buildShell(30, false);                       // 포트 주변 30mm 만 (라벨 제외)
 
@@ -305,17 +312,16 @@ const Pc = new Float32Array(meshOf(cap));
 const Pi = inks.map(g => new Float32Array(meshOf(g)));
 const Pg = lgs.map(g => new Float32Array(meshOf(g)));
 const Pt = new Float32Array(meshOf(test));
-const INK = ['흰바탕','노랑','검정','빨강'];
+const INK = ['노랑','검정','빨강'];
 
 fs.writeFileSync(path.join(OUT,'qi_shell.stl'), toSTL(Ps,'shell'));
 fs.writeFileSync(path.join(OUT,'qi_cap.stl'),   toSTL(Pc,'cap'));
 fs.writeFileSync(path.join(OUT,'qi_porttest.stl'), toSTL(Pt,'port test'));
 write3mf(path.join(OUT,'qi_shell.3mf'), [
-  { name:'1 케이스 몸체',           mesh: Ps },
-  { name:'2 라벨 바탕 (흰색)',      mesh: Pi[0] },
-  { name:'3 라벨 노란 띠 (노랑)',   mesh: Pi[1] },
-  { name:'4 라벨 그림·글자 (검정)', mesh: Pi[2] },
-  { name:'5 라벨 금지표시 (빨강)',  mesh: Pi[3] },
+  { name:'1 케이스 몸체 (흰색 = 라벨 바탕)', mesh: Ps },
+  { name:'2 라벨 노란 띠 (노랑)',            mesh: Pi[0] },
+  { name:'3 라벨 그림·글자 (검정)',          mesh: Pi[1] },
+  { name:'4 라벨 금지표시 (빨강)',           mesh: Pi[2] },
 ], '(주)우주특수산업 무선충전 케이스 — 하부');
 write3mf(path.join(OUT,'qi_cap.3mf'), [
   { name:'1 커버 몸체 (흰색)',   mesh: Pc },
@@ -337,7 +343,7 @@ write3mf(path.join(OUT,'qi_cap.3mf'), [
         const xp = ow - (c+0.5)*R;                     // 바라보는 시점 = 출력 평면의 X 반전
         if (!inRR(xp, y, ow, oh, M.corner)) continue;
         let col = [244,244,246];
-        if (mode === 'label') { const i = labAt(xp, y); if (i >= 0) col = PAL[labIdx[i]]; }
+        if (mode === 'label') { const k = labColor(xp, y); if (k >= 0) col = PAL[k]; }
         else { const k = logoAt(xp, y); if (k) col = LG[k]; }
         const o = (r*cols+c)*3; buf[o]=col[0]; buf[o+1]=col[1]; buf[o+2]=col[2];
       }
@@ -371,7 +377,9 @@ console.log('USB-C 개구    ', `가로 ${M.portW} × 세로 ${M.portH} · 좌�
 console.log('바닥 라벨     ', `${labXext.toFixed(1)} × ${labYext.toFixed(1)} mm`,
             `(원본 ${LAB_W}×${LAB_H} 대비 ${(kx*100).toFixed(1)}% / ${(ky*100).toFixed(1)}%)`,
             `· 상감 ${M.labelT}mm`);
-console.log('커버 로고     ', `${M.logoSize}mm · 2색 상감 ${M.logoT}mm`);
+console.log('커버 로고     ', `${M.logoSize}mm · 2색 상감 ${M.logoT}mm · 로고 위 살두께 ${(M.capT-M.logoT).toFixed(1)}mm`);
+console.log('맥세이프 간격 ', `커버 ${M.capT}mm + 모듈 유격 ${(cav-M.modT).toFixed(2)}mm =`,
+            `자석에서 폰까지 ${(M.capT + cav - M.modT).toFixed(2)}mm`);
 
 const LGN = ['남색','초록'];
 function bedArea(P) {                                      // z=0 에 놓인 면의 넓이
