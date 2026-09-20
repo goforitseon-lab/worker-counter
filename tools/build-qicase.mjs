@@ -19,7 +19,9 @@ import { newSolid, addSpan, cutSpan, meshOf, audit, toSTL, inRR, sdRR }
   from './lib/solid.mjs';
 import { write3mf } from './lib/threemf.mjs';
 
-const OUT = process.argv[2] || 'out-qi';
+/* --plain : 라벨·로고 없이 단색 시험 출력용으로 뽑는다 (바닥이 꽉 차서 브림이 필요 없다) */
+const PLAIN = process.argv.includes('--plain');
+const OUT = process.argv.filter(a => !a.startsWith('--'))[2] || 'out-qi';
 fs.mkdirSync(OUT, { recursive: true });
 
 const M = {
@@ -203,7 +205,7 @@ function buildShell(clipY, withLabel = true) {
     }
   }
   /* 바닥 바깥면에서 라벨 두께만큼 걷어낸다 — 그 자리를 색 파트가 채운다 */
-  if (withLabel)
+  if (withLabel && !PLAIN)
     for (let r=0;r<rows;r++) {
       const y = (rows-1-r+0.5)*R;
       for (let c=0;c<cols;c++)
@@ -256,7 +258,7 @@ function buildCap() {
         }
       }
       /* 로고 상감 자리를 베드면에서 걷어낸다 */
-      if (logoAt(x, y)) cutSpan(g, i, 0, M.logoT);
+      if (!PLAIN && logoAt(x, y)) cutSpan(g, i, 0, M.logoT);
     }
   }
   return g;
@@ -293,7 +295,8 @@ function buildLogoInk(color) {                             // 커버 로고
 
 const shell = buildShell();
 const cap   = buildCap();
-const inks  = [1,2,3].map(buildInk);                       // 노랑 / 검정 / 빨강
+/* 라벨은 흰 바탕까지 파트로 만들어야 한다 — 안 그러면 바탕이 빈 홈으로 남는다 */
+const inks  = [0,1,2,3].map(buildInk);                     // 흰 바탕 / 노랑 / 검정 / 빨강
 const lgs   = [1,2].map(buildLogoInk);                     // 남색 / 초록
 const test  = buildShell(30, false);                       // 포트 주변 30mm 만 (라벨 제외)
 
@@ -302,16 +305,17 @@ const Pc = new Float32Array(meshOf(cap));
 const Pi = inks.map(g => new Float32Array(meshOf(g)));
 const Pg = lgs.map(g => new Float32Array(meshOf(g)));
 const Pt = new Float32Array(meshOf(test));
-const INK = ['노랑','검정','빨강'];
+const INK = ['흰바탕','노랑','검정','빨강'];
 
 fs.writeFileSync(path.join(OUT,'qi_shell.stl'), toSTL(Ps,'shell'));
 fs.writeFileSync(path.join(OUT,'qi_cap.stl'),   toSTL(Pc,'cap'));
 fs.writeFileSync(path.join(OUT,'qi_porttest.stl'), toSTL(Pt,'port test'));
 write3mf(path.join(OUT,'qi_shell.3mf'), [
-  { name:'1 케이스 몸체 (흰색)',    mesh: Ps },
-  { name:'2 라벨 노란 띠 (노랑)',   mesh: Pi[0] },
-  { name:'3 라벨 그림·글자 (검정)', mesh: Pi[1] },
-  { name:'4 라벨 금지표시 (빨강)',  mesh: Pi[2] },
+  { name:'1 케이스 몸체',           mesh: Ps },
+  { name:'2 라벨 바탕 (흰색)',      mesh: Pi[0] },
+  { name:'3 라벨 노란 띠 (노랑)',   mesh: Pi[1] },
+  { name:'4 라벨 그림·글자 (검정)', mesh: Pi[2] },
+  { name:'5 라벨 금지표시 (빨강)',  mesh: Pi[3] },
 ], '(주)우주특수산업 무선충전 케이스 — 하부');
 write3mf(path.join(OUT,'qi_cap.3mf'), [
   { name:'1 커버 몸체 (흰색)',   mesh: Pc },
@@ -370,6 +374,20 @@ console.log('바닥 라벨     ', `${labXext.toFixed(1)} × ${labYext.toFixed(1)
 console.log('커버 로고     ', `${M.logoSize}mm · 2색 상감 ${M.logoT}mm`);
 
 const LGN = ['남색','초록'];
+function bedArea(P) {                                      // z=0 에 놓인 면의 넓이
+  let a = 0;
+  for (let i=0;i<P.length;i+=9) {
+    if (Math.abs(P[i+2])>1e-4 || Math.abs(P[i+5])>1e-4 || Math.abs(P[i+8])>1e-4) continue;
+    a += Math.abs((P[i+3]-P[i])*(P[i+7]-P[i+1]) - (P[i+4]-P[i+1])*(P[i+6]-P[i])) / 2;
+  }
+  return a;
+}
+const faceA = ow*oh;
+console.log('베드 접촉     ', `셸 몸체 ${bedArea(Ps).toFixed(0)}mm² (${(bedArea(Ps)/faceA*100).toFixed(0)}%)`,
+            `· 색 파트까지 ${(bedArea(Ps)+Pi.reduce((t,p)=>t+bedArea(p),0)).toFixed(0)}mm²`,
+            `· 커버 ${bedArea(Pc).toFixed(0)}mm² (${(bedArea(Pc)/faceA*100).toFixed(0)}%)`);
+console.log('              ', '※ 몸체 STL 만 슬라이싱하면 바닥이 거의 안 닿는다 → 반드시 3MF(전 파트)로');
+
 const all = [['셸',Ps,shell], ['커버',Pc,cap],
              ...Pi.map((p,i)=>[`라벨 ${INK[i]}`,p,inks[i]]),
              ...Pg.map((p,i)=>[`로고 ${LGN[i]}`,p,lgs[i]]), ['시험',Pt,test]];
