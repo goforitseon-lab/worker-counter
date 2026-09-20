@@ -2,9 +2,10 @@
    무선충전 보조배터리 케이스   node tools/build-qicase.mjs [출력폴더]
 
      하부 셸 + 전면 커버 2피스.
-       · 커버 윗면 = AIRBAG 경고라벨 4색 상감, 면 전체를 채운다.
-         커버는 라벨면을 "베드에 깔고" 뒤집어 출력한다 → 서포트 없이
-         베드면 그대로라 인쇄한 것처럼 매끈하게 나온다.
+       · 셸 바닥 바깥면 = AIRBAG 경고라벨 4색 상감, 면 전체를 채운다.
+       · 커버 윗면      = 우주 로고 2색 상감.
+       두 면 다 "베드에 닿는 면"이라 서포트 없이 인쇄한 것처럼 매끈하게 나온다.
+       (커버는 로고면을 베드에 깔고 뒤집어 출력한다)
        · 체결 = 커버 안쪽 립의 비드 ↔ 셸 안쪽벽 홈.
          들어갈 때는 30도 경사로 미끄러지고, 걸리는 면은 수평 0도.
          한 번 닫으면 공구 없이는 열리지 않는다.
@@ -27,7 +28,7 @@ const M = {
   clr: 0.35,                 // 모듈 둘레 여유 (편측)
   /* 케이스 */
   wall: 2.6, floor: 1.6, corner: 5, res: 0.15,
-  capT: 1.4,                 // 커버 판 두께
+  capT: 1.6,                 // 커버 판 두께
   /* 체결 — 커버 안쪽 립이 셸 안쪽벽 홈에 물린다 */
   rimT: 0.85,                // 립 두께 (얇아야 휘어서 들어간다)
   rimFit: 0.15,              // 립과 확장부 사이 헐거움
@@ -44,8 +45,11 @@ const M = {
   portCh: 0.8, portChD: 1.2, // 바깥쪽 유도 챔퍼 (넓어지는 양 / 깊이)
   /* 라벨 */
   labelT: 0.6,               // 색이 들어가는 깊이 (0.2mm 층 x3)
-  labelInset: 1.0,           // 커버 모서리에서 라벨까지 (둥근 모서리 때문에 필요)
+  labelInset: 1.0,           // 케이스 모서리에서 라벨까지 (둥근 모서리 때문에 필요)
   labelFill: true,           // true = 면을 꽉 채우도록 살짝 늘림
+  /* 커버 로고 */
+  logoSize: 46,              // 로고 폭
+  logoT: 0.6,                // 로고 상감 깊이
 };
 
 const R = M.res;
@@ -99,6 +103,40 @@ const labIdx = Uint8Array.from(await page.evaluate(async ({ b64, w, h }) => {
   }
   return out;
 }, { b64: labelPng, w: labCols, h: labRows }));
+
+/* ---------- 우주 로고 2색 마스크 ----------
+   path[0] = 상부(남색), path[1,2] = 하부(초록). 커버 가운데에 상감한다. */
+const LOGO = fs.readFileSync(path.join(ROOT,'woojoo-logo.svg'), 'utf8');
+const lgPx = Math.round(M.logoSize / R);
+const logoMask = await page.evaluate(async ({ svg, px }) => {
+  const shot = async keep => {                        // keep = 남길 path 번호들
+    let n = -1;
+    const one = svg.replace(/<path\b/g, () => { n++; return keep.includes(n) ? '<path' : '<path display="none"'; })
+                   .replace('<svg ', `<svg width="${px}" height="${px}" `);
+    const url = URL.createObjectURL(new Blob([one], { type:'image/svg+xml' }));
+    const img = new Image();
+    await new Promise((ok,no)=>{ img.onload=ok; img.onerror=no; img.src=url; });
+    const cv = document.createElement('canvas'); cv.width=px; cv.height=px;
+    const ctx = cv.getContext('2d', { willReadFrequently:true });
+    ctx.drawImage(img, 0, 0, px, px);
+    const d = ctx.getImageData(0,0,px,px).data, m = [];
+    for (let i=0;i<px*px;i++) m.push(d[i*4+3] > 128 ? 1 : 0);
+    return m;
+  };
+  return { navy: await shot([0]), green: await shot([1,2]) };
+}, { svg: LOGO, px: lgPx });
+const lgNavy = Uint8Array.from(logoMask.navy), lgGreen = Uint8Array.from(logoMask.green);
+
+/* 커버 평면좌표 → 로고 색 (0 없음 / 1 남색 / 2 초록).
+   로고면도 베드에 닿으므로 X 를 뒤집는다. */
+const lgX1 = (ow + M.logoSize)/2, lgY1 = (oh + M.logoSize)/2;
+function logoAt(x, y) {
+  const c = Math.floor((lgX1 - x) / R), r = Math.floor((lgY1 - y) / R);
+  if (c<0 || r<0 || c>=lgPx || r>=lgPx) return 0;
+  const i = r*lgPx + c;
+  return lgNavy[i] ? 1 : (lgGreen[i] ? 2 : 0);
+}
+
 await browser.close();
 
 /* 라벨 실루엣 = 테두리에서 흘려넣은 흰색을 뺀 나머지 (둥근 모서리 바깥 제외) */
@@ -115,8 +153,8 @@ const labIn = new Uint8Array(labCols*labRows).fill(1);
   }
 }
 
-/* 커버 평면좌표 (x,y) → 라벨 픽셀. 라벨면이 베드에 닿으므로 X 를 뒤집어야
-   완성품을 위에서 봤을 때 바로 읽힌다. 범위 밖이면 -1 */
+/* 셸 평면좌표 (x,y) → 라벨 픽셀. 바닥 바깥면이 베드에 닿으므로 X 를 뒤집어야
+   케이스를 뒤집어 봤을 때 바로 읽힌다. 범위 밖이면 -1 */
 function labAt(x, y) {
   const pc = Math.floor((y - labY0) / R);
   const pr = Math.floor((labX1 - x) / R);
@@ -126,7 +164,7 @@ function labAt(x, y) {
 }
 
 /* ---------- 하부 셸 (바닥을 베드에 놓고 그대로 출력) ---------- */
-function buildShell(clipY) {
+function buildShell(clipY, withLabel = true) {
   const H = clipY || oh;
   const g = newSolid(ow, H, R);
   const { cols, rows } = g;
@@ -164,16 +202,23 @@ function buildShell(clipY) {
       cutSpan(g, r*cols+c, pz0 - e, pz1 + e);
     }
   }
+  /* 바닥 바깥면에서 라벨 두께만큼 걷어낸다 — 그 자리를 색 파트가 채운다 */
+  if (withLabel)
+    for (let r=0;r<rows;r++) {
+      const y = (rows-1-r+0.5)*R;
+      for (let c=0;c<cols;c++)
+        if (labAt((c+0.5)*R, y) >= 0) cutSpan(g, r*cols+c, 0, M.labelT);
+    }
   return g;
 }
 
 /* ---------- 커버 (라벨면을 베드에 깔고 뒤집어 출력) ----------
    출력 좌표 z = 조립 좌표를 뒤집은 것:  z_print = total - z_assy
-   판  : z 0 ~ capT      (z 0~labelT 가 라벨 색)
+   판  : z 0 ~ capT      (z 0~logoT 가 로고 색)
    립  : z capT ~ capT+rimH
    비드: 립 바깥면에 붙는다 */
 const P = z => total - z;                                  // 조립 z → 출력 z
-function buildCap(withLabel = true) {
+function buildCap() {
   const g = newSolid(ow, oh, R);
   const { cols, rows } = g;
   const rimR = M.corner - M.wall + bore - M.rimFit;
@@ -210,15 +255,15 @@ function buildCap(withLabel = true) {
           if (zTop > bZ0) addSpan(g, i, bZ0, zTop);
         }
       }
-      /* 라벨 상감 자리를 판 윗면(=베드면)에서 걷어낸다 */
-      if (withLabel && labAt(x, y) >= 0) cutSpan(g, i, 0, M.labelT);
+      /* 로고 상감 자리를 베드면에서 걷어낸다 */
+      if (logoAt(x, y)) cutSpan(g, i, 0, M.logoT);
     }
   }
   return g;
 }
 
-/* ---------- 라벨 색 파트 (커버가 비워둔 자리를 정확히 메운다) ---------- */
-function buildInk(color) {
+/* ---------- 색 파트 (몸체가 비워둔 자리를 정확히 메운다) ---------- */
+function buildInk(color) {                                 // 셸 바닥 라벨
   const g = newSolid(ow, oh, R);
   const { cols, rows } = g;
   for (let r=0;r<rows;r++) {
@@ -232,54 +277,81 @@ function buildInk(color) {
   return g;
 }
 
+function buildLogoInk(color) {                             // 커버 로고
+  const g = newSolid(ow, oh, R);
+  const { cols, rows } = g;
+  for (let r=0;r<rows;r++) {
+    const y = (rows-1-r+0.5)*R;
+    for (let c=0;c<cols;c++) {
+      const x = (c+0.5)*R;
+      if (logoAt(x, y) === color && inRR(x, y, ow, oh, M.corner))
+        addSpan(g, r*cols+c, 0, M.logoT);
+    }
+  }
+  return g;
+}
+
 const shell = buildShell();
 const cap   = buildCap();
 const inks  = [1,2,3].map(buildInk);                       // 노랑 / 검정 / 빨강
-const test  = buildShell(30);                              // 포트 주변 30mm 만
+const lgs   = [1,2].map(buildLogoInk);                     // 남색 / 초록
+const test  = buildShell(30, false);                       // 포트 주변 30mm 만 (라벨 제외)
 
 const Ps = new Float32Array(meshOf(shell));
 const Pc = new Float32Array(meshOf(cap));
 const Pi = inks.map(g => new Float32Array(meshOf(g)));
+const Pg = lgs.map(g => new Float32Array(meshOf(g)));
 const Pt = new Float32Array(meshOf(test));
 const INK = ['노랑','검정','빨강'];
 
 fs.writeFileSync(path.join(OUT,'qi_shell.stl'), toSTL(Ps,'shell'));
 fs.writeFileSync(path.join(OUT,'qi_cap.stl'),   toSTL(Pc,'cap'));
 fs.writeFileSync(path.join(OUT,'qi_porttest.stl'), toSTL(Pt,'port test'));
-write3mf(path.join(OUT,'qi_shell.3mf'), [{ name:'케이스 몸체', mesh: Ps }],
-         '(주)우주특수산업 무선충전 케이스 — 하부');
-write3mf(path.join(OUT,'qi_cap.3mf'), [
-  { name:'1 커버 몸체 (흰색)',      mesh: Pc },
+write3mf(path.join(OUT,'qi_shell.3mf'), [
+  { name:'1 케이스 몸체 (흰색)',    mesh: Ps },
   { name:'2 라벨 노란 띠 (노랑)',   mesh: Pi[0] },
   { name:'3 라벨 그림·글자 (검정)', mesh: Pi[1] },
   { name:'4 라벨 금지표시 (빨강)',  mesh: Pi[2] },
+], '(주)우주특수산업 무선충전 케이스 — 하부');
+write3mf(path.join(OUT,'qi_cap.3mf'), [
+  { name:'1 커버 몸체 (흰색)',   mesh: Pc },
+  { name:'2 로고 상부 (남색)',   mesh: Pg[0] },
+  { name:'3 로고 하부 (초록)',   mesh: Pg[1] },
 ], '(주)우주특수산업 무선충전 케이스 — 커버');
 
-/* ---------- 완성품을 위에서 본 그림 (거울 방향 확인용) ---------- */
+/* ---------- 거울 방향 확인용 그림 두 장 ----------
+   bottom = 케이스를 뒤집어 본 모습 · top = 위에서 본 커버 */
 {
   const cols = Math.round(ow/R), rows = Math.round(oh/R);
   const PAL = [[255,255,255],[255,230,0],[34,31,31],[237,33,35]];
-  const buf = Buffer.alloc(cols*rows*3, 0xf2);
-  for (let r=0;r<rows;r++) {
-    const y = (rows-1-r+0.5)*R;
-    for (let c=0;c<cols;c++) {
-      const xp = ow - (c+0.5)*R;                            // 위에서 본 시점 = 출력 평면의 X 반전
-      if (!inRR(xp, y, ow, oh, M.corner)) continue;
-      const i = labAt(xp, y);
-      const col = i >= 0 ? PAL[labIdx[i]] : [244,244,246];
-      const o = (r*cols+c)*3; buf[o]=col[0]; buf[o+1]=col[1]; buf[o+2]=col[2];
+  const LG  = { 1:[28,46,92], 2:[0,140,90] };
+  const draw = mode => {
+    const buf = Buffer.alloc(cols*rows*3, 0xf2);
+    for (let r=0;r<rows;r++) {
+      const y = (rows-1-r+0.5)*R;
+      for (let c=0;c<cols;c++) {
+        const xp = ow - (c+0.5)*R;                     // 바라보는 시점 = 출력 평면의 X 반전
+        if (!inRR(xp, y, ow, oh, M.corner)) continue;
+        let col = [244,244,246];
+        if (mode === 'label') { const i = labAt(xp, y); if (i >= 0) col = PAL[labIdx[i]]; }
+        else { const k = logoAt(xp, y); if (k) col = LG[k]; }
+        const o = (r*cols+c)*3; buf[o]=col[0]; buf[o+1]=col[1]; buf[o+2]=col[2];
+      }
     }
-  }
+    return buf;
+  };
   const b = await chromium.launch(); const pg = await b.newPage();
-  const d = await pg.evaluate(({ raw, w, h }) => {
-    const cv = document.createElement('canvas'); cv.width=w; cv.height=h;
-    const ctx = cv.getContext('2d'); const im = ctx.createImageData(w,h);
-    for (let i=0;i<w*h;i++){ im.data[i*4]=raw[i*3]; im.data[i*4+1]=raw[i*3+1];
-      im.data[i*4+2]=raw[i*3+2]; im.data[i*4+3]=255; }
-    ctx.putImageData(im,0,0); return cv.toDataURL('image/png').split(',')[1];
-  }, { raw: Array.from(buf), w: cols, h: rows });
+  for (const [mode, file] of [['label','preview_bottom.png'], ['logo','preview_top.png']]) {
+    const d = await pg.evaluate(({ raw, w, h }) => {
+      const cv = document.createElement('canvas'); cv.width=w; cv.height=h;
+      const ctx = cv.getContext('2d'); const im = ctx.createImageData(w,h);
+      for (let i=0;i<w*h;i++){ im.data[i*4]=raw[i*3]; im.data[i*4+1]=raw[i*3+1];
+        im.data[i*4+2]=raw[i*3+2]; im.data[i*4+3]=255; }
+      ctx.putImageData(im,0,0); return cv.toDataURL('image/png').split(',')[1];
+    }, { raw: Array.from(draw(mode)), w: cols, h: rows });
+    fs.writeFileSync(path.join(OUT, file), Buffer.from(d,'base64'));
+  }
   await b.close();
-  fs.writeFileSync(path.join(OUT,'preview_top.png'), Buffer.from(d,'base64'));
 }
 
 console.log('케이스 외형   ', `${ow.toFixed(1)} × ${oh.toFixed(1)} × ${total.toFixed(1)} mm`);
@@ -292,12 +364,15 @@ console.log('              ', `물리는 높이 ${beadZ0.toFixed(1)}~${beadZ1.to
             `· 모서리 ${M.beadCorner}mm 는 비드 없음(휘라고)`);
 console.log('USB-C 개구    ', `가로 ${M.portW} × 세로 ${M.portH} · 좌우중심 ${M.portX>=0?'+':''}${M.portX}`,
             `· 바닥 안쪽면에서 ${M.portZ}~${(M.portZ+M.portH).toFixed(1)}mm · 바깥 챔퍼 +${M.portCh}mm`);
-console.log('윗면 라벨     ', `${labXext.toFixed(1)} × ${labYext.toFixed(1)} mm`,
+console.log('바닥 라벨     ', `${labXext.toFixed(1)} × ${labYext.toFixed(1)} mm`,
             `(원본 ${LAB_W}×${LAB_H} 대비 ${(kx*100).toFixed(1)}% / ${(ky*100).toFixed(1)}%)`,
             `· 상감 ${M.labelT}mm`);
+console.log('커버 로고     ', `${M.logoSize}mm · 2색 상감 ${M.logoT}mm`);
 
+const LGN = ['남색','초록'];
 const all = [['셸',Ps,shell], ['커버',Pc,cap],
-             ...Pi.map((p,i)=>[`라벨 ${INK[i]}`,p,inks[i]]), ['시험',Pt,test]];
+             ...Pi.map((p,i)=>[`라벨 ${INK[i]}`,p,inks[i]]),
+             ...Pg.map((p,i)=>[`로고 ${LGN[i]}`,p,lgs[i]]), ['시험',Pt,test]];
 for (const [n,p,g] of all) console.log(n.padEnd(9), JSON.stringify(audit(p,g)));
 const ok = all.every(([,p,g]) => { const a = audit(p,g);
   return a.relErr < 1e-6 && a.normSum < 1e-5 && a.z0 === 0; });
